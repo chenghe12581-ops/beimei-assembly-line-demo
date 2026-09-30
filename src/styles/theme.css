@@ -1,0 +1,822 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --font-family-ui: "Source Han Sans SC", "Source Han Sans CN", "Noto Sans CJK SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  --background: #ffffff;
+  --foreground: oklch(0.145 0 0);
+  --card: #ffffff;
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #030213;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.0058 264.53);
+  --secondary-foreground: #030213;
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+  --accent: #e9ebef;
+  --accent-foreground: #030213;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #030213;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Design System semantic tokens. Phase 2 adds the CSS variable bridge only; existing UI classes remain unchanged. */
+  --ds-color-bg-page: #f8fafc;
+  --ds-color-bg-surface: #ffffff;
+  --ds-color-bg-process-planning-panel: rgba(255, 255, 255, 0.82);
+  --ds-color-bg-process-planning-toolbar: rgba(255, 255, 255, 0.72);
+  --ds-color-bg-process-planning-tree-group: rgba(244, 244, 245, 0.70);
+  --ds-color-bg-process-planning-tree-group-hover: rgba(228, 228, 231, 0.50);
+  --ds-color-bg-process-planning-task-surface: rgba(255, 255, 255, 0.82);
+  --ds-color-bg-process-planning-task-detail: rgba(244, 244, 245, 0.55);
+  --ds-color-bg-process-planning-separator: rgba(212, 212, 216, 0.70);
+  --ds-color-bg-production-list: #f8fafc;
+  --ds-color-bg-production-list-header: #ffffff;
+  --ds-color-bg-production-process-task: rgba(255, 255, 255, 0.56);
+  --ds-color-bg-control-neutral: #f4f4f5;
+  --ds-color-bg-control-disabled: var(--ds-color-bg-control-neutral);
+  --ds-color-bg-segmented: var(--ds-color-bg-control-neutral);
+  --ds-color-bg-subtle: #f1f5f9;
+  --ds-color-bg-muted: #e2e8f0;
+  --ds-color-bg-slider-track: #e4e4e7;
+  --ds-color-bg-viewport: #e4e4e4;
+  --ds-color-bg-glass: rgba(255, 255, 255, 0.72);
+  --ds-color-bg-glass-modal: rgba(255, 255, 255, 0.75);
+  --ds-color-bg-glass-modal-sidebar: rgba(255, 255, 255, 0.45);
+  --ds-color-bg-glass-float: rgba(255, 255, 255, 0.80);
+  --ds-color-bg-production-execution-toolbar: rgba(255, 255, 255, 0.36);
+  --ds-color-bg-sticky-overlap: rgba(250, 250, 250, 0.50);
+  --ds-color-bg-tree-group-header: #ffffff;
+  --ds-color-bg-tree-group-body: #f8fafc;
+  --ds-color-text-primary: #0f172a;
+  --ds-color-text-secondary: #334155;
+  --ds-color-text-muted: #64748b;
+  --ds-color-text-disabled: #a1a1aa;
+  --ds-color-text-structure-hidden: #d4d4d8;
+  --ds-color-text-parameter-label: #52525b;
+  --ds-color-icon-drag-handle: #d4d4d8;
+  --ds-color-text-control: #3f3f46;
+  --ds-color-text-control-strong: #18181b;
+  --ds-color-text-control-muted: #71717a;
+  --ds-color-text-control-disabled: #a1a1aa;
+  --ds-color-text-part-object: rgba(100, 116, 139, 0.80);
+  --ds-color-text-slider-tick: #a1a1aa;
+  --ds-color-text-inverse: #ffffff;
+  --ds-color-border-subtle: #f4f4f5;
+  --ds-color-border-default: #e4e4e7;
+  --ds-color-border-strong: #d4d4d8;
+  --ds-color-border-slider-tick: #d4d4d8;
+  --ds-color-border-focus: #ffd591;
+  --ds-color-border-glass: rgba(255, 255, 255, 0.68);
+  --ds-color-border-process-planning-structure: rgba(228, 228, 231, 0.80);
+  --ds-color-border-production-list: rgba(228, 228, 231, 0.80);
+  --ds-color-border-tree-divider: rgba(228, 228, 231, 0.75);
+  --ds-color-brand-primary: #ff6900;
+  --ds-color-brand-primary-hover: #e85d00;
+  --ds-color-brand-primary-subtle: #fff7ed;
+  --ds-color-brand-primary-text: #c2410c;
+  --ds-color-status-danger: #ef4444;
+  --ds-color-status-danger-text: #b91c1c;
+  --ds-color-status-danger-subtle: #fef2f2;
+  --ds-color-status-warning: #f59e0b;
+  --ds-color-status-warning-text: #b45309;
+  --ds-color-status-warning-subtle: #fffbeb;
+  --ds-color-status-success: #10b981;
+  --ds-color-status-success-text: #047857;
+  --ds-color-status-success-subtle: #ecfdf5;
+  --ds-color-status-info: #3b82f6;
+  --ds-color-status-info-subtle: #eff6ff;
+  --ds-color-feature-grind: #0d9488;
+  --ds-color-feature-weld: #dc2626;
+  --ds-color-feature-datum: #2563eb;
+  --ds-space-0: 0px;
+  --ds-space-025: 2px;
+  --ds-space-050: 4px;
+  --ds-space-075: 6px;
+  --ds-space-label-input-mini: var(--ds-space-050);
+  --ds-space-label-input-compact: var(--ds-space-100);
+  --ds-space-100: 8px;
+  --ds-space-task-parameter-detail-top: var(--ds-space-100);
+  --ds-space-parameter-group-inner: var(--ds-space-150);
+  --ds-space-parameter-group-between: var(--ds-space-200);
+  --ds-space-parameter-category-between: 36px;
+  --ds-space-tree-icon-title-gap: var(--ds-space-100);
+  --ds-space-tree-icon-title-gap-offset: calc(var(--ds-space-tree-icon-title-gap) - var(--ds-space-050));
+  --ds-space-150: 12px;
+  --ds-space-200: 16px;
+  --ds-space-250: 20px;
+  --ds-space-300: 24px;
+  --ds-space-400: 32px;
+  --ds-space-500: 40px;
+  --ds-space-600: 48px;
+  --ds-space-800: 64px;
+  --ds-space-1000: 80px;
+  --ds-radius-none: 0px;
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 6px;
+  --ds-radius-lg: 8px;
+  --ds-radius-xl: 12px;
+  --ds-radius-2xl: 16px;
+  --ds-radius-full: 9999px;
+  --ds-font-size-page-title: 16px;
+  --ds-line-height-page-title: 24px;
+  --ds-font-weight-page-title: 600;
+  --ds-font-size-panel-title: 14px;
+  --ds-line-height-panel-title: 20px;
+  --ds-font-weight-panel-title: 600;
+  --ds-font-size-section-title: 14px;
+  --ds-line-height-section-title: 20px;
+  --ds-font-weight-section-title: 500;
+  --ds-font-size-body: 14px;
+  --ds-line-height-body: 20px;
+  --ds-font-weight-body: 400;
+  --ds-font-size-label: 12px;
+  --ds-line-height-label: 16px;
+  --ds-font-weight-label: 500;
+  --ds-font-size-toolbar-action: 12px;
+  --ds-line-height-toolbar-action: 16px;
+  --ds-font-weight-toolbar-action: 400;
+  --ds-font-size-production-process-task: 12px;
+  --ds-line-height-production-process-task: 16px;
+  --ds-font-weight-production-process-task: 500;
+  --ds-font-size-helper: 11px;
+  --ds-line-height-helper: 16px;
+  --ds-font-weight-helper: 400;
+  --ds-font-size-tooltip: 12px;
+  --ds-line-height-tooltip: 16px;
+  --ds-font-weight-tooltip: 300;
+  --ds-font-size-micro: 10px;
+  --ds-line-height-micro: 14px;
+  --ds-font-weight-micro: 500;
+  --ds-font-size-input-sm: 12px;
+  --ds-line-height-input-sm: 16px;
+  --ds-font-size-input-md: 14px;
+  --ds-line-height-input-md: 20px;
+  --ds-height-control-xs: 24px;
+  --ds-height-control-sm: 28px;
+  --ds-height-control-md: 32px;
+  --ds-height-control-lg: 36px;
+  --ds-height-control-xl: 40px;
+  --ds-shadow-none: none;
+  --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ds-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --ds-shadow-overlay: 0 20px 60px rgba(15, 23, 42, 0.18);
+  --ds-shadow-main-nav: 0 8px 24px rgba(15, 23, 42, 0.07);
+  --ds-shadow-main-nav-immersive: 0px 2px 8px 0px rgba(0, 0, 0, 0.12);
+  --ds-shadow-process-toolbar: none;
+  --ds-shadow-main-nav-active: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --ds-shadow-selected: 0 0 0 4px rgba(250, 140, 22, 0.05), 0 0 12px rgba(250, 140, 22, 0.10);
+  --ds-shadow-scroll-edge-bottom: inset 0 -2px 3px -1px rgba(0, 0, 0, 0.04);
+  --ds-shadow-footer-up: none;
+  --ds-shadow-sticky-overlap: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --ds-blur-sticky-overlap: 24px;
+  --ds-stroke-default: 1px;
+  --ds-stroke-strong: 2px;
+  --ds-duration-fast: 100ms;
+  --ds-duration-normal: 200ms;
+  --ds-easing-standard: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ds-easing-emphasized: cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Design System Tailwind v4 bridge. These expose semantic utilities such as bg-ds-bg-page, text-ds-text-primary, border-ds-border-default, rounded-ds-lg. */
+  --color-ds-bg-page: var(--ds-color-bg-page);
+  --color-ds-bg-surface: var(--ds-color-bg-surface);
+  --color-ds-bg-process-planning-panel: var(--ds-color-bg-process-planning-panel);
+  --color-ds-bg-process-planning-toolbar: var(--ds-color-bg-process-planning-toolbar);
+  --color-ds-bg-process-planning-tree-group: var(--ds-color-bg-process-planning-tree-group);
+  --color-ds-bg-process-planning-tree-group-hover: var(--ds-color-bg-process-planning-tree-group-hover);
+  --color-ds-bg-process-planning-task-surface: var(--ds-color-bg-process-planning-task-surface);
+  --color-ds-bg-process-planning-task-detail: var(--ds-color-bg-process-planning-task-detail);
+  --color-ds-bg-process-planning-separator: var(--ds-color-bg-process-planning-separator);
+  --color-ds-bg-production-list: var(--ds-color-bg-production-list);
+  --color-ds-bg-production-list-header: var(--ds-color-bg-production-list-header);
+  --color-ds-bg-production-process-task: var(--ds-color-bg-production-process-task);
+  --color-ds-bg-control-neutral: var(--ds-color-bg-control-neutral);
+  --color-ds-bg-control-disabled: var(--ds-color-bg-control-disabled);
+  --color-ds-bg-segmented: var(--ds-color-bg-segmented);
+  --color-ds-bg-subtle: var(--ds-color-bg-subtle);
+  --color-ds-bg-muted: var(--ds-color-bg-muted);
+  --color-ds-bg-slider-track: var(--ds-color-bg-slider-track);
+  --color-ds-bg-viewport: var(--ds-color-bg-viewport);
+  --color-ds-bg-glass: var(--ds-color-bg-glass);
+  --color-ds-bg-glass-modal: var(--ds-color-bg-glass-modal);
+  --color-ds-bg-glass-modal-sidebar: var(--ds-color-bg-glass-modal-sidebar);
+  --color-ds-bg-glass-float: var(--ds-color-bg-glass-float);
+  --color-ds-bg-production-execution-toolbar: var(--ds-color-bg-production-execution-toolbar);
+  --color-ds-bg-sticky-overlap: var(--ds-color-bg-sticky-overlap);
+  --color-ds-bg-tree-group-header: var(--ds-color-bg-tree-group-header);
+  --color-ds-bg-tree-group-body: var(--ds-color-bg-tree-group-body);
+  --color-ds-text-primary: var(--ds-color-text-primary);
+  --color-ds-text-secondary: var(--ds-color-text-secondary);
+  --color-ds-text-muted: var(--ds-color-text-muted);
+  --color-ds-text-disabled: var(--ds-color-text-disabled);
+  --color-ds-text-structure-hidden: var(--ds-color-text-structure-hidden);
+  --color-ds-text-parameter-label: var(--ds-color-text-parameter-label);
+  --color-ds-icon-drag-handle: var(--ds-color-icon-drag-handle);
+  --color-ds-text-control: var(--ds-color-text-control);
+  --color-ds-text-control-strong: var(--ds-color-text-control-strong);
+  --color-ds-text-control-muted: var(--ds-color-text-control-muted);
+  --color-ds-text-control-disabled: var(--ds-color-text-control-disabled);
+  --color-ds-text-part-object: var(--ds-color-text-part-object);
+  --color-ds-text-slider-tick: var(--ds-color-text-slider-tick);
+  --color-ds-text-inverse: var(--ds-color-text-inverse);
+  --color-ds-border-subtle: var(--ds-color-border-subtle);
+  --color-ds-border-default: var(--ds-color-border-default);
+  --color-ds-border-strong: var(--ds-color-border-strong);
+  --color-ds-border-slider-tick: var(--ds-color-border-slider-tick);
+  --color-ds-border-focus: var(--ds-color-border-focus);
+  --color-ds-border-glass: var(--ds-color-border-glass);
+  --color-ds-border-process-planning-structure: var(--ds-color-border-process-planning-structure);
+  --color-ds-border-production-list: var(--ds-color-border-production-list);
+  --color-ds-border-tree-divider: var(--ds-color-border-tree-divider);
+  --color-ds-brand-primary: var(--ds-color-brand-primary);
+  --color-ds-brand-primary-hover: var(--ds-color-brand-primary-hover);
+  --color-ds-brand-primary-subtle: var(--ds-color-brand-primary-subtle);
+  --color-ds-brand-primary-text: var(--ds-color-brand-primary-text);
+  --color-ds-status-danger: var(--ds-color-status-danger);
+  --color-ds-status-danger-text: var(--ds-color-status-danger-text);
+  --color-ds-status-danger-subtle: var(--ds-color-status-danger-subtle);
+  --color-ds-status-warning: var(--ds-color-status-warning);
+  --color-ds-status-warning-text: var(--ds-color-status-warning-text);
+  --color-ds-status-warning-subtle: var(--ds-color-status-warning-subtle);
+  --color-ds-status-success: var(--ds-color-status-success);
+  --color-ds-status-success-text: var(--ds-color-status-success-text);
+  --color-ds-status-success-subtle: var(--ds-color-status-success-subtle);
+  --color-ds-status-info: var(--ds-color-status-info);
+  --color-ds-status-info-subtle: var(--ds-color-status-info-subtle);
+  --color-ds-feature-grind: var(--ds-color-feature-grind);
+  --color-ds-feature-weld: var(--ds-color-feature-weld);
+  --color-ds-feature-datum: var(--ds-color-feature-datum);
+  --spacing-ds-0: var(--ds-space-0);
+  --spacing-ds-025: var(--ds-space-025);
+  --spacing-ds-050: var(--ds-space-050);
+  --spacing-ds-075: var(--ds-space-075);
+  --spacing-ds-label-input-mini: var(--ds-space-label-input-mini);
+  --spacing-ds-100: var(--ds-space-100);
+  --spacing-ds-tree-icon-title-gap: var(--ds-space-tree-icon-title-gap);
+  --spacing-ds-tree-icon-title-gap-offset: var(--ds-space-tree-icon-title-gap-offset);
+  --spacing-ds-150: var(--ds-space-150);
+  --spacing-ds-200: var(--ds-space-200);
+  --spacing-ds-250: var(--ds-space-250);
+  --spacing-ds-300: var(--ds-space-300);
+  --spacing-ds-400: var(--ds-space-400);
+  --spacing-ds-500: var(--ds-space-500);
+  --spacing-ds-600: var(--ds-space-600);
+  --spacing-ds-800: var(--ds-space-800);
+  --spacing-ds-1000: var(--ds-space-1000);
+  --radius-ds-none: var(--ds-radius-none);
+  --radius-ds-sm: var(--ds-radius-sm);
+  --radius-ds-md: var(--ds-radius-md);
+  --radius-ds-lg: var(--ds-radius-lg);
+  --radius-ds-xl: var(--ds-radius-xl);
+  --radius-ds-2xl: var(--ds-radius-2xl);
+  --radius-ds-full: var(--ds-radius-full);
+  --text-ds-page-title: var(--ds-font-size-page-title);
+  --text-ds-page-title--line-height: var(--ds-line-height-page-title);
+  --text-ds-panel-title: var(--ds-font-size-panel-title);
+  --text-ds-panel-title--line-height: var(--ds-line-height-panel-title);
+  --text-ds-section-title: var(--ds-font-size-section-title);
+  --text-ds-section-title--line-height: var(--ds-line-height-section-title);
+  --text-ds-body: var(--ds-font-size-body);
+  --text-ds-body--line-height: var(--ds-line-height-body);
+  --text-ds-label: var(--ds-font-size-label);
+  --text-ds-label--line-height: var(--ds-line-height-label);
+  --text-ds-production-process-task: var(--ds-font-size-production-process-task);
+  --text-ds-production-process-task--line-height: var(--ds-line-height-production-process-task);
+  --text-ds-helper: var(--ds-font-size-helper);
+  --text-ds-helper--line-height: var(--ds-line-height-helper);
+  --text-ds-tooltip: var(--ds-font-size-tooltip);
+  --text-ds-tooltip--line-height: var(--ds-line-height-tooltip);
+  --text-ds-micro: var(--ds-font-size-micro);
+  --text-ds-micro--line-height: var(--ds-line-height-micro);
+  --text-ds-input-sm: var(--ds-font-size-input-sm);
+  --text-ds-input-sm--line-height: var(--ds-line-height-input-sm);
+  --text-ds-input-md: var(--ds-font-size-input-md);
+  --text-ds-input-md--line-height: var(--ds-line-height-input-md);
+  --spacing-ds-control-xs: var(--ds-height-control-xs);
+  --spacing-ds-control-sm: var(--ds-height-control-sm);
+  --spacing-ds-control-md: var(--ds-height-control-md);
+  --spacing-ds-control-lg: var(--ds-height-control-lg);
+  --spacing-ds-control-xl: var(--ds-height-control-xl);
+  --shadow-ds-none: var(--ds-shadow-none);
+  --shadow-ds-sm: var(--ds-shadow-sm);
+  --shadow-ds-md: var(--ds-shadow-md);
+  --shadow-ds-overlay: var(--ds-shadow-overlay);
+  --shadow-ds-main-nav: var(--ds-shadow-main-nav);
+  --shadow-ds-main-nav-immersive: var(--ds-shadow-main-nav-immersive);
+  --shadow-ds-process-toolbar: var(--ds-shadow-process-toolbar);
+  --shadow-ds-main-nav-active: var(--ds-shadow-main-nav-active);
+  --shadow-ds-scroll-edge-bottom: var(--ds-shadow-scroll-edge-bottom);
+  --shadow-ds-footer-up: var(--ds-shadow-footer-up);
+  --shadow-ds-sticky-overlap: var(--ds-shadow-sticky-overlap);
+  --shadow-selected: var(--ds-shadow-selected);
+  --blur-ds-sticky-overlap: var(--ds-blur-sticky-overlap);
+  --ease-ds-standard: var(--ds-easing-standard);
+  --ease-ds-emphasized: var(--ds-easing-emphasized);
+}
+
+@layer components {
+  .ds-tree-icon-title-gap {
+    margin-left: var(--ds-space-tree-icon-title-gap-offset);
+  }
+
+  .ds-main-nav {
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.68);
+    box-shadow: var(--ds-shadow-main-nav);
+    backdrop-filter: blur(12px);
+  }
+
+  .ds-main-nav-immersive {
+    box-shadow: var(--ds-shadow-main-nav-immersive);
+  }
+
+  .ds-process-toolbar {
+    box-shadow: var(--ds-shadow-process-toolbar);
+  }
+
+  .ds-main-nav-tabs {
+    background: rgba(228, 228, 231, 0.72);
+    box-shadow: inset 0 1px 2px rgba(39, 39, 42, 0.08);
+  }
+
+  .ds-main-nav-tab-active {
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 0.5rem;
+    box-shadow: var(--ds-shadow-main-nav-active);
+    backdrop-filter: blur(16px);
+  }
+
+  .ds-parameter-card {
+    border-radius: var(--ds-radius-xl);
+    background: rgba(252, 252, 252, 0.85);
+    padding: var(--ds-space-200);
+    box-shadow: none;
+  }
+
+  .ds-parameter-card-sm {
+    padding: var(--ds-space-100);
+  }
+
+  .ds-parameter-card-inset {
+    padding: var(--ds-space-200);
+  }
+
+  .ds-parameter-card-inset-sm {
+    padding: var(--ds-space-100) var(--ds-space-200);
+  }
+
+  .ds-parameter-card-surface {
+    border-radius: var(--ds-radius-xl);
+    background: rgba(241, 245, 249, 0.64);
+    padding: var(--ds-space-150);
+    box-shadow: none;
+  }
+
+  .ds-parameter-content {
+    padding-top: var(--ds-space-150);
+  }
+
+  .ds-parameter-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-150);
+  }
+
+  .ds-parameter-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-075);
+  }
+
+  .ds-label-input-compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-label-input-compact);
+  }
+
+  .ds-label-input-compact-label {
+    font-size: var(--ds-font-size-label);
+    line-height: var(--ds-line-height-label);
+    font-weight: var(--ds-font-weight-normal);
+    color: var(--ds-color-text-parameter-label);
+  }
+
+  .ds-task-parameter-detail-top {
+    padding-top: var(--ds-space-task-parameter-detail-top);
+  }
+
+  .ds-parameter-group-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-parameter-group-between);
+  }
+
+  .ds-parameter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-parameter-group-inner);
+  }
+
+  .ds-parameter-category-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-parameter-category-between);
+  }
+
+  .ds-label-input-mini {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-label-input-mini);
+  }
+
+  .ds-label-input-mini-label {
+    font-size: var(--ds-font-size-helper);
+    line-height: var(--ds-line-height-helper);
+    font-weight: var(--ds-font-weight-normal);
+    color: var(--ds-color-text-parameter-label);
+  }
+
+  /* title-content gap: parameter card title to its primary control/content. */
+  .ds-parameter-card-title-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-200);
+  }
+
+  .ds-parameter-label {
+    font-size: var(--ds-font-size-label);
+    line-height: var(--ds-line-height-label);
+    font-weight: var(--ds-font-weight-normal);
+    color: var(--ds-color-text-parameter-label);
+  }
+
+  .ds-process-toolbar-action {
+    font-size: var(--ds-font-size-toolbar-action);
+    line-height: var(--ds-line-height-toolbar-action);
+    font-weight: var(--ds-font-weight-toolbar-action);
+  }
+
+  .ds-process-toolbar-action > svg {
+    color: currentColor;
+    opacity: 1;
+    transition: color 160ms ease, opacity 160ms ease;
+  }
+
+  .ds-process-toolbar-action:hover > svg,
+  .ds-process-toolbar-action:focus-visible > svg,
+  .ds-process-toolbar-action[data-active='true'] > svg {
+    color: currentColor;
+    opacity: 1;
+  }
+
+  .ds-process-index {
+    position: relative;
+    left: -2px;
+  }
+
+  .ds-process-title-text {
+    padding-bottom: 1px;
+  }
+
+  .ds-production-process-title {
+    font-size: var(--ds-font-size-production-process-task);
+    line-height: var(--ds-line-height-production-process-task);
+    font-weight: var(--ds-font-weight-production-process-task);
+  }
+
+  .ds-parameter-subfield-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-space-100);
+  }
+
+  .ds-switch-state-label {
+    font-size: var(--ds-font-size-helper);
+    line-height: var(--ds-line-height-helper);
+    font-weight: var(--ds-font-weight-helper);
+  }
+
+  .ds-switch-state-label-on {
+    color: var(--ds-color-brand-primary-text);
+  }
+
+  .ds-switch-state-label-off {
+    color: var(--ds-color-text-disabled);
+  }
+
+  .ds-glass-float-surface {
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: var(--ds-color-bg-glass-float);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .ds-glass-float-arrow {
+    border-color: rgba(255, 255, 255, 0.5);
+    background: var(--ds-color-bg-glass-float);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .ds-dropdown-surface {
+    border: 1px solid var(--ds-color-border-default);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .ds-dropdown-arrow {
+    border-color: var(--ds-color-border-default);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .capacity-statistics-date-picker.ant-picker {
+    border-color: var(--ds-color-border-default);
+    background: var(--ds-color-bg-surface);
+    box-shadow: none;
+  }
+
+  .capacity-statistics-date-picker.ant-picker:hover {
+    border-color: var(--ds-color-border-strong);
+  }
+
+  .capacity-statistics-date-picker.ant-picker-focused {
+    border-color: var(--ds-color-border-focus);
+    box-shadow: 0 0 0 2px rgba(255, 105, 0, 0.14);
+  }
+
+  .capacity-statistics-date-picker-popup.ant-picker-dropdown .ant-picker-panel-container {
+    overflow: hidden;
+    border: 1px solid var(--ds-color-border-default);
+    border-radius: var(--ds-radius-lg) !important;
+    background: var(--ds-color-bg-surface);
+    box-shadow: var(--ds-shadow-overlay) !important;
+  }
+
+  .capacity-statistics-date-picker-popup .ant-picker-header {
+    border-bottom-color: var(--ds-color-border-subtle);
+    padding: 8px 12px;
+  }
+
+  .capacity-statistics-date-picker-popup .ant-picker-content th {
+    color: var(--ds-color-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .ds-popover-glass-surface {
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    background: rgba(255, 255, 255, 0.74);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+    backdrop-filter: blur(22px) saturate(1.18);
+    -webkit-backdrop-filter: blur(22px) saturate(1.18);
+  }
+
+  .ds-popover-glass-arrow {
+    border-color: rgba(255, 255, 255, 0.62);
+    background: rgba(255, 255, 255, 0.74);
+    backdrop-filter: blur(22px) saturate(1.18);
+    -webkit-backdrop-filter: blur(22px) saturate(1.18);
+  }
+
+  .ds-scroll-edge-bottom {
+    pointer-events: none;
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 3px;
+    box-shadow: var(--ds-shadow-scroll-edge-bottom);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+    font-family: var(--font-family-ui);
+  }
+
+  body,
+  button,
+  input,
+  textarea,
+  select {
+    font-family: var(--font-family-ui);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
+
+@keyframes beimei-toolbar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes beimei-left-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-72px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes beimei-right-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(72px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.beimei-toolbar-enter {
+  animation: beimei-toolbar-enter 720ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+.beimei-left-panel-enter {
+  animation: beimei-left-panel-enter 800ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+.beimei-right-panel-enter {
+  animation: beimei-right-panel-enter 800ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+@keyframes work-order-name-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.work-order-name-marquee {
+  animation: work-order-name-marquee 8s linear infinite;
+}

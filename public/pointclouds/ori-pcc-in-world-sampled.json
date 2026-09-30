@@ -1,0 +1,19 @@
+{
+  "source": "Downloads/01120859-点云/oriPccInWrd.txt",
+  "sourcePointCount": 1140082,
+  "sampleStride": 8,
+  "pointCount": 142511,
+  "format": "float32-le-xyz",
+  "bounds": {
+    "min": [
+      324.72,
+      -1697.58,
+      -875.116
+    ],
+    "max": [
+      3376.12,
+      -25.828,
+      -108.16
+    ]
+  }
+}

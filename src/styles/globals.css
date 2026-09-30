@@ -1,0 +1,27 @@
+/* 全局异常 Alert 样式：确保自定义 warning 图标与 antd 默认 error 图标尺寸一致 */
+.global-alert-exception .ant-notification-notice-icon {
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+}
+
+.global-alert-exception .ant-notification-notice-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+/* Ant Design Tooltip is used by process planning and production execution. */
+.ant-tooltip,
+.ant-tooltip-container,
+.ant-tooltip-inner {
+  font-size: var(--ds-font-size-tooltip);
+  line-height: var(--ds-line-height-tooltip);
+  font-weight: var(--ds-font-weight-tooltip);
+}
+
+.ant-tooltip-container :where(*) {
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+}

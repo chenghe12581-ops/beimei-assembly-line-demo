@@ -1,0 +1,428 @@
+<?xml version="1.0"?>
+<robot name="beimeiji_sandajian_0623">
+    <link name="base_link"/>
+    <joint name="uuid_pingtai" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="uuid_pingtai_link"/>
+    </joint>
+    <link name="uuid_pingtai_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="tongse">
+                <color rgba="0.6863 0.4627 0.1020 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/beimeiji_sandajian/workshop.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/beimeiji_sandajian/workshop.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="uuid_left_joint" type="prismatic">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="uuid_pingtai_link"/>
+        <child link="uuid_left_carriage"/>
+        <axis xyz="0 1 0"/>
+        <limit effort="1.0" velocity="1.0" lower="0" upper="8"/>
+    </joint>
+    <link name="uuid_left_carriage">
+        <visual>
+            <material name="gudel_blue">
+                <color rgba="0.0706 0.133 0.8902 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/beimeiji_sandajian/left_slider.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/beimeiji_sandajian/left_slider.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="uuid_right_joint" type="prismatic">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="uuid_pingtai_link"/>
+        <child link="uuid_right_carriage"/>
+        <axis xyz="0 1 0"/>
+        <limit effort="1.0" velocity="1.0" lower="-8" upper="0"/>
+    </joint>
+    <link name="uuid_right_carriage">
+        <visual>
+            <material name="gudel_blue">
+                <color rgba="0.0706 0.133 0.8902 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/beimeiji_sandajian/right_slider.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/beimeiji_sandajian/right_slider.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="uuid_left_base_joint" type="fixed">
+        <origin xyz="3.068 0.670 3.500" rpy="3.1415 0 0"/>
+        <parent link="uuid_left_carriage"/>
+        <child link="left_manipulator_base_link"/>
+    </joint>
+    <joint name="uuid_right_base_joint" type="fixed">
+        <origin xyz="3.068 8.51 3.500" rpy="3.1415 0 0"/>
+        <parent link="uuid_right_carriage"/>
+        <child link="right_manipulator_base_link"/>
+    </joint>
+    <link name="left_manipulator_base_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_gray40">
+                <color rgba="0.4 0.4 0.4 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_2bad9a7652ea72a524fb79a6528ef793_manipulator_base_link.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_6018fcc669c89f3bf3ca0808f15778f4_manipulator_base_link.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_link_1">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_954185207d6a16c14cda4d7ed0936f73_manipulator_link_1.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_4ecd5cfdd6d3c85d974212cdf431d442_manipulator_link_1.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_link_2">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_ca3892622132fe858c26f16ef2e4fc3c_manipulator_link_2.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_6e8071e2119ff279945674a922a3063a_manipulator_link_2.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_link_3">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/zmj_weld/collision_link3_with_songsi.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/zmj_weld/collision_link3_with_songsi.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_link_4">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_64e6210463913615b8f166a3d24b45ee_manipulator_link_4.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_64e6210463913615b8f166a3d24b45ee_manipulator_link_4.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_link_5">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_09f65f82d8495c29b8739839d8b45a98_manipulator_link_5.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_5f7c84b8e7499769ece98b7b00a77175_manipulator_link_5.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_link_6">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_black">
+                <color rgba="0.14901960784313725 0.14901960784313725 0.14901960784313725 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_d2ee2d176bb64f5a7cdbb76c1d6c7146_manipulator_link_6.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_5daacccd6bbd62300bc66d19a4b915d1_manipulator_link_6.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="left_manipulator_base"/>
+    <link name="left_manipulator_tool0"/>
+    <joint name="left_manipulator_joint_1" type="revolute">
+        <origin xyz="0 0 0.14684" rpy="0 0 0"/>
+        <parent link="left_manipulator_base_link"/>
+        <child link="left_manipulator_link_1"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1.0" velocity="3.6651914291880923" lower="-2.96" upper="2.96"/>
+    </joint>
+    <joint name="left_manipulator_joint_2" type="revolute">
+        <origin xyz="0.075 0 0.27816" rpy="0 0 0"/>
+        <parent link="left_manipulator_link_1"/>
+        <child link="left_manipulator_link_2"/>
+        <axis xyz="0 1 0"/>
+        <limit effort="1.0" velocity="3.3161255787892263" lower="-1.74" upper="2.79"/>
+    </joint>
+    <joint name="left_manipulator_joint_3" type="revolute">
+        <origin xyz="0 0 0.84" rpy="0 0 0"/>
+        <parent link="left_manipulator_link_2"/>
+        <child link="left_manipulator_link_3"/>
+        <axis xyz="0 -1 0"/>
+         <limit effort="1.0" velocity="3.6651914291880923" lower="-3.3" upper="4.67"/>
+    </joint>
+    <joint name="left_manipulator_joint_4" type="revolute">
+        <origin xyz="0.29323 0 0.215" rpy="0 0 0"/>
+        <parent link="left_manipulator_link_3"/>
+        <child link="left_manipulator_link_4"/>
+        <axis xyz="-1 0 0"/>
+        <limit effort="1.0" velocity="5" lower="-3.47" upper="3.47"/>
+    </joint>
+    <joint name="left_manipulator_joint_5" type="revolute">
+        <origin xyz="0.59677 0 0" rpy="0 0 0"/>
+        <parent link="left_manipulator_link_4"/>
+        <child link="left_manipulator_link_5"/>
+        <axis xyz="0 -1 0"/>
+       <limit effort="1.0" velocity="6.981317007977318" lower="-1.86" upper="1.86"/>
+    </joint>
+    <joint name="left_manipulator_joint_6" type="revolute">
+        <origin xyz="0.09 0 0" rpy="0 0 0"/>
+        <parent link="left_manipulator_link_5"/>
+        <child link="left_manipulator_link_6"/>
+        <axis xyz="-1 0 0"/>
+        <limit effort="1.0" velocity="5" lower="-3.35" upper="3.35"/>
+    </joint>
+    <joint name="left_manipulator_base_link-base" type="fixed">
+        <origin xyz="0 0 0.425" rpy="0 0 0"/>
+        <parent link="left_manipulator_base_link"/>
+        <child link="left_manipulator_base"/>
+    </joint>
+    <joint name="left_manipulator_link_6-tool0" type="fixed">
+        <origin xyz="0 0 0" rpy="3.141592653589793 -1.5707963267948966 0"/>
+        <parent link="left_manipulator_link_6"/>
+        <child link="left_manipulator_tool0"/>
+    </joint>
+    <robot_type name="left_manipulator" value="fanuc_m20id_25"/>
+    <link name="right_manipulator_base_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_gray40">
+                <color rgba="0.4 0.4 0.4 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_2bad9a7652ea72a524fb79a6528ef793_manipulator_base_link.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_6018fcc669c89f3bf3ca0808f15778f4_manipulator_base_link.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_link_1">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_954185207d6a16c14cda4d7ed0936f73_manipulator_link_1.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_4ecd5cfdd6d3c85d974212cdf431d442_manipulator_link_1.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_link_2">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_ca3892622132fe858c26f16ef2e4fc3c_manipulator_link_2.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_6e8071e2119ff279945674a922a3063a_manipulator_link_2.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_link_3">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/zmj_weld/collision_link3_with_songsi.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://gitlab.roboticplus.com:2019/files/model/zmj_weld/collision_link3_with_songsi.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_link_4">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_64e6210463913615b8f166a3d24b45ee_manipulator_link_4.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_64e6210463913615b8f166a3d24b45ee_manipulator_link_4.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_link_5">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_yellow">
+                <color rgba="0.9568627450980393 0.7568627450980392 0.12941176470588237 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_09f65f82d8495c29b8739839d8b45a98_manipulator_link_5.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_5f7c84b8e7499769ece98b7b00a77175_manipulator_link_5.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_link_6">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <material name="fanuc_black">
+                <color rgba="0.14901960784313725 0.14901960784313725 0.14901960784313725 1"/>
+            </material>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_d2ee2d176bb64f5a7cdbb76c1d6c7146_manipulator_link_6.stl"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="http://192.168.122.81/minio/cloud-lib/ARM/mesh/141_5daacccd6bbd62300bc66d19a4b915d1_manipulator_link_6.stl"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="right_manipulator_base"/>
+    <link name="right_manipulator_tool0"/>
+    <joint name="right_manipulator_joint_1" type="revolute">
+        <origin xyz="0 0 0.14684" rpy="0 0 0"/>
+        <parent link="right_manipulator_base_link"/>
+        <child link="right_manipulator_link_1"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1.0" velocity="3.6651914291880923" lower="-2.96" upper="2.96"/>
+    </joint>
+    <joint name="right_manipulator_joint_2" type="revolute">
+        <origin xyz="0.075 0 0.27816" rpy="0 0 0"/>
+        <parent link="right_manipulator_link_1"/>
+        <child link="right_manipulator_link_2"/>
+        <axis xyz="0 1 0"/>
+        <limit effort="1.0" velocity="3.3161255787892263" lower="-1.74" upper="2.79"/>
+    </joint>
+    <joint name="right_manipulator_joint_3" type="revolute">
+        <origin xyz="0 0 0.84" rpy="0 0 0"/>
+        <parent link="right_manipulator_link_2"/>
+        <child link="right_manipulator_link_3"/>
+        <axis xyz="0 -1 0"/>
+         <limit effort="1.0" velocity="3.6651914291880923" lower="-3.3" upper="4.67"/>
+    </joint>
+    <joint name="right_manipulator_joint_4" type="revolute">
+        <origin xyz="0.29323 0 0.215" rpy="0 0 0"/>
+        <parent link="right_manipulator_link_3"/>
+        <child link="right_manipulator_link_4"/>
+        <axis xyz="-1 0 0"/>
+        <limit effort="1.0" velocity="5" lower="-3.47" upper="3.47"/>
+    </joint>
+    <joint name="right_manipulator_joint_5" type="revolute">
+        <origin xyz="0.59677 0 0" rpy="0 0 0"/>
+        <parent link="right_manipulator_link_4"/>
+        <child link="right_manipulator_link_5"/>
+        <axis xyz="0 -1 0"/>
+       <limit effort="1.0" velocity="6.981317007977318" lower="-1.86" upper="1.86"/>
+    </joint>
+    <joint name="right_manipulator_joint_6" type="revolute">
+        <origin xyz="0.09 0 0" rpy="0 0 0"/>
+        <parent link="right_manipulator_link_5"/>
+        <child link="right_manipulator_link_6"/>
+        <axis xyz="-1 0 0"/>
+        <limit effort="1.0" velocity="5" lower="-3.35" upper="3.35"/>
+    </joint>
+    <joint name="right_manipulator_base_link-base" type="fixed">
+        <origin xyz="0 0 0.425" rpy="0 0 0"/>
+        <parent link="right_manipulator_base_link"/>
+        <child link="right_manipulator_base"/>
+    </joint>
+    <joint name="right_manipulator_link_6-tool0" type="fixed">
+        <origin xyz="0 0 0" rpy="3.141592653589793 -1.5707963267948966 0"/>
+        <parent link="right_manipulator_link_6"/>
+        <child link="right_manipulator_tool0"/>
+    </joint>
+    <robot_type name="right_manipulator" value="fanuc_m20id_25"/>
+</robot>

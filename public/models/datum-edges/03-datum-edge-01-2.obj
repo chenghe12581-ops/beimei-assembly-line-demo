@@ -1,0 +1,11 @@
+# Rhino
+
+mtllib 03装配基准线-01-2.mtl
+usemtl Default
+v -630 720 644
+v -630 720 390
+cstype bspline
+deg 1
+curv 0 254 1 2
+parm u 0 0 254 254
+end

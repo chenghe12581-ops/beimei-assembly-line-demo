@@ -1,0 +1,48 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+@import './globals.css';
+
+.component-demo-bento-grid {
+  counter-reset: component-demo-bento;
+}
+
+.component-demo-bento-grid > section {
+  counter-increment: component-demo-bento;
+}
+
+.component-demo-bento-index::before {
+  content: counter(component-demo-bento, decimal-leading-zero);
+}
+
+.component-demo-motion .component-demo-float {
+  animation: component-demo-float 4.8s ease-in-out infinite;
+  animation-play-state: var(--component-demo-motion-play-state, running);
+}
+
+.component-demo-motion .component-demo-scan {
+  animation: component-demo-scan 3.2s ease-in-out infinite;
+  animation-play-state: var(--component-demo-motion-play-state, running);
+}
+
+@keyframes component-demo-float {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(-10deg) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(-10deg) translateY(-8px);
+  }
+}
+
+@keyframes component-demo-scan {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: translateX(-50%) rotate(-10deg) scaleX(0.7);
+  }
+  45% {
+    opacity: 1;
+    transform: translateX(-44%) rotate(-10deg) scaleX(1.08);
+  }
+}

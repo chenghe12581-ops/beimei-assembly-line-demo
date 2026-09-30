@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>焊缝段配置布局稿 · 方案 B</title>
+<style>
+  :root {
+    --brand: #FF6900;
+    --brand-text: #EA580C;
+    --brand-soft: #FFF7ED;
+    --ink-900: #18181B;
+    --ink-700: #3F3F46;
+    --ink-500: #71717A;
+    --ink-400: #A1A1AA;
+    --ink-300: #D4D4D8;
+    --ink-200: #E4E4E7;
+    --ink-100: #F4F4F5;
+    --line: rgba(0,0,0,.06);
+    --panel-bg: #FAFAFA;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink-900);
+    background: #18181B;
+    overflow: hidden;
+  }
+  .stage { display: flex; height: 100vh; }
+
+  /* ── 左侧 3D 视窗占位 ─────────────────────── */
+  .viewport {
+    flex: 1;
+    position: relative;
+    background:
+      radial-gradient(1200px 600px at 40% 30%, #3B3B44 0%, #26262C 55%, #1C1C21 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .viewport .hint {
+    color: #8E8E99; font-size: 12px; line-height: 1.8; text-align: center;
+    padding: 14px 22px; border: 1px dashed rgba(255,255,255,.18); border-radius: 10px;
+    background: rgba(255,255,255,.03);
+  }
+  .viewport .badge {
+    position: absolute; top: 14px; left: 14px;
+    font-size: 11px; color: #B9B9C2;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    padding: 4px 10px; border-radius: 6px;
+  }
+  .viewport .seg-hl {
+    position: absolute; top: 52px; left: 14px;
+    font-size: 11px; color: #FDBA74;
+    background: rgba(255,105,0,.1); border: 1px solid rgba(255,105,0,.35);
+    padding: 4px 10px; border-radius: 6px;
+  }
+
+  /* ── 右侧面板 ────────────────────────────── */
+  .panel {
+    width: 500px; flex-shrink: 0;
+    background: var(--panel-bg);
+    border-left: 1px solid var(--line);
+    display: flex; flex-direction: column;
+    height: 100vh;
+  }
+  .taskbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-bottom: 1px solid var(--line); background: #fff;
+  }
+  .task-pill {
+    font-size: 11px; padding: 4px 10px; border-radius: 6px;
+    color: var(--ink-500); background: var(--ink-100);
+  }
+  .task-pill.active { color: var(--brand-text); background: var(--brand-soft); font-weight: 600; }
+  .tabs {
+    display: flex; align-items: center; height: 40px; padding: 0 14px;
+    border-bottom: 1px solid var(--line); background: #fff;
+  }
+  .tab {
+    position: relative; height: 100%; display: flex; align-items: center;
+    font-size: 12px; color: var(--ink-500); margin-right: 18px; cursor: pointer;
+  }
+  .tab.active { color: var(--ink-900); font-weight: 500; }
+  .tab.active::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--brand); border-radius: 2px;
+  }
+  .tabs .reset { margin-left: auto; font-size: 11px; color: var(--ink-400); cursor: pointer; }
+
+  .body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+  .block-title {
+    display: flex; align-items: center;
+    font-size: 11px; color: var(--ink-400); padding: 0 2px;
+  }
+  .block-title .icon-btn {
+    margin-left: auto; width: 26px; height: 26px; border: none; background: transparent;
+    border-radius: 6px; color: var(--ink-400); cursor: pointer; font-size: 12px;
+  }
+  .block-title .icon-btn:hover { background: #fff; color: var(--brand-text); }
+
+  /* ── 段列表 ─────────────────────────────── */
+  .seg-list {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .seg-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .seg-row:hover { background: var(--ink-100); }
+  .seg-row.selected { background: var(--brand-soft); border-color: rgba(255,105,0,.35); }
+  .seg-dot {
+    width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--ink-300); background: #fff; position: relative;
+  }
+  .seg-row.selected .seg-dot { border-color: var(--brand); }
+  .seg-row.selected .seg-dot::after {
+    content: ""; position: absolute; inset: 2px; border-radius: 50%; background: var(--brand);
+  }
+  .seg-name { font-size: 12px; font-weight: 500; width: 58px; flex-shrink: 0; }
+  .seg-summary { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+  .chip {
+    font-size: 10px; color: var(--ink-500);
+    background: var(--ink-100); border-radius: 5px; padding: 2px 6px; white-space: nowrap;
+  }
+  .chip.warn { color: #B45309; background: #FEF3C7; }
+  .clamp-state { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--ink-500); white-space: nowrap; }
+  .clamp-state i { width: 6px; height: 6px; border-radius: 50%; background: #22C55E; display: inline-block; }
+  .clamp-state.off { color: var(--ink-400); }
+  .clamp-state.off i { background: var(--ink-300); }
+  .dirty-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); flex-shrink: 0; }
+
+  /* ── 段详情 ─────────────────────────────── */
+  .seg-detail {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .seg-detail-head {
+    display: flex; align-items: center; padding: 10px 12px 0;
+  }
+  .seg-detail-head h3 { font-size: 12px; font-weight: 600; margin-right: 10px; }
+  .subtabs { display: flex; gap: 2px; background: var(--ink-100); border-radius: 7px; padding: 2px; }
+  .subtab {
+    border: none; background: transparent; font-size: 11px; color: var(--ink-500);
+    padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .subtab.active { background: #fff; color: var(--brand-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .subtab .warn-mark { color: #D97706; margin-left: 2px; }
+
+  .detail-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .notice {
+    font-size: 11px; line-height: 1.6; color: #B45309;
+    background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 7px 10px;
+  }
+  .notice.gray { color: var(--ink-500); background: var(--ink-100); border-color: var(--ink-200); }
+
+  /* 点位行 */
+  .pt-row { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .pt-head {
+    display: flex; align-items: center; padding: 7px 10px;
+    font-size: 11px; font-weight: 600; color: var(--ink-700); background: #FCFCFC;
+  }
+  .pt-head .tag { margin-left: auto; font-weight: 400; font-size: 10px; color: var(--ink-400); }
+  .pt-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 10px 10px;
+  }
+  .field { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .field label { font-size: 10px; color: var(--ink-400); flex-shrink: 0; }
+  .field .input {
+    flex: 1; min-width: 0; height: 28px; border: 1px solid var(--ink-200); border-radius: 6px;
+    background: #fff; display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 6px; font-size: 11px; color: var(--ink-700); font-variant-numeric: tabular-nums;
+  }
+  .field .input span.unit { color: var(--ink-300); margin-left: 3px; font-size: 10px; }
+  .more-rows { text-align: center; font-size: 10px; color: var(--ink-400); padding: 2px 0 4px; }
+
+  /* 压紧配置 */
+  .clamp-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid var(--line); background: #FCFCFC; border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; font-weight: 500; color: var(--ink-700);
+  }
+  .switch { width: 34px; height: 18px; border-radius: 999px; background: var(--ink-300); position: relative; cursor: pointer; transition: background .15s; border: none; }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s;
+  }
+  .switch.on { background: var(--brand); }
+  .switch.on::after { transform: translateX(16px); }
+  .joint-row {
+    display: grid; grid-template-columns: 34px 1fr 96px; align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: 8px; border: 1px solid transparent;
+  }
+  .joint-row:hover { background: #FCFCFC; border-color: var(--line); }
+  .joint-row.disabled { opacity: .5; }
+  .joint-name { font-size: 11px; font-weight: 500; color: var(--ink-500); }
+  .slider-track { position: relative; height: 6px; border-radius: 999px; background: var(--ink-200); }
+  .slider-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--brand); }
+  .slider-knob {
+    position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--brand); transform: translate(-50%, -50%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.15);
+  }
+  .joint-row.disabled .slider-fill { background: var(--ink-300); }
+  .joint-row.disabled .slider-knob { border-color: var(--ink-300); }
+
+  /* 底部操作 */
+  .detail-foot {
+    display: flex; justify-content: flex-end; gap: 8px;
+    border-top: 1px solid var(--line); padding: 10px 12px; background: #FCFCFC;
+  }
+  .btn {
+    height: 28px; padding: 0 14px; border-radius: 7px; font-size: 11px; cursor: pointer;
+    border: 1px solid var(--ink-200); background: #fff; color: var(--ink-700);
+  }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* 标注 */
+  .annot {
+    position: absolute; z-index: 10; pointer-events: none;
+    font-size: 11px; line-height: 1.5; color: var(--brand-text);
+    background: rgba(255,247,237,.95); border: 1px dashed rgba(255,105,0,.5);
+    border-radius: 8px; padding: 6px 10px; max-width: 210px;
+  }
+  .annot::before {
+    content: ""; position: absolute; width: 1px; background: rgba(255,105,0,.5);
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- 左：3D 视窗占位 -->
+  <div class="viewport">
+    <div class="badge">3D 视窗（示意）</div>
+    <div class="seg-hl" id="viewportHl">视窗中高亮：焊缝段 2</div>
+    <div class="hint">
+      切换左侧焊缝段时，此处高亮对应焊缝段<br/>
+      编辑点位 / 关节角时不再被浮窗遮挡
+    </div>
+  </div>
+
+  <!-- 右：工艺规划面板 -->
+  <div class="panel">
+    <div class="taskbar">
+      <span class="task-pill">1 装配</span>
+      <span class="task-pill">2 翻面压紧</span>
+      <span class="task-pill active">3 焊接（合并任务）</span>
+    </div>
+    <div class="tabs">
+      <span class="tab">工艺参数</span>
+      <span class="tab active">路径点位</span>
+      <span class="reset">重置</span>
+    </div>
+
+    <div class="body">
+      <!-- ① 段列表（总览） -->
+      <div>
+        <div class="block-title">
+          焊缝段（6）
+          <button class="icon-btn" title="全部收起 / 展开">⇅</button>
+        </div>
+        <div class="seg-list" id="segList" style="margin-top:6px"></div>
+      </div>
+
+      <!-- ② 段详情：三组配置 -->
+      <div class="seg-detail">
+        <div class="seg-detail-head">
+          <h3 id="detailTitle">焊缝段 2</h3>
+          <div class="subtabs" id="subtabs">
+            <button class="subtab active" data-tab="scan">扫描路径</button>
+            <button class="subtab" data-tab="weld">焊接路径</button>
+            <button class="subtab" data-tab="clamp">压紧配置</button>
+          </div>
+        </div>
+
+        <!-- 扫描路径 -->
+        <div class="detail-body" data-pane="scan">
+          <div class="notice gray">该段的扫描安全点随扫描路径维护，编辑后任务进入未保存状态。</div>
+          <div id="scanRows"></div>
+          <div class="more-rows">显示全部 6 组 ▾</div>
+        </div>
+
+        <!-- 焊接路径 -->
+        <div class="detail-body" data-pane="weld" style="display:none">
+          <div class="notice">⚠ 焊接点 5、6 尚未生成路径，生成后可配置安全点。</div>
+          <div id="weldRows"></div>
+          <div class="more-rows">显示全部 4 组 ▾</div>
+        </div>
+
+        <!-- 压紧配置 -->
+        <div class="detail-body" data-pane="clamp" style="display:none">
+          <div class="clamp-toggle">
+            启用压紧
+            <button class="switch" id="clampSwitch" aria-label="启用压紧"></button>
+          </div>
+          <div id="clampRows"></div>
+          <div class="notice gray" id="clampNote" style="display:none">该焊缝段已关闭压紧，关节角不参与回显与加工。</div>
+        </div>
+
+        <div class="detail-foot">
+          <button class="btn">重 置</button>
+          <button class="btn primary" id="confirmBtn">确 认</button>
+        </div>
+      </div>
+
+      <div class="notice gray" style="margin-top:auto">
+        布局稿说明：原「扫描点位 / 焊接点位」顶部分段与「安全点配置 / 压紧点配置」两个浮窗入口已合并为本结构——段是工作单元，段内切换三组配置；段列表行内摘要（点数 / 压紧状态 / 未保存点）即总览。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── demo 数据 ─────────────────────────────
+  const segments = [
+    { name: '焊缝段 1', scan: 6, weld: 6, clamp: true,  dirty: false },
+    { name: '焊缝段 2', scan: 6, weld: 4, clamp: false, dirty: true  },
+    { name: '焊缝段 3', scan: 6, weld: 6, clamp: true,  dirty: true  },
+    { name: '焊缝段 4', scan: 6, weld: 6, clamp: true,  dirty: false },
+    { name: '焊缝段 5', scan: 6, weld: 6, clamp: false, dirty: false },
+    { name: '焊缝段 6', scan: 6, weld: 6, clamp: true,  dirty: false },
+  ];
+  let activeSeg = 1; // 默认选中段2，展示最多状态
+  const jointValues = [12.50, -18.20, 36.80, 72.40, -44.60, 28.30];
+
+  // ── 段列表 ────────────────────────────────
+  const segList = document.getElementById('segList');
+  function renderSegList() {
+    segList.innerHTML = segments.map((s, i) => `
+      <div class="seg-row ${i === activeSeg ? 'selected' : ''}" data-i="${i}">
+        <span class="seg-dot"></span>
+        <span class="seg-name">${s.name}</span>
+        <span class="seg-summary">
+          <span class="chip">扫描 ${s.scan}点</span>
+          <span class="chip ${s.weld < 6 ? 'warn' : ''}">焊接 ${s.weld}点${s.weld < 6 ? ' ⚠' : ''}</span>
+          <span class="clamp-state ${s.clamp ? '' : 'off'}"><i></i>压紧${s.clamp ? '启用' : '关闭'}</span>
+        </span>
+        ${s.dirty ? '<span class="dirty-dot" title="有未保存修改"></span>' : ''}
+      </div>`).join('');
+    segList.querySelectorAll('.seg-row').forEach(row => {
+      row.addEventListener('click', () => {
+        activeSeg = Number(row.dataset.i);
+        renderSegList(); renderDetail();
+        document.getElementById('viewportHl').textContent = '视窗中高亮：' + segments[activeSeg].name;
+      });
+    });
+  }
+
+  // ── 点位行 ────────────────────────────────
+  function ptRow(label, x, y, z, rx, ry, rz, tag) {
+    const f = (v, u) => `<div class="field"><label>${v.lbl}</label><div class="input">${v.val}<span class="unit">${u}</span></div></div>`;
+    return `
+      <div class="pt-row">
+        <div class="pt-head">${label}${tag ? `<span class="tag">${tag}</span>` : ''}</div>
+        <div class="pt-grid">
+          ${f({ lbl: 'X', val: x }, 'mm')}${f({ lbl: 'Y', val: y }, 'mm')}${f({ lbl: 'Z', val: z }, 'mm')}
+          ${f({ lbl: 'RX', val: rx }, '°')}${f({ lbl: 'RY', val: ry }, '°')}${f({ lbl: 'RZ', val: rz }, '°')}
+        </div>
+      </div>`;
+  }
+  const scanData = [
+    ['扫描点 1', '80.0', '55.0', '10.0', '0.0', '0.0', '0.0'],
+    ['扫描点 2', '200.0', '80.0', '10.0', '0.0', '0.0', '0.0'],
+    ['扫描点 3', '320.0', '105.0', '10.0', '0.0', '0.0', '0.0'],
+  ];
+  const weldData = [
+    ['焊接点 1', '140.0', '70.0', '0.0', '0.0', '45.0', '0.0'],
+    ['焊接点 2', '260.0', '92.0', '0.0', '0.0', '48.0', '0.0'],
+    ['焊接点 3', '380.0', '114.0', '0.0', '0.0', '45.0', '0.0'],
+    ['焊接点 4', '500.0', '136.0', '0.0', '0.0', '48.0', '0.0'],
+  ];
+  document.getElementById('scanRows').innerHTML = scanData.map(d => ptRow(...d)).join('');
+  document.getElementById('weldRows').innerHTML = weldData.map(d => ptRow(...d, '')).join('');
+
+  // ── 压紧 J1-J6 ────────────────────────────
+  const clampRows = document.getElementById('clampRows');
+  const clampSwitch = document.getElementById('clampSwitch');
+  function renderClampRows() {
+    const on = segments[activeSeg].clamp;
+    clampSwitch.classList.toggle('on', on);
+    clampRows.innerHTML = jointValues.map((v, i) => {
+      const min = i === 0 ? 0 : -180, max = i === 0 ? 200 : 180;
+      const pct = ((Math.min(max, Math.max(min, v)) - min) / (max - min)) * 100;
+      const unit = i === 0 ? 'mm' : '°';
+      return `
+        <div class="joint-row ${on ? '' : 'disabled'}">
+          <span class="joint-name">J${i + 1}</span>
+          <div class="slider-track">
+            <div class="slider-fill" style="width:${pct}%"></div>
+            <div class="slider-knob" style="left:${pct}%"></div>
+          </div>
+          <div class="input" style="height:28px;border:1px solid var(--ink-200);border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font-size:11px;color:var(--ink-700)">
+            ${v.toFixed(2)}<span style="color:var(--ink-300);margin-left:3px;font-size:10px">${unit}</span>
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('clampNote').style.display = on ? 'none' : 'block';
+    document.getElementById('confirmBtn').disabled = !segments[activeSeg].dirty;
+  }
+  clampSwitch.addEventListener('click', () => {
+    segments[activeSeg].clamp = !segments[activeSeg].clamp;
+    segments[activeSeg].dirty = true;
+    renderSegList(); renderClampRows();
+  });
+
+  // ── 页签切换 ──────────────────────────────
+  document.querySelectorAll('.subtab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('[data-pane]').forEach(p => {
+        p.style.display = p.dataset.pane === tab.dataset.tab ? 'flex' : 'none';
+      });
+    });
+  });
+
+  function renderDetail() {
+    document.getElementById('detailTitle').textContent = segments[activeSeg].name;
+    renderClampRows();
+  }
+
+  renderSegList();
+  renderDetail();
+</script>
+</body>
+</html>
