@@ -166,7 +166,7 @@ function getTemplateWorkstepNames(template: ProductionStationWorkstepTemplate, p
     case 'main-grinding':
       return [
         '支撑调整', '主筋板粗定位', '主筋板抓取', '主筋板放置', '精定位/导入工件位置',
-        '正面打磨', '压紧', '翻面', '压紧释放', '反面打磨', '压紧', '翻面', '压紧释放',
+        '正面打磨', '翻面', '反面打磨', '翻面',
       ];
     case 'main-assembly-feed':
       return [
@@ -187,7 +187,7 @@ function getTemplateWorkstepNames(template: ProductionStationWorkstepTemplate, p
     case 'plate-grinding':
       return ['二次定位/导入工件位置', '打磨执行'];
     case 'turnover':
-      return ['支撑调整', '主筋板组件抓取', '主筋板组件放置', '压紧', '翻面', '压紧释放'];
+      return ['支撑调整', '主筋板组件抓取', '主筋板组件放置', '翻面'];
     case 'main-assembly-1':
       return [`贴板[${platePartName}]焊接`];
     case 'main-assembly-2':

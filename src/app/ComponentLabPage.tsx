@@ -121,7 +121,7 @@ const hierarchicalWorkstepDemoGroups: HierarchicalWorkstepGroup[] = [
     id: 'main-grind',
     label: '主筋板打磨',
     objectLabel: '0162-01-010101-01',
-    steps: ['正面打磨', '压紧', '翻面', '压紧释放', '反面打磨', '压紧', '翻面', '压紧释放'].map((name, index) => ({ name, index: index + 5 })),
+    steps: ['正面打磨', '翻面', '反面打磨', '翻面'].map((name, index) => ({ name, index: index + 5 })),
   },
 ];
 const compactGrindParameterDemoItems = [
