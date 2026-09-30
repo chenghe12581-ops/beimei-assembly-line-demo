@@ -1,3 +1,4 @@
+import { ASSET_BASE } from '../../../asset-base';
 export type VisionAssemblyDatumGroup = {
   id: string;
   label: string;
@@ -13,8 +14,8 @@ export const visionAssemblyDatumGroups: VisionAssemblyDatumGroup[] = [
     label: '第一组基准距离',
     panelLabel: '第一组装配基准',
     lineUrls: [
-      '/models/datum-edges/01-datum-edge-02.obj',
-      '/models/datum-edges/02-datum-edge-01.obj',
+      `${ASSET_BASE}models/datum-edges/01-datum-edge-02.obj`,
+      `${ASSET_BASE}models/datum-edges/02-datum-edge-01.obj`,
     ],
     distance: '20.00',
   },
@@ -23,8 +24,8 @@ export const visionAssemblyDatumGroups: VisionAssemblyDatumGroup[] = [
     label: '第二组基准距离',
     panelLabel: '第二组装配基准',
     lineUrls: [
-      '/models/datum-edges/01-datum-edge-02-2.obj',
-      '/models/datum-edges/02-datum-edge-01-2.obj',
+      `${ASSET_BASE}models/datum-edges/01-datum-edge-02-2.obj`,
+      `${ASSET_BASE}models/datum-edges/02-datum-edge-01-2.obj`,
     ],
     distance: '2250.63',
   },

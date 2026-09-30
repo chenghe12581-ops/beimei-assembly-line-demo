@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ASSET_BASE } from '../asset-base';
 import { createPortal } from 'react-dom';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { Bounds, OrbitControls } from '@react-three/drei';
@@ -594,10 +595,10 @@ const devices: { name: string; state: DeviceState; group: string }[] = [
 ];
 
 const productionModelParts: ProductionModelPart[] = [
-  { id: '0162-01-010101-01', name: '0162-01-010101-01', partNo: '01', level: 0, modelPath: '/models/0162-01-010101-01.stl' },
-  { id: '0162-01-010101-02', name: '0162-01-010101-02', partNo: '02', level: 1, parentId: '0162-01-010101-01', modelPath: '/models/0162-01-010101-02.stl' },
-  { id: '0162-01-010101-03', name: '0162-01-010101-03', partNo: '03', level: 1, parentId: '0162-01-010101-01', modelPath: '/models/0162-01-010101-03.stl' },
-  { id: '0162-01-010101-04', name: '0162-01-010101-04', partNo: '04', level: 2, parentId: '0162-01-010101-03', modelPath: '/models/0162-01-010101-04.stl' },
+  { id: '0162-01-010101-01', name: '0162-01-010101-01', partNo: '01', level: 0, modelPath: `${ASSET_BASE}models/0162-01-010101-01.stl` },
+  { id: '0162-01-010101-02', name: '0162-01-010101-02', partNo: '02', level: 1, parentId: '0162-01-010101-01', modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl` },
+  { id: '0162-01-010101-03', name: '0162-01-010101-03', partNo: '03', level: 1, parentId: '0162-01-010101-01', modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl` },
+  { id: '0162-01-010101-04', name: '0162-01-010101-04', partNo: '04', level: 2, parentId: '0162-01-010101-03', modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl` },
 ];
 
 // Read-only prototype metadata, aligned with the process-planning property fields.
@@ -3455,7 +3456,7 @@ function VisionMonitorView({
       {pointCloudVisible ? (
         <>
           <VisionPointCloud
-            sourceUrl="/pointclouds/ori-pcc-in-world-sampled.bin"
+            sourceUrl={`${ASSET_BASE}pointclouds/ori-pcc-in-world-sampled.bin`}
             cameraIndex={activeCameraIndex}
             assemblyDemoVisible={assemblyDemoVisible}
             className="z-[1]"

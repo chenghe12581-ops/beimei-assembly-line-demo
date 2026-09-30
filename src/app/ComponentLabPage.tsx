@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { ASSET_BASE } from '../asset-base';
 import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Box, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, CircleAlert, CircleCheck, Cog, Download, Eye, FileCog, FileQuestion, FileSpreadsheet, FileWarning, Filter, Flame, FolderOpen, FolderPlus, Forklift, GripVertical, Hammer, History, Import, Layers3, ListX, Minus, MonitorUp, Move3D, PanelLeft, Pin, Play, Plus, RefreshCw, Save, ScanFace, Search, SlidersHorizontal, Sparkles, Square, SquareArrowRight, Target, Trash2, X } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -8935,7 +8936,7 @@ export function ComponentLabPage() {
               {positioningDemoResultOpen && positioningDemoResult ? (
                 <div className="grid min-h-[360px] lg:grid-cols-[minmax(0,1fr)_320px]">
                   <div className="relative min-h-[300px] overflow-hidden bg-ds-bg-viewport bg-[linear-gradient(90deg,rgba(148,163,184,0.15)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.15)_1px,transparent_1px)] [background-size:36px_36px]">
-                    <VisionPointCloud sourceUrl="/pointclouds/ori-pcc-in-world-sampled.bin" cameraIndex={1} />
+                    <VisionPointCloud sourceUrl={`${ASSET_BASE}pointclouds/ori-pcc-in-world-sampled.bin`} cameraIndex={1} />
                     <div className="pointer-events-none absolute inset-5 rounded-2xl border border-zinc-400/35" />
                     <div className="absolute left-3 top-3 rounded-md bg-white/80 px-2 py-1 text-[10px] text-slate-500 shadow-sm">视觉监控 · 点云回显</div>
                   </div>
@@ -9005,7 +9006,7 @@ export function ComponentLabPage() {
                 {invalid ? (
                   <>
                     <VisionPointCloud
-                      sourceUrl="/pointclouds/ori-pcc-in-world-sampled.bin"
+                      sourceUrl={`${ASSET_BASE}pointclouds/ori-pcc-in-world-sampled.bin`}
                       cameraIndex={2}
                     />
                     <div className="pointer-events-none absolute inset-4 rounded-2xl border border-red-300/45" />
@@ -9144,7 +9145,7 @@ export function ComponentLabPage() {
               <div className="grid h-[560px] min-h-0 overflow-hidden rounded-xl border border-white/70 bg-white lg:grid-cols-[minmax(0,1fr)_420px]">
                 <div className="relative min-h-[220px] overflow-hidden bg-ds-bg-viewport bg-[linear-gradient(90deg,rgba(148,163,184,0.15)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.15)_1px,transparent_1px)] [background-size:36px_36px]">
                   <VisionPointCloud
-                    sourceUrl="/pointclouds/ori-pcc-in-world-sampled.bin"
+                    sourceUrl={`${ASSET_BASE}pointclouds/ori-pcc-in-world-sampled.bin`}
                     cameraIndex={Math.max(0, visionFeedOptions.findIndex((feed) => feed.id === visionDemoActiveFeedId))}
                   />
                   <div className="absolute inset-x-3 bottom-3 z-20 flex justify-center">
@@ -9173,7 +9174,7 @@ export function ComponentLabPage() {
               <div className="grid h-[560px] min-h-0 overflow-hidden rounded-xl border border-white/70 bg-white lg:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="relative min-h-[220px] overflow-hidden bg-ds-bg-viewport bg-[linear-gradient(90deg,rgba(148,163,184,0.15)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.15)_1px,transparent_1px)] [background-size:36px_36px]">
                   <VisionPointCloud
-                    sourceUrl="/pointclouds/ori-pcc-in-world-sampled.bin"
+                    sourceUrl={`${ASSET_BASE}pointclouds/ori-pcc-in-world-sampled.bin`}
                     cameraIndex={0}
                     gantryViewport={gantryVisionDemoViewport}
                   />

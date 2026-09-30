@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import { ASSET_BASE } from '../../asset-base';
 import { Canvas, useLoader, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Box, Check, CircleDot, Hammer, Layers3, ScanLine, Sparkles, X } from 'lucide-react';
@@ -12,23 +13,23 @@ import { BentoFrame } from './BentoFrame';
 import { CENTERED_BENTO_CONTENT_CLASS, WIDE_PADDED_BENTO_CONTENT_CLASS } from './bentoLayout';
 
 const demoModelParts = [
-  { id: 'part-01', url: '/models/0162-01-010101-01.stl', color: '#9ca3af' },
-  { id: 'part-02', url: '/models/0162-01-010101-02.stl', color: '#9ca3af' },
-  { id: 'part-03', url: '/models/0162-01-010101-03.stl', color: '#9ca3af' },
-  { id: 'part-04', url: '/models/0162-01-010101-04.stl', color: '#9ca3af' },
+  { id: 'part-01', url: `${ASSET_BASE}models/0162-01-010101-01.stl`, color: '#9ca3af' },
+  { id: 'part-02', url: `${ASSET_BASE}models/0162-01-010101-02.stl`, color: '#9ca3af' },
+  { id: 'part-03', url: `${ASSET_BASE}models/0162-01-010101-03.stl`, color: '#9ca3af' },
+  { id: 'part-04', url: `${ASSET_BASE}models/0162-01-010101-04.stl`, color: '#9ca3af' },
 ] as const;
 
 const demoWeldLineUrls = [
-  '/models/intersections/front-intersection.obj',
-  '/models/intersections/back-intersection-1.obj',
-  '/models/intersections/back-intersection-2.obj',
+  `${ASSET_BASE}models/intersections/front-intersection.obj`,
+  `${ASSET_BASE}models/intersections/back-intersection-1.obj`,
+  `${ASSET_BASE}models/intersections/back-intersection-2.obj`,
 ] as const;
 
 const demoGrindFaceUrls = [
-  '/models/features/01-grind-face-1.obj',
-  '/models/features/01-grind-face-2.obj',
-  '/models/features/03-grind-face-1.obj',
-  '/models/features/03-grind-face-2.obj',
+  `${ASSET_BASE}models/features/01-grind-face-1.obj`,
+  `${ASSET_BASE}models/features/01-grind-face-2.obj`,
+  `${ASSET_BASE}models/features/03-grind-face-1.obj`,
+  `${ASSET_BASE}models/features/03-grind-face-2.obj`,
 ] as const;
 
 type IntersectionSegment = {

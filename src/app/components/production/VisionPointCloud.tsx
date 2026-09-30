@@ -1,4 +1,5 @@
 import { Html, OrbitControls } from '@react-three/drei';
+import { ASSET_BASE } from '../../../asset-base';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
@@ -66,8 +67,8 @@ const assemblyDatumDistanceRadius = 0.001;
 const assemblyDatumEndpointRadius = 0.012;
 
 const assemblyModelUrls = [
-  '/models/0162-01-010101-01.stl',
-  '/models/0162-01-010101-02.stl',
+  `${ASSET_BASE}models/0162-01-010101-01.stl`,
+  `${ASSET_BASE}models/0162-01-010101-02.stl`,
 ] as const;
 
 export const gantryDemoWeldSeam = {

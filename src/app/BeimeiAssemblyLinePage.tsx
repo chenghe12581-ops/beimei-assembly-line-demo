@@ -1,4 +1,5 @@
 import { useState, Suspense, useMemo, useEffect, useRef, useCallback, type ReactNode } from 'react';
+import { ASSET_BASE } from '../asset-base';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -1116,22 +1117,22 @@ function createFlatAssemblyTree(assemblyId: string, assemblyName = assemblyId): 
       {
         id: `${assemblyId}-01`,
         name: `${assemblyName}-01`,
-        modelPath: '/models/0162-01-010101-01.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-01.stl`,
       },
       {
         id: `${assemblyId}-02`,
         name: `${assemblyName}-02`,
-        modelPath: '/models/0162-01-010101-02.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl`,
       },
       {
         id: `${assemblyId}-03`,
         name: `${assemblyName}-03`,
-        modelPath: '/models/0162-01-010101-03.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl`,
       },
       {
         id: `${assemblyId}-04`,
         name: `${assemblyName}-04`,
-        modelPath: '/models/0162-01-010101-04.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl`,
       },
       {
         id: `${assemblyId}-01-front`,
@@ -1153,7 +1154,7 @@ function createArrangedAssemblyTree(assemblyId: string, assemblyName = assemblyI
       {
         id: `${assemblyId}-01`,
         name: `${assemblyName}-01`,
-        modelPath: '/models/0162-01-010101-01.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-01.stl`,
         children: [
           {
             id: `${assemblyId}-01-front`,
@@ -1162,7 +1163,7 @@ function createArrangedAssemblyTree(assemblyId: string, assemblyName = assemblyI
               {
                 id: `${assemblyId}-02`,
                 name: `${assemblyName}-02`,
-                modelPath: '/models/0162-01-010101-02.stl',
+                modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl`,
               },
             ],
           },
@@ -1173,12 +1174,12 @@ function createArrangedAssemblyTree(assemblyId: string, assemblyName = assemblyI
               {
                 id: `${assemblyId}-03`,
                 name: `${assemblyName}-03`,
-                modelPath: '/models/0162-01-010101-03.stl',
+                modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl`,
                 children: [
                   {
                     id: `${assemblyId}-04`,
                     name: `${assemblyName}-04`,
-                    modelPath: '/models/0162-01-010101-04.stl',
+                    modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl`,
                   },
                 ],
               },
@@ -1199,7 +1200,7 @@ function createLinkedRodAssemblyTree(assemblyId = '0162-04-040404', assemblyName
       return {
         id: `${assemblyId}-${partNumber}`,
         name: `${assemblyName}-${partNumber}`,
-        modelPath: `/models/0162-04-040404/0162-04-040404-${partNumber}.stl`,
+        modelPath: `${ASSET_BASE}models/0162-04-040404/0162-04-040404-${partNumber}.stl`,
       };
     }),
   };
@@ -1216,7 +1217,7 @@ const initialProjects: Project[] = [
         {
           id: '0162-01-010101-01',
           name: '0162-01-010101-01',
-          modelPath: '/models/0162-01-010101-01.stl',
+          modelPath: `${ASSET_BASE}models/0162-01-010101-01.stl`,
           children: [
             {
               id: '0162-01-010101-01-front',
@@ -1225,7 +1226,7 @@ const initialProjects: Project[] = [
                 {
                   id: '0162-01-010101-02',
                   name: '0162-01-010101-02',
-                  modelPath: '/models/0162-01-010101-02.stl',
+                  modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl`,
                 },
               ],
             },
@@ -1236,12 +1237,12 @@ const initialProjects: Project[] = [
                 {
                   id: '0162-01-010101-03',
                   name: '0162-01-010101-03',
-                  modelPath: '/models/0162-01-010101-03.stl',
+                  modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl`,
                   children: [
                     {
                       id: '0162-01-010101-04',
                       name: '0162-01-010101-04',
-                      modelPath: '/models/0162-01-010101-04.stl',
+                      modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl`,
                     },
                   ],
                 },
@@ -1264,7 +1265,7 @@ const initialProjects: Project[] = [
         {
           id: '0162-02-020202-01',
           name: '0162-02-020202-01',
-          modelPath: '/models/0162-01-010101-01.stl',
+          modelPath: `${ASSET_BASE}models/0162-01-010101-01.stl`,
           children: [
             {
               id: '0162-02-020202-01-front',
@@ -1273,7 +1274,7 @@ const initialProjects: Project[] = [
                 {
                   id: '0162-02-020202-02',
                   name: '0162-02-020202-02',
-                  modelPath: '/models/0162-01-010101-02.stl',
+                  modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl`,
                 },
               ],
             },
@@ -1284,12 +1285,12 @@ const initialProjects: Project[] = [
                 {
                   id: '0162-02-020202-03',
                   name: '0162-02-020202-03',
-                  modelPath: '/models/0162-01-010101-03.stl',
+                  modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl`,
                   children: [
                     {
                       id: '0162-02-020202-04',
                       name: '0162-02-020202-04',
-                      modelPath: '/models/0162-01-010101-04.stl',
+                      modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl`,
                     },
                   ],
                 },
@@ -1355,7 +1356,7 @@ const createDemoAssemblyTree = (assemblyId: string, assemblyName = '0162-01-0101
     {
       id: `${assemblyId}-01`,
       name: `${assemblyName}-01`,
-      modelPath: demoAssemblyTemplate.children?.[0]?.modelPath ?? '/models/0162-01-010101-01.stl',
+      modelPath: demoAssemblyTemplate.children?.[0]?.modelPath ?? `${ASSET_BASE}models/0162-01-010101-01.stl`,
       children: [
         {
           id: `${assemblyId}-01-front`,
@@ -1364,7 +1365,7 @@ const createDemoAssemblyTree = (assemblyId: string, assemblyName = '0162-01-0101
             {
               id: `${assemblyId}-02`,
               name: `${assemblyName}-02`,
-              modelPath: '/models/0162-01-010101-02.stl',
+              modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl`,
             },
           ],
         },
@@ -1375,12 +1376,12 @@ const createDemoAssemblyTree = (assemblyId: string, assemblyName = '0162-01-0101
             {
               id: `${assemblyId}-03`,
               name: `${assemblyName}-03`,
-              modelPath: '/models/0162-01-010101-03.stl',
+              modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl`,
               children: [
                 {
                   id: `${assemblyId}-04`,
                   name: `${assemblyName}-04`,
-                  modelPath: '/models/0162-01-010101-04.stl',
+                  modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl`,
                 },
               ],
             },
@@ -2055,7 +2056,7 @@ function getWeldFeatureDefinitions(projectId: string): { parentId: string; node:
         name: '正面焊缝',
         nodeType: 'feature',
         featureType: 'weld',
-        featureUrl: '/models/intersections/front-intersection.obj',
+        featureUrl: `${ASSET_BASE}models/intersections/front-intersection.obj`,
         relatedPartIds: [`${projectId}-01`, `${projectId}-02`],
       },
     },
@@ -2066,7 +2067,7 @@ function getWeldFeatureDefinitions(projectId: string): { parentId: string; node:
         name: '反面焊缝 1',
         nodeType: 'feature',
         featureType: 'weld',
-        featureUrl: '/models/intersections/back-intersection-1.obj',
+        featureUrl: `${ASSET_BASE}models/intersections/back-intersection-1.obj`,
         relatedPartIds: [`${projectId}-01`, `${projectId}-03`],
       },
     },
@@ -2077,7 +2078,7 @@ function getWeldFeatureDefinitions(projectId: string): { parentId: string; node:
         name: '反面焊缝 2',
         nodeType: 'feature',
         featureType: 'weld',
-        featureUrl: '/models/intersections/back-intersection-2.obj',
+        featureUrl: `${ASSET_BASE}models/intersections/back-intersection-2.obj`,
         relatedPartIds: [`${projectId}-03`, `${projectId}-04`],
       },
     },
@@ -2093,7 +2094,7 @@ function getGrindFeatureDefinitions(projectId: string): { parentId: string; node
         name: '01 打磨线 1',
         nodeType: 'feature',
         featureType: 'grind',
-        featureUrl: '/models/features/01-grind-face-1.obj',
+        featureUrl: `${ASSET_BASE}models/features/01-grind-face-1.obj`,
         relatedPartIds: [`${projectId}-01`, `${projectId}-02`],
         sourceWeldFeatureIds: [`${projectId}-02-weld-front`],
       },
@@ -2105,7 +2106,7 @@ function getGrindFeatureDefinitions(projectId: string): { parentId: string; node
         name: '01 打磨线 2',
         nodeType: 'feature',
         featureType: 'grind',
-        featureUrl: '/models/features/01-grind-face-2.obj',
+        featureUrl: `${ASSET_BASE}models/features/01-grind-face-2.obj`,
         relatedPartIds: [`${projectId}-01`, `${projectId}-03`],
         sourceWeldFeatureIds: [`${projectId}-03-weld-back-1`],
       },
@@ -2117,7 +2118,7 @@ function getGrindFeatureDefinitions(projectId: string): { parentId: string; node
         name: '02 打磨线',
         nodeType: 'feature',
         featureType: 'grind',
-        featureUrl: '/models/features/02-grind-face.obj',
+        featureUrl: `${ASSET_BASE}models/features/02-grind-face.obj`,
         relatedPartIds: [`${projectId}-01`, `${projectId}-02`],
         sourceWeldFeatureIds: [`${projectId}-02-weld-front`],
       },
@@ -2129,7 +2130,7 @@ function getGrindFeatureDefinitions(projectId: string): { parentId: string; node
         name: '03 打磨线 1',
         nodeType: 'feature',
         featureType: 'grind',
-        featureUrl: '/models/features/03-grind-face-1.obj',
+        featureUrl: `${ASSET_BASE}models/features/03-grind-face-1.obj`,
         relatedPartIds: [`${projectId}-01`, `${projectId}-03`],
         sourceWeldFeatureIds: [`${projectId}-03-weld-back-1`],
       },
@@ -2141,7 +2142,7 @@ function getGrindFeatureDefinitions(projectId: string): { parentId: string; node
         name: '03 打磨线 2',
         nodeType: 'feature',
         featureType: 'grind',
-        featureUrl: '/models/features/03-grind-face-2.obj',
+        featureUrl: `${ASSET_BASE}models/features/03-grind-face-2.obj`,
         relatedPartIds: [`${projectId}-03`, `${projectId}-04`],
         sourceWeldFeatureIds: [`${projectId}-04-weld-back-2`],
       },
@@ -2153,7 +2154,7 @@ function getGrindFeatureDefinitions(projectId: string): { parentId: string; node
         name: '04 打磨线',
         nodeType: 'feature',
         featureType: 'grind',
-        featureUrl: '/models/features/04-grind-face.obj',
+        featureUrl: `${ASSET_BASE}models/features/04-grind-face.obj`,
         relatedPartIds: [`${projectId}-03`, `${projectId}-04`],
         sourceWeldFeatureIds: [`${projectId}-04-weld-back-2`],
       },
@@ -7190,22 +7191,22 @@ export function BeimeiAssemblyLinePage() {
       const part04: TreeNode = {
         id: `${baseId}-04`,
         name: `${baseId}-04`,
-        modelPath: '/models/0162-01-010101-04.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-04.stl`,
       };
       const part03: TreeNode = {
         id: `${baseId}-03`,
         name: `${baseId}-03`,
-        modelPath: '/models/0162-01-010101-03.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-03.stl`,
       };
       const part02: TreeNode = {
         id: `${baseId}-02`,
         name: `${baseId}-02`,
-        modelPath: '/models/0162-01-010101-02.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-02.stl`,
       };
       const part01: TreeNode = {
         id: `${baseId}-01`,
         name: `${baseId}-01`,
-        modelPath: '/models/0162-01-010101-01.stl',
+        modelPath: `${ASSET_BASE}models/0162-01-010101-01.stl`,
       };
       setProjects((prev) =>
         prev.map((p) =>
@@ -7761,8 +7762,8 @@ export function BeimeiAssemblyLinePage() {
     )) ?? null;
     const fallbackWeldFeatureUrl = fallbackWeldFeature?.featureUrl
       ?? (planningProcess.simulationSide === 'back'
-        ? '/models/intersections/back-intersection-1.obj'
-        : '/models/intersections/front-intersection.obj');
+        ? `${ASSET_BASE}models/intersections/back-intersection-1.obj`
+        : `${ASSET_BASE}models/intersections/front-intersection.obj`);
     const fallbackWeldFeatureName = fallbackWeldFeature?.name
       ?? (planningProcess.simulationSide === 'back' ? '反面焊缝 1' : '正面焊缝');
     const weldFeatureUrls = taskWeldFeatures
@@ -10958,7 +10959,7 @@ export function BeimeiAssemblyLinePage() {
         : getPartSuffix(partBId) === '02'
           ? partBId
           : partBId;
-    const edgeModelUrls = edgeIds.map((edgeId) => `/models/datum-edges/${edgeId}.obj`);
+    const edgeModelUrls = edgeIds.map((edgeId) => `${ASSET_BASE}models/datum-edges/${edgeId}.obj`);
 
     return {
       definition: {
@@ -11136,10 +11137,10 @@ export function BeimeiAssemblyLinePage() {
           ? partBId
           : partBId;
     const edgeModelUrls = [
-      `/models/datum-edges/${partAFeatureId1}.obj`,
-      `/models/datum-edges/${partBFeatureId1}.obj`,
-      `/models/datum-edges/${partAFeatureId2}.obj`,
-      `/models/datum-edges/${partBFeatureId2}.obj`,
+      `${ASSET_BASE}models/datum-edges/${partAFeatureId1}.obj`,
+      `${ASSET_BASE}models/datum-edges/${partBFeatureId1}.obj`,
+      `${ASSET_BASE}models/datum-edges/${partAFeatureId2}.obj`,
+      `${ASSET_BASE}models/datum-edges/${partBFeatureId2}.obj`,
     ];
     const featureDefinitions: { parentId: string; node: TreeNode }[] = [
       {
@@ -11362,7 +11363,7 @@ export function BeimeiAssemblyLinePage() {
         name: '01-02 手动焊缝',
         nodeType: 'feature' as const,
         featureType: 'weld' as const,
-        featureUrl: '/models/intersections/front-intersection.obj',
+        featureUrl: `${ASSET_BASE}models/intersections/front-intersection.obj`,
         relatedPartIds: [partAId, partBId],
       },
     };
@@ -11455,16 +11456,16 @@ export function BeimeiAssemblyLinePage() {
     const pairKey = [getPartSuffix(partAId), getPartSuffix(partBId)].sort().join('-');
     if (type === 'weld') {
       return {
-        '01-02': '/models/intersections/front-intersection.obj',
-        '01-03': '/models/intersections/back-intersection-1.obj',
-        '03-04': '/models/intersections/back-intersection-2.obj',
-      }[pairKey] ?? '/models/intersections/front-intersection.obj';
+        '01-02': `${ASSET_BASE}models/intersections/front-intersection.obj`,
+        '01-03': `${ASSET_BASE}models/intersections/back-intersection-1.obj`,
+        '03-04': `${ASSET_BASE}models/intersections/back-intersection-2.obj`,
+      }[pairKey] ?? `${ASSET_BASE}models/intersections/front-intersection.obj`;
     }
     return {
-      '01-02': '/models/features/02-grind-face.obj',
-      '01-03': '/models/features/03-grind-face-1.obj',
-      '03-04': '/models/features/03-grind-face-2.obj',
-    }[pairKey] ?? '/models/features/02-grind-face.obj';
+      '01-02': `${ASSET_BASE}models/features/02-grind-face.obj`,
+      '01-03': `${ASSET_BASE}models/features/03-grind-face-1.obj`,
+      '03-04': `${ASSET_BASE}models/features/03-grind-face-2.obj`,
+    }[pairKey] ?? `${ASSET_BASE}models/features/02-grind-face.obj`;
   };
 
   const getManualFeatureParentId = (partAId: string, partBId: string) => {
@@ -13433,7 +13434,7 @@ export function BeimeiAssemblyLinePage() {
     .map((edge) => ({
       id: edge.id,
       sourceId: edge.id,
-      url: `/models/datum-edges/${edge.id}.obj`,
+      url: `${ASSET_BASE}models/datum-edges/${edge.id}.obj`,
       selected: assemblyDatumModal?.selectedEdgeId === edge.id,
     }));
   const visibleDatumEdges = inDatumMode ? datumEdgeViews : datumFeatureViews;
@@ -13759,7 +13760,7 @@ export function BeimeiAssemblyLinePage() {
       <div className={`${immersiveLayout ? 'relative z-[100] flex h-[56px] shrink-0 items-center px-0' : flatLayout ? 'relative z-[100] flex h-[70px] shrink-0 items-center px-3' : 'relative z-[100] flex h-[84px] shrink-0 items-center px-6'}`}>
         <div className={`${immersiveLayout ? 'ds-main-nav-immersive flex h-full w-full items-center gap-4 bg-zinc-950 px-3 text-white' : flatLayout ? 'flex h-14 w-full items-center gap-5 px-4' : 'ds-main-nav flex h-14 w-full items-center gap-5 rounded-xl px-4'}`}>
           <img
-            src="/brand/dajie-rplus-filled-orange-256.png"
+            src={`${ASSET_BASE}brand/dajie-rplus-filled-orange-256.png`}
             alt="大界 Logo"
             className="size-8 shrink-0 object-contain"
           />

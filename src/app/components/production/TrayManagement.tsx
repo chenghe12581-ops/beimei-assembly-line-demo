@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ASSET_BASE } from '../../../asset-base';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ArrowLeft, History, LayoutDashboard, MonitorUp, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { ProcessSingleSelect } from '../process/ProcessSingleSelect';
 
-const trayZoneMapImg = '/tray-visualization/tray-zone-legend.svg';
+const trayZoneMapImg = `${ASSET_BASE}tray-visualization/tray-zone-legend.svg`;
 
 export type TrayTaskState = 'pending' | 'running' | 'done';
 
@@ -359,10 +360,10 @@ function isTrayMaterialsFull(materials: TrayAllocationMaterial[]) {
 }
 
 const trayPartTopViewSources: Record<string, string> = {
-  '0162-01-010101-01': '/part-topviews/0162-01-010101-01.png',
-  '0162-01-010101-02': '/part-topviews/0162-01-010101-02.png',
-  '0162-01-010101-03': '/part-topviews/0162-01-010101-03.png',
-  '0162-01-010101-04': '/part-topviews/0162-01-010101-04.png',
+  '0162-01-010101-01': `${ASSET_BASE}part-topviews/0162-01-010101-01.png`,
+  '0162-01-010101-02': `${ASSET_BASE}part-topviews/0162-01-010101-02.png`,
+  '0162-01-010101-03': `${ASSET_BASE}part-topviews/0162-01-010101-03.png`,
+  '0162-01-010101-04': `${ASSET_BASE}part-topviews/0162-01-010101-04.png`,
 };
 
 const trayPartPreviewWidth = 240;

@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { ASSET_BASE } from '../asset-base';
 import { ArrowRight, Pause, Play } from 'lucide-react';
 import { ActionButtonsBento } from './component-demo/ActionButtonsBento';
 import { AnimatedGripperSliderBento } from './component-demo/AnimatedGripperSliderBento';
@@ -80,7 +81,7 @@ export function ComponentDemoPage() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <div className="inline-flex items-center gap-2.5">
               <img
-                src="/brand/dajie-rplus-filled-orange-256.png"
+                src={`${ASSET_BASE}brand/dajie-rplus-filled-orange-256.png`}
                 alt="robotics.ai"
                 className="size-6 object-contain"
               />
