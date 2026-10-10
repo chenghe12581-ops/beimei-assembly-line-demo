@@ -10,8 +10,8 @@ export type ClampPointSegmentConfig = {
 
 export const CLAMP_POINT_JOINT_LABELS = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6'] as const;
 
-/** 焊接任务机器人分配：demo 固定两台机器人，按焊缝段奇偶交替（1/3/5 → Robot1，2/4/6 → Robot2）。 */
-export function getWeldSegmentRobotName(segmentIndex: number): string {
+/** 焊接任务任务分区分配：demo 固定两个分区（以机器人命名），按焊缝段奇偶交替（1/3/5 → Robot1，2/4/6 → Robot2）。 */
+export function getWeldSegmentPartitionName(segmentIndex: number): string {
   return segmentIndex % 2 === 0 ? 'Robot1' : 'Robot2';
 }
 
