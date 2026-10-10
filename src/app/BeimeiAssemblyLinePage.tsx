@@ -77,7 +77,7 @@ import { ProcessJointAngleRow } from './components/process/ProcessJointAngleRow'
 import { ProcessNumberField } from './components/process/ProcessNumberField';
 import { ProcessPathPointGroupHeader } from './components/process/ProcessPathPointGroupHeader';
 import { ProcessPathPointModeToolbar } from './components/process/ProcessPathPointModeToolbar';
-import { ClampPointConfigPanel, createDefaultClampPointSegments, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
+import { ClampPointConfigPanel, createDefaultClampPointSegments, getWeldSegmentRobotName, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
 import { PoseAxisFieldGroup } from './components/process/PoseAxisFieldGroup';
 import { ProcessResultPointPanel } from './components/process/ProcessResultPointPanel';
 import { ProcessSelectionPanel } from './components/process/ProcessSelectionPanel';
@@ -9511,6 +9511,7 @@ export function BeimeiAssemblyLinePage() {
           <div className="mb-1 flex items-center gap-1.5 px-1.5 pt-1 text-[11px] text-zinc-400">
             焊缝段（{segmentCount}）
             {stepDirty && <span className="size-1.5 rounded-full bg-ds-brand-primary" title="有未保存修改" />}
+            <span className="ml-auto">作业机器人：{getWeldSegmentRobotName(activeSegmentIndex)}</span>
           </div>
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-ds-bg-segmented p-1">
             {Array.from({ length: segmentCount }, (_, segmentIndex) => {

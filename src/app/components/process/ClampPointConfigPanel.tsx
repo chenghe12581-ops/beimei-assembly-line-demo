@@ -10,6 +10,11 @@ export type ClampPointSegmentConfig = {
 
 export const CLAMP_POINT_JOINT_LABELS = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6'] as const;
 
+/** 焊接任务机器人分配：demo 固定两台机器人，按焊缝段奇偶交替（1/3/5 → Robot1，2/4/6 → Robot2）。 */
+export function getWeldSegmentRobotName(segmentIndex: number): string {
+  return segmentIndex % 2 === 0 ? 'Robot1' : 'Robot2';
+}
+
 /** 与翻面压紧任务“生成压紧位置”的 demo 结果点位同源，仅取 J1-J6 */
 export const DEFAULT_CLAMP_POINT_JOINTS: readonly string[] = ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30'];
 
