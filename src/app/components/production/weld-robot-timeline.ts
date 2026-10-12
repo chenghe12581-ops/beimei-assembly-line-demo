@@ -1,15 +1,13 @@
-import { getWeldSegmentPartitionName } from '../process/ClampPointConfigPanel';
-
-/** 单个焊缝段的时序条目：分区沿用任务分区规则（奇偶段交替 Robot1/Robot2）。 */
+/** 单个焊缝的时序条目：按机器人分配与双机并行队列排列。 */
 export type WeldTimelineSegment = {
   id: string;
-  /** 展示名：焊缝段 N */
+  /** 展示名：焊缝 N */
   name: string;
-  /** 所属任务分区（以机器人命名） */
+  /** 所属作业机器人 */
   robotName: string;
-  /** 在本分区队列内的开始时间（s） */
+  /** 在本机器人队列内的开始节拍（等长节拍，不显示时间） */
   start: number;
-  /** 单段焊接工时（s） */
+  /** 单条焊缝节拍数（统一为 1，仅表达顺序） */
   duration: number;
 };
 
@@ -21,33 +19,40 @@ export type WeldRobotTimelineRow = {
 export type WeldRobotTimeline = {
   segments: WeldTimelineSegment[];
   rows: WeldRobotTimelineRow[];
-  /** 双机并行完工取两分区队列的较大总时长 */
+  /** 双机并行完工取两机器人队列的较大节拍数 */
   totalDuration: number;
 };
 
-/** demo 单段工时（s）：按段序 8 / 10 / 12 循环，保证双机节拍略有差异。 */
-function getWeldSegmentDemoDuration(segmentIndex: number): number {
-  return 8 + (segmentIndex % 3) * 2;
-}
+/**
+ * demo 焊缝分配场景：共 4 条焊缝，焊缝 1/2/4 分配给 Robot1、焊缝 3 分配给 Robot2；
+ * 开局双机并行焊接 1 和 3，之后 Robot1 单独续焊 2 和 4。
+ */
+export const WELD_DEMO_ROBOT_ASSIGNMENTS: { segmentName: string; robotName: string }[] = [
+  { segmentName: '焊缝 1', robotName: 'Robot1' },
+  { segmentName: '焊缝 2', robotName: 'Robot1' },
+  { segmentName: '焊缝 3', robotName: 'Robot2' },
+  { segmentName: '焊缝 4', robotName: 'Robot1' },
+];
 
-/** 由焊缝段数生成双机焊接时序：每个分区内部严格串行，两个分区并行作业。 */
-export function createWeldRobotTimeline(segmentCount = 6): WeldRobotTimeline {
+/** 每条焊缝占 1 个等长节拍，仅表达焊接先后顺序，不显示时间。 */
+const WELD_DEMO_BEAT = 1;
+
+/** 生成双机焊接时序：每个机器人内部严格串行，两个机器人并行作业，节拍等长。 */
+export function createWeldRobotTimeline(): WeldRobotTimeline {
   const segments: WeldTimelineSegment[] = [];
   const cursorByRobot = new Map<string, number>();
 
-  for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
-    const robotName = getWeldSegmentPartitionName(segmentIndex);
-    const duration = getWeldSegmentDemoDuration(segmentIndex);
-    const start = cursorByRobot.get(robotName) ?? 0;
-    cursorByRobot.set(robotName, start + duration);
+  WELD_DEMO_ROBOT_ASSIGNMENTS.forEach((assignment, segmentIndex) => {
+    const start = cursorByRobot.get(assignment.robotName) ?? 0;
+    cursorByRobot.set(assignment.robotName, start + WELD_DEMO_BEAT);
     segments.push({
       id: `weld-segment-${segmentIndex + 1}`,
-      name: `焊缝段 ${segmentIndex + 1}`,
-      robotName,
+      name: assignment.segmentName,
+      robotName: assignment.robotName,
       start,
-      duration,
+      duration: WELD_DEMO_BEAT,
     });
-  }
+  });
 
   const robotNames = Array.from(new Set(segments.map((segment) => segment.robotName)));
   const rows = robotNames.map((robotName) => ({

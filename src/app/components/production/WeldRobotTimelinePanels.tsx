@@ -86,7 +86,7 @@ export function WeldRobotTimelinePanel({
   return (
     <section
       className={`flex flex-col overflow-hidden rounded-md bg-white/25 ring-1 ring-inset ring-white/28 backdrop-blur-xl ${
-        collapsed ? 'h-8' : 'h-full min-h-0'
+        collapsed ? 'h-8' : 'h-auto'
       }`}
     >
       <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-white/28 bg-white/10 px-2.5">
@@ -105,7 +105,7 @@ export function WeldRobotTimelinePanel({
       {!collapsed && (
         <div className="min-h-0 flex-1 overflow-auto p-2">
           <div className="rounded-md bg-white/30 p-1.5 ring-1 ring-inset ring-white/30">
-            <div className="mb-1 text-[10px] text-slate-500">双机并行 · 分区内部按段序焊接</div>
+            <div className="mb-1 text-[10px] text-slate-500">开局双机并行 · Robot1 续焊剩余焊缝</div>
             <div>
               {timeline.rows.map((row, rowIndex) => {
                 const colors = getRobotColor(row.robotName);
@@ -133,7 +133,7 @@ export function WeldRobotTimelinePanel({
                               width: `${(segment.duration / timeline.totalDuration) * 100}%`,
                             }}
                           >
-                            {segment.name.replace('焊缝段 ', '')}
+                            {segment.name.replace('焊缝 ', '')}
                           </button>
                         );
                       })}

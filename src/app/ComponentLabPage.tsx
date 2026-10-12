@@ -7473,7 +7473,7 @@ export function ComponentLabPage() {
   const [pickPathPoints, setPickPathPoints] = useState<PickPathPointDemoValue[]>(createDefaultPickPathPointDemoValues);
   const [clampPointSegments, setClampPointSegments] = useState<ClampPointSegmentConfig[]>(createDefaultClampPointSegments);
   const [clampPointActiveSegmentIndex, setClampPointActiveSegmentIndex] = useState(0);
-  const weldTimelineLab = useMemo(() => createWeldRobotTimeline(6), []);
+  const weldTimelineLab = useMemo(() => createWeldRobotTimeline(), []);
   const [weldTimelineLabSelected, setWeldTimelineLabSelected] = useState<number | null>(1);
   const [processJoints, setProcessJoints] = useState(['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20']);
   const [urdfJointDemoValues, setUrdfJointDemoValues] = useState(['0.0', '0.0']);
@@ -7871,7 +7871,7 @@ export function ComponentLabPage() {
     'point-row': { id: 'point-row', title: '点位信息单行', description: '点位名称 + XYZ/RPY 回显与编辑。' },
     'pick-path-points': { id: 'pick-path-points', title: '工艺安全点浮窗', description: '打磨单组安全点、图例折叠、单点启用和 6 个 XYZ / RPY 点位。' },
     'clamp-point-config': { id: 'clamp-point-config', title: '压紧点配置面板', description: '内嵌于焊缝段表格当前段，承载启用压紧开关与 J1-J6 关节角编辑。' },
-    'weld-robot-timeline': { id: 'weld-robot-timeline', title: '焊接时序面板', description: '生产执行模型视图焊接态：属性参数下方可缩回焊缝列表 + 右侧可缩回双行甘特时序图，分区沿用任务分区规则。' },
+    'weld-robot-timeline': { id: 'weld-robot-timeline', title: '焊接时序面板', description: '生产执行模型视图焊接态：属性参数下方可缩回焊缝列表 + 右侧可缩回双行甘特时序图，焊缝按机器人分配着色。' },
     'joint-row': { id: 'joint-row', title: '关节角组件', description: '外部轴与 URDF 姿态共用的 slider + stepper 行，支持标签、单位、范围和步长配置。' },
     'pick-parameters': { id: 'pick-parameters', title: '抓取参数校验区', description: '抓具切换、磁铁启用、左/右 Z 值、中磁铁 Z 只读、磁力档位与阈值回显。' },
     'viewport-workspace': { id: 'viewport-workspace', title: '视窗工作区组件', description: '3D 视窗壳、视窗内浮层、模型对象 pill 和特征回显，不混入任务面板。' },
@@ -8550,7 +8550,7 @@ export function ComponentLabPage() {
               </div>
             </div>
             <div className="mt-3 text-[11px] leading-5 text-slate-400">
-              生产执行模型视图在单步模式选中「贴板[xx]焊接」工步时进入焊接任务视图态：原结构树自动缩回，属性参数下方新增可缩回的焊缝列表（分区 chip 按机器人着色），右侧为可缩回的「焊接时序」甘特面板——双行分别对应两个任务分区（奇偶段交替 Robot1/Robot2），色块长度表达相对节拍，用于让使用人员理解焊缝组的双机焊接顺序；不包含播放控制与焊接时间显示，点色块与列表行可联动高亮。
+              生产执行模型视图在单步模式选中「贴板[xx]焊接」工步时进入焊接任务视图态：原结构树自动缩回，属性参数下方新增可缩回的焊缝列表（机器人 chip 按分配着色），右侧为收窄、自适应高度的「焊接时序」甘特面板——demo 场景共 4 条焊缝（1/2/4 → Robot1、3 → Robot2），开局双机并行焊接 1 和 3，之后 Robot1 单独续焊 2 和 4；色块等长、仅表达先后顺序，不含播放控制与时间显示，模型中以圆周排布的焊缝回显与列表、甘特联动点选。
             </div>
           </DemoCard>
         );

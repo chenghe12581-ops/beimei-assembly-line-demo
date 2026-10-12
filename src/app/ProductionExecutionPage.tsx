@@ -104,6 +104,8 @@ import { VisionPositionResultPanel, type VisionPositionResult, type PositioningR
 import { visionAssemblyWorkpieceCode } from './components/production/vision-assembly-demo';
 import { WeldSegmentListPanel, WeldRobotTimelinePanel } from './components/production/WeldRobotTimelinePanels';
 import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
+import type { WeldTimelineSegment } from './components/production/weld-robot-timeline';
+import { WeldCircleEcho } from './components/production/WeldCircleEcho';
 import { createFixedPlanningProcesses, type PlanningProcessLocationId } from './process-planning-model';
 
 type DeviceState = 'connected' | 'disconnected' | 'abnormal';
@@ -1230,7 +1232,18 @@ function ProductionSTLModel({
   );
 }
 
-function ProductionModelScene({ relatedPartIds }: { relatedPartIds: Set<string> }) {
+function ProductionModelScene({
+  relatedPartIds,
+  weldEchoSegments = null,
+  selectedWeldSegmentIndex = null,
+  onSelectWeldSegment,
+}: {
+  relatedPartIds: Set<string>;
+  /** 焊接任务时序视图态：非空时在工件上圆周回显全部焊缝。 */
+  weldEchoSegments?: WeldTimelineSegment[] | null;
+  selectedWeldSegmentIndex?: number | null;
+  onSelectWeldSegment?: (segmentIndex: number) => void;
+}) {
   const isolationActive = relatedPartIds.size > 0;
 
   return (
@@ -1254,6 +1267,13 @@ function ProductionModelScene({ relatedPartIds }: { relatedPartIds: Set<string> 
               />
             );
           })}
+          {weldEchoSegments && onSelectWeldSegment && (
+            <WeldCircleEcho
+              segments={weldEchoSegments}
+              selectedSegmentIndex={selectedWeldSegmentIndex ?? null}
+              onSelectSegment={onSelectWeldSegment}
+            />
+          )}
         </group>
       </Bounds>
       <OrbitControls makeDefault />
@@ -1712,7 +1732,7 @@ function ProductionModelViewport({
   );
 
   // 焊接任务时序视图态：焊缝列表 + 双机甘特时序（纯时序展示，不含播放与时间）
-  const weldTimeline = useMemo(() => (weldWorkstepName ? createWeldRobotTimeline(6) : null), [weldWorkstepName]);
+  const weldTimeline = useMemo(() => (weldWorkstepName ? createWeldRobotTimeline() : null), [weldWorkstepName]);
   const weldViewActive = Boolean(weldTimeline && weldWorkstepName);
   const [selectedWeldSegmentIndex, setSelectedWeldSegmentIndex] = useState<number | null>(null);
 
@@ -1747,7 +1767,12 @@ function ProductionModelViewport({
           onPointerMissed={() => setSelectedPartId(null)}
         >
           <Suspense fallback={null}>
-            <ProductionModelScene relatedPartIds={highlightedPartIds} />
+            <ProductionModelScene
+              relatedPartIds={highlightedPartIds}
+              weldEchoSegments={weldViewActive ? weldTimeline.segments : null}
+              selectedWeldSegmentIndex={selectedWeldSegmentIndex}
+              onSelectWeldSegment={setSelectedWeldSegmentIndex}
+            />
           </Suspense>
         </Canvas>
       ) : (
@@ -1787,7 +1812,7 @@ function ProductionModelViewport({
       )}
 
       {task && weldTimeline && weldWorkstepName && (
-        <div className="absolute right-3 top-16 z-30 h-[calc(100%-15.5rem)] w-[300px]">
+        <div className="absolute right-3 top-16 z-30 w-[240px]">
           <WeldRobotTimelinePanel
             timeline={weldTimeline}
             selectedSegmentIndex={selectedWeldSegmentIndex}
