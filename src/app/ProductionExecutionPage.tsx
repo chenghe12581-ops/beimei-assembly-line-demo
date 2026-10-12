@@ -1711,32 +1711,14 @@ function ProductionModelViewport({
     [relatedPartIds, selectedPartId],
   );
 
-  // 焊接任务时序视图态：焊缝列表 + 双机甘特播放
+  // 焊接任务时序视图态：焊缝列表 + 双机甘特时序（纯时序展示，不含播放与时间）
   const weldTimeline = useMemo(() => (weldWorkstepName ? createWeldRobotTimeline(6) : null), [weldWorkstepName]);
-  const [weldPlayTime, setWeldPlayTime] = useState(0);
-  const [weldPlaying, setWeldPlaying] = useState(false);
-  const [weldSpeed, setWeldSpeed] = useState(1);
+  const weldViewActive = Boolean(weldTimeline && weldWorkstepName);
   const [selectedWeldSegmentIndex, setSelectedWeldSegmentIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    setWeldPlayTime(0);
-    setWeldPlaying(false);
     setSelectedWeldSegmentIndex(null);
   }, [weldWorkstepName]);
-
-  useEffect(() => {
-    if (!weldPlaying || !weldTimeline) return;
-    const timer = window.setInterval(() => {
-      setWeldPlayTime((current) => Math.min(weldTimeline.totalDuration, current + 0.1 * weldSpeed));
-    }, 100);
-    return () => window.clearInterval(timer);
-  }, [weldPlaying, weldSpeed, weldTimeline]);
-
-  useEffect(() => {
-    if (weldTimeline && weldPlaying && weldPlayTime >= weldTimeline.totalDuration) {
-      setWeldPlaying(false);
-    }
-  }, [weldPlayTime, weldPlaying, weldTimeline]);
 
   useEffect(() => {
     setSelectedPartId(null);
@@ -1778,31 +1760,28 @@ function ProductionModelViewport({
 
       {task && (
         <div className="absolute left-3 top-16 z-30 flex h-[calc(100%-15.5rem)] w-[292px] flex-col gap-2">
-          {weldTimeline && weldWorkstepName ? (
+          <ModelStructureTreeOverlay
+            task={task}
+            selectedProcessId={selectedProcessId}
+            relatedPartIds={relatedPartIds}
+            selectedPartId={selectedPartId}
+            forceAssemblyCollapsed={weldViewActive}
+            onSelectPart={handleSelectPart}
+            onClearSelection={clearModelSelection}
+          />
+          <ProductionModelPropertiesOverlay
+            selectedPartId={selectedPartId}
+            relatedPartIds={relatedPartIds}
+            collapsed={propertiesCollapsed}
+            onToggleCollapsed={() => setPropertiesCollapsed((current) => !current)}
+          />
+          {weldTimeline && weldWorkstepName && (
             <WeldSegmentListPanel
               timeline={weldTimeline}
-              time={weldPlayTime}
               workstepName={weldWorkstepName}
               selectedSegmentIndex={selectedWeldSegmentIndex}
               onSelectSegment={setSelectedWeldSegmentIndex}
             />
-          ) : (
-            <>
-              <ModelStructureTreeOverlay
-                task={task}
-                selectedProcessId={selectedProcessId}
-                relatedPartIds={relatedPartIds}
-                selectedPartId={selectedPartId}
-                onSelectPart={handleSelectPart}
-                onClearSelection={clearModelSelection}
-              />
-              <ProductionModelPropertiesOverlay
-                selectedPartId={selectedPartId}
-                relatedPartIds={relatedPartIds}
-                collapsed={propertiesCollapsed}
-                onToggleCollapsed={() => setPropertiesCollapsed((current) => !current)}
-              />
-            </>
           )}
         </div>
       )}
@@ -1811,16 +1790,7 @@ function ProductionModelViewport({
         <div className="absolute right-3 top-16 z-30 h-[calc(100%-15.5rem)] w-[300px]">
           <WeldRobotTimelinePanel
             timeline={weldTimeline}
-            time={weldPlayTime}
-            playing={weldPlaying}
-            speed={weldSpeed}
             selectedSegmentIndex={selectedWeldSegmentIndex}
-            onPlayPause={() => {
-              if (!weldPlaying && weldPlayTime >= weldTimeline.totalDuration) setWeldPlayTime(0);
-              setWeldPlaying((current) => !current);
-            }}
-            onSeek={setWeldPlayTime}
-            onSpeedChange={setWeldSpeed}
             onSelectSegment={setSelectedWeldSegmentIndex}
           />
         </div>
@@ -1836,6 +1806,7 @@ function ModelStructureTreeOverlay({
   selectedProcessId,
   relatedPartIds,
   selectedPartId,
+  forceAssemblyCollapsed = false,
   onSelectPart,
   onClearSelection,
 }: {
@@ -1843,6 +1814,8 @@ function ModelStructureTreeOverlay({
   selectedProcessId: string | null;
   relatedPartIds: Set<string>;
   selectedPartId: string | null;
+  /** 焊接任务时序视图态下把装配体行缩回，为下方焊缝列表让出空间；退出时不强制展开。 */
+  forceAssemblyCollapsed?: boolean;
   onSelectPart: (partId: string | null) => void;
   onClearSelection: () => void;
 }) {
@@ -1850,6 +1823,12 @@ function ModelStructureTreeOverlay({
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const assemblyId = task?.drawingNo ?? '0162-01-010101';
   const assemblyCollapsed = collapsedIds.has(assemblyId);
+
+  // 焊接态缩回装配体行；只在 force 开启时介入，恢复后不强制展开，保留用户手动状态
+  useEffect(() => {
+    if (!forceAssemblyCollapsed) return;
+    setCollapsedIds((current) => (current.has(assemblyId) ? current : new Set(current).add(assemblyId)));
+  }, [forceAssemblyCollapsed, assemblyId]);
   const childPartsByParentId = useMemo(() => {
     const grouped = new Map<string, ProductionModelPart[]>();
     productionModelParts.forEach((part) => {

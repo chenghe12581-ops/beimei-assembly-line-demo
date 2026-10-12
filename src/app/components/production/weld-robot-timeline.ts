@@ -61,21 +61,3 @@ export function createWeldRobotTimeline(segmentCount = 6): WeldRobotTimeline {
 
   return { segments, rows, totalDuration };
 }
-
-/** 某时间点焊缝段的进行状态。 */
-export function getWeldSegmentPlayState(segment: WeldTimelineSegment, time: number): 'pending' | 'running' | 'done' {
-  if (time < segment.start) return 'pending';
-  if (time >= segment.start + segment.duration) return 'done';
-  return 'running';
-}
-
-/** 某时间点某分区的进行状态：空闲 / 焊接中（含当前段） / 全部完成。 */
-export function getWeldRobotPlayState(
-  row: WeldRobotTimelineRow,
-  time: number,
-): { status: 'idle' | 'running' | 'done'; currentSegment: WeldTimelineSegment | null } {
-  const current = row.segments.find((segment) => getWeldSegmentPlayState(segment, time) === 'running') ?? null;
-  if (current) return { status: 'running', currentSegment: current };
-  const allDone = row.segments.every((segment) => getWeldSegmentPlayState(segment, time) === 'done');
-  return { status: allDone ? 'done' : 'idle', currentSegment: null };
-}
