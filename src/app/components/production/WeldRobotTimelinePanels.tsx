@@ -109,12 +109,12 @@ export function WeldRobotTimelinePanel({
               {timeline.rows.map((row, rowIndex) => {
                 const colors = getRobotColor(row.robotName);
                 return (
-                  <div key={`weld-gantt-row-${row.robotName}`} className={rowIndex > 0 ? 'mt-2.5' : ''}>
+                  <div key={`weld-gantt-row-${row.robotName}`} className={rowIndex > 0 ? 'mt-2' : ''}>
                     <div className="mb-1 flex items-center gap-1.5">
                       <span className={`size-2 rounded-full ${colors.dot}`} />
                       <span className="text-xs font-medium text-slate-700">{row.robotName}</span>
                     </div>
-                    <div className="relative h-9 overflow-hidden rounded-md bg-zinc-100/85">
+                    <div className="relative h-6 overflow-hidden rounded-md bg-zinc-100/85">
                       {row.segments.map((segment) => {
                         const segmentIndex = timeline.segments.indexOf(segment);
                         const selected = selectedSegmentIndex === segmentIndex;
@@ -124,7 +124,7 @@ export function WeldRobotTimelinePanel({
                             type="button"
                             onClick={() => onSelectSegment(segmentIndex)}
                             title={`${segment.name} · ${segment.robotName} · 第 ${segment.sequence} 轮`}
-                            className={`absolute top-1 flex h-7 items-center gap-1 truncate rounded-md pl-1 pr-1.5 text-left text-[11px] font-medium leading-7 text-white ${colors.bar} ${
+                            className={`absolute top-[3px] flex h-[18px] items-center gap-1 truncate rounded-md pl-1 pr-1.5 text-left text-[10px] font-medium leading-[18px] text-white ${colors.bar} ${
                               selected ? 'ring-1 ring-inset ring-slate-700/60' : ''
                             }`}
                             style={{
@@ -132,7 +132,7 @@ export function WeldRobotTimelinePanel({
                               width: `${(segment.duration / timeline.totalDuration) * 100}%`,
                             }}
                           >
-                            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-white/30 text-[9px] font-bold leading-none">
+                            <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-white/30 text-[8px] font-bold leading-none">
                               {segment.sequence}
                             </span>
                             <span className="truncate">{segment.name.replace('焊缝 ', '')}</span>
