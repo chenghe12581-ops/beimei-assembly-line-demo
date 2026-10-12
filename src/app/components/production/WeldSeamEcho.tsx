@@ -29,7 +29,8 @@ type WeldSeamEchoLayout = {
 
 /**
  * 由贴板包围盒计算 4 条焊缝的回显位置（贴板四周，位于主板正面之上）。
- * 每条焊缝为各边中点处约 50mm 的短段，不超过模型边长。
+ * 每条焊缝为各边处的短段（1/3 号 50mm、2/4 号 80mm），不超过模型边长；
+ * 1/3 号沿左右短边略向下移贴合斜边。
  * 正视视角约定：+Z 方向观察、+Y 朝上，即屏幕左 = -X、上 = +Y、右 = +X、下 = -Y，
  * 因此焊缝 1/2/3/4 依次排布在贴板的左 / 上 / 右 / 下四条边（1/3 为两侧短边，2/4 为上下长边）。
  */
@@ -42,14 +43,18 @@ function computeWeldSeamLayout(patchBox: THREE.Box3): WeldSeamEchoLayout {
   const y0 = center.y - size.y / 2;
   const y1 = center.y + size.y / 2;
   const half = 25;
+  const halfLong = 40;
+  /** 1/3 号焊缝沿短边略向下移（绿色贴板左右边为斜边，下移后贴合板边）。 */
+  const sideDrop = size.y * 0.18;
+  const sideY = center.y - sideDrop;
 
   return {
     markerRadius: Math.max(Math.min(Math.max(size.x, size.y) * 0.03, 8), 4),
     seams: [
-      { points: [[x0, center.y - half, z], [x0, center.y + half, z]], labelPosition: [x0, center.y, z], labelOffset: [-12, 0] },
-      { points: [[center.x - half, y1, z], [center.x + half, y1, z]], labelPosition: [center.x, y1, z], labelOffset: [0, -14] },
-      { points: [[x1, center.y - half, z], [x1, center.y + half, z]], labelPosition: [x1, center.y, z], labelOffset: [12, 0] },
-      { points: [[center.x - half, y0, z], [center.x + half, y0, z]], labelPosition: [center.x, y0, z], labelOffset: [0, 14] },
+      { points: [[x0, sideY - half, z], [x0, sideY + half, z]], labelPosition: [x0, sideY, z], labelOffset: [-12, 0] },
+      { points: [[center.x - halfLong, y1, z], [center.x + halfLong, y1, z]], labelPosition: [center.x, y1, z], labelOffset: [0, -14] },
+      { points: [[x1, sideY - half, z], [x1, sideY + half, z]], labelPosition: [x1, sideY, z], labelOffset: [12, 0] },
+      { points: [[center.x - halfLong, y0, z], [center.x + halfLong, y0, z]], labelPosition: [center.x, y0, z], labelOffset: [0, 14] },
     ],
   };
 }
