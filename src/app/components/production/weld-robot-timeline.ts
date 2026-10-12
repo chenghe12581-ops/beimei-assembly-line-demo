@@ -26,13 +26,15 @@ export type WeldRobotTimeline = {
 };
 
 /**
- * demo 焊缝分配场景：共 4 条焊缝，焊缝 1/2/4 分配给 Robot1、焊缝 3 分配给 Robot2；
- * 开局双机并行焊接 1 和 3，之后 Robot1 单独续焊 2 和 4。
+ * demo 焊缝分配场景：共 4 条焊缝，开局 Robot1（焊缝 W1，贴板左侧）与 Robot2（焊缝 W2，贴板右侧）
+ * 双机并行，之后 Robot1 单独续焊 W3（贴板上侧）和 W4（贴板下侧）。
+ * 编号按加工轮次编排：第 1 轮 Robot1→W1、Robot2→W2，第 2 轮→W3，第 3 轮→W4。
+ * 数组顺序对应 3D 回显位置（左/上/右/下），与编号无关。
  */
 export const WELD_DEMO_ROBOT_ASSIGNMENTS: { segmentName: string; robotName: string }[] = [
   { segmentName: '焊缝 W1', robotName: 'Robot1' },
-  { segmentName: '焊缝 W2', robotName: 'Robot1' },
-  { segmentName: '焊缝 W3', robotName: 'Robot2' },
+  { segmentName: '焊缝 W3', robotName: 'Robot1' },
+  { segmentName: '焊缝 W2', robotName: 'Robot2' },
   { segmentName: '焊缝 W4', robotName: 'Robot1' },
 ];
 

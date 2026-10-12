@@ -29,8 +29,8 @@ type WeldSeamEchoLayout = {
 
 /**
  * 由贴板包围盒计算 4 条焊缝的回显位置（贴板四周，位于主板正面之上）。
- * 每条焊缝为各边处的短段（1/3 号 50mm、2/4 号 100mm），不超过模型边长；
- * 1/3 号沿左右短边略向下移贴合斜边。
+ * 每条焊缝为各边处的短段（左右 50mm、上下 100mm），不超过模型边长；
+ * 左右两条沿短边略向下移贴合斜边。焊缝编号按加工轮次编排（与位置无关），位置按数组顺序对应左/上/右/下。
  * 正视视角约定：+Z 方向观察、+Y 朝上，即屏幕左 = -X、上 = +Y、右 = +X、下 = -Y，
  * 因此焊缝 1/2/3/4 依次排布在贴板的左 / 上 / 右 / 下四条边（1/3 为两侧短边，2/4 为上下长边）。
  */
@@ -93,7 +93,7 @@ export function WeldSeamEcho({
       if (!seam) return [];
       return [{
         id: `${segment.id}-marker`,
-        label: `W${segmentIndex + 1}`,
+        label: segment.name.replace('焊缝 ', ''),
         position: seam.labelPosition,
         color: WELD_ECHO_COLORS[segment.robotName] ?? '#a1a1aa',
         labelColor: WELD_ECHO_LABEL_COLORS[segment.robotName] ?? '#52525b',
