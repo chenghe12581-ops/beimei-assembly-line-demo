@@ -93,7 +93,7 @@ export function WeldSeamEcho({
       if (!seam) return [];
       return [{
         id: `${segment.id}-marker`,
-        label: String(segmentIndex + 1),
+        label: `W${segmentIndex + 1}`,
         position: seam.labelPosition,
         color: WELD_ECHO_COLORS[segment.robotName] ?? '#a1a1aa',
         labelColor: WELD_ECHO_LABEL_COLORS[segment.robotName] ?? '#52525b',

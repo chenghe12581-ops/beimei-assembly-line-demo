@@ -104,17 +104,17 @@ export function WeldRobotTimelinePanel({
       </div>
       {!collapsed && (
         <div className="min-h-0 flex-1 overflow-auto p-2">
-          <div className="rounded-md bg-white/30 p-1.5 ring-1 ring-inset ring-white/30">
+          <div className="rounded-md bg-white/30 p-2 ring-1 ring-inset ring-white/30">
             <div>
               {timeline.rows.map((row, rowIndex) => {
                 const colors = getRobotColor(row.robotName);
                 return (
-                  <div key={`weld-gantt-row-${row.robotName}`} className={rowIndex > 0 ? 'mt-1.5' : ''}>
-                    <div className="mb-0.5 flex items-center gap-1">
-                      <span className={`size-1.5 rounded-full ${colors.dot}`} />
-                      <span className="text-[10px] text-slate-600">{row.robotName}</span>
+                  <div key={`weld-gantt-row-${row.robotName}`} className={rowIndex > 0 ? 'mt-2.5' : ''}>
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <span className={`size-2 rounded-full ${colors.dot}`} />
+                      <span className="text-xs font-medium text-slate-700">{row.robotName}</span>
                     </div>
-                    <div className="relative h-4 overflow-hidden rounded bg-zinc-100/85">
+                    <div className="relative h-9 overflow-hidden rounded-md bg-zinc-100/85">
                       {row.segments.map((segment) => {
                         const segmentIndex = timeline.segments.indexOf(segment);
                         const selected = selectedSegmentIndex === segmentIndex;
@@ -123,8 +123,8 @@ export function WeldRobotTimelinePanel({
                             key={segment.id}
                             type="button"
                             onClick={() => onSelectSegment(segmentIndex)}
-                            title={`${segment.name} · ${segment.robotName}`}
-                            className={`absolute top-0.5 h-3 truncate rounded-sm px-0.5 text-left text-[9px] leading-3 text-white ${colors.bar} ${
+                            title={`${segment.name} · ${segment.robotName} · 第 ${segment.sequence} 轮`}
+                            className={`absolute top-1 flex h-7 items-center gap-1 truncate rounded-md pl-1 pr-1.5 text-left text-[11px] font-medium leading-7 text-white ${colors.bar} ${
                               selected ? 'ring-1 ring-inset ring-slate-700/60' : ''
                             }`}
                             style={{
@@ -132,7 +132,10 @@ export function WeldRobotTimelinePanel({
                               width: `${(segment.duration / timeline.totalDuration) * 100}%`,
                             }}
                           >
-                            {segment.name.replace('焊缝 ', '')}
+                            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-white/30 text-[9px] font-bold leading-none">
+                              {segment.sequence}
+                            </span>
+                            <span className="truncate">{segment.name.replace('焊缝 ', '')}</span>
                           </button>
                         );
                       })}

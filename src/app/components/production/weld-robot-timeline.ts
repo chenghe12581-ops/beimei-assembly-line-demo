@@ -1,7 +1,7 @@
 /** 单个焊缝的时序条目：按机器人分配与双机并行队列排列。 */
 export type WeldTimelineSegment = {
   id: string;
-  /** 展示名：焊缝 N */
+  /** 展示名：焊缝 WN（如 焊缝 W1） */
   name: string;
   /** 所属作业机器人 */
   robotName: string;
@@ -9,6 +9,8 @@ export type WeldTimelineSegment = {
   start: number;
   /** 单条焊缝节拍数（统一为 1，仅表达顺序） */
   duration: number;
+  /** 全局焊接顺序：开局并行的焊缝同号，之后按开工先后递增 */
+  sequence: number;
 };
 
 export type WeldRobotTimelineRow = {
@@ -28,10 +30,10 @@ export type WeldRobotTimeline = {
  * 开局双机并行焊接 1 和 3，之后 Robot1 单独续焊 2 和 4。
  */
 export const WELD_DEMO_ROBOT_ASSIGNMENTS: { segmentName: string; robotName: string }[] = [
-  { segmentName: '焊缝 1', robotName: 'Robot1' },
-  { segmentName: '焊缝 2', robotName: 'Robot1' },
-  { segmentName: '焊缝 3', robotName: 'Robot2' },
-  { segmentName: '焊缝 4', robotName: 'Robot1' },
+  { segmentName: '焊缝 W1', robotName: 'Robot1' },
+  { segmentName: '焊缝 W2', robotName: 'Robot1' },
+  { segmentName: '焊缝 W3', robotName: 'Robot2' },
+  { segmentName: '焊缝 W4', robotName: 'Robot1' },
 ];
 
 /** 每条焊缝占 1 个等长节拍，仅表达焊接先后顺序，不显示时间。 */
@@ -51,6 +53,7 @@ export function createWeldRobotTimeline(): WeldRobotTimeline {
       robotName: assignment.robotName,
       start,
       duration: WELD_DEMO_BEAT,
+      sequence: start + 1,
     });
   });
 
