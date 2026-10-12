@@ -1822,7 +1822,7 @@ function ProductionModelViewport({
       {controls}
 
       {task && (
-        <div className="absolute left-3 top-16 z-30 flex h-[calc(100%-15.5rem)] w-[292px] flex-col gap-2">
+        <div className="absolute left-3 top-16 z-30 flex h-[calc(100%-15.5rem)] w-[292px] flex-col gap-2 overflow-y-auto">
           <ModelStructureTreeOverlay
             task={task}
             selectedProcessId={selectedProcessId}
@@ -1846,16 +1846,13 @@ function ProductionModelViewport({
               onSelectSegment={handleSelectWeldSegment}
             />
           )}
-        </div>
-      )}
-
-      {task && weldTimeline && weldWorkstepName && (
-        <div className="absolute right-3 top-16 z-30 w-[240px]">
-          <WeldRobotTimelinePanel
-            timeline={weldTimeline}
-            selectedSegmentIndex={selectedWeldSegmentIndex}
-            onSelectSegment={handleSelectWeldSegment}
-          />
+          {weldTimeline && weldWorkstepName && (
+            <WeldRobotTimelinePanel
+              timeline={weldTimeline}
+              selectedSegmentIndex={selectedWeldSegmentIndex}
+              onSelectSegment={handleSelectWeldSegment}
+            />
+          )}
         </div>
       )}
 
