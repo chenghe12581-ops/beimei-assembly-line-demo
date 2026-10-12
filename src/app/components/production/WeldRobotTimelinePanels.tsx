@@ -47,7 +47,14 @@ export function WeldSegmentListPanel({
         <div className="min-h-0 flex-1 overflow-auto">
           <div className="truncate px-2.5 pt-1.5 text-[10px] text-slate-500">{workstepName}</div>
           <div className="space-y-1 p-1.5">
-            {timeline.segments.map((segment, segmentIndex) => {
+            {[...timeline.segments]
+              .sort((left, right) => {
+                const leftNumber = Number(left.name.replace(/[^0-9]/g, '')) || 0;
+                const rightNumber = Number(right.name.replace(/[^0-9]/g, '')) || 0;
+                return leftNumber - rightNumber;
+              })
+              .map((segment) => {
+              const segmentIndex = timeline.segments.indexOf(segment);
               const colors = getRobotColor(segment.robotName);
               const selected = selectedSegmentIndex === segmentIndex;
               return (
