@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { Pause, Play } from 'lucide-react';
 import {
   getWeldRobotPlayState,
@@ -137,7 +138,7 @@ export function WeldRobotTimelinePanel({
 }) {
   const progress = timeline.totalDuration > 0 ? Math.min(1, time / timeline.totalDuration) : 0;
 
-  const handleTrackSeek = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleTrackSeek = (event: MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
     const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));

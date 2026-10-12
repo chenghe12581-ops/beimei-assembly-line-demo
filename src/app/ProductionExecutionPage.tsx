@@ -1690,6 +1690,7 @@ function ProductionModelViewport({
   task,
   selectedProcessId,
   relatedPartIds,
+  weldWorkstepName,
   onDeselectProcess,
 }: {
   controls?: ReactNode;
