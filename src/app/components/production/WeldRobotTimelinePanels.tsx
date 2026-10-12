@@ -85,7 +85,7 @@ export function WeldSegmentListPanel({
   );
 }
 
-/** 焊接时序面板：双行甘特图展示焊缝组的双机焊接顺序（不含播放与时间显示）。 */
+/** 焊接时序面板：纵向轮次矩阵展示焊缝组的双机焊接顺序——行 = 轮次、列 = 机器人，格内为焊缝色块（不含播放与时间显示）。 */
 export function WeldRobotTimelinePanel({
   timeline,
   selectedSegmentIndex,
@@ -118,45 +118,64 @@ export function WeldRobotTimelinePanel({
       {!collapsed && (
         <div className="min-h-0 flex-1 overflow-auto p-2">
           <div className="rounded-md bg-white/30 p-2 ring-1 ring-inset ring-white/30">
-            <div>
-              {timeline.rows.map((row, rowIndex) => {
-                const colors = getRobotColor(row.robotName);
-                return (
-                  <div key={`weld-gantt-row-${row.robotName}`} className={rowIndex > 0 ? 'mt-2' : ''}>
-                    <div className="mb-1 flex items-center gap-1.5">
-                      <span className={`size-2 rounded-full ${colors.dot}`} />
-                      <span className="text-xs font-medium text-slate-700">{row.robotName}</span>
-                    </div>
-                    <div className="relative h-6 overflow-hidden rounded-md bg-zinc-100/85">
-                      {row.segments.map((segment) => {
-                        const segmentIndex = timeline.segments.indexOf(segment);
-                        const selected = selectedSegmentIndex === segmentIndex;
+            {(() => {
+              const robotNames = timeline.rows.map((row) => row.robotName).sort((left, right) => left.localeCompare(right));
+              const roundSequences = Array.from(new Set(timeline.segments.map((segment) => segment.sequence))).sort(
+                (left, right) => left - right,
+              );
+              return (
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-6 shrink-0" />
+                    {robotNames.map((robotName) => {
+                      const colors = getRobotColor(robotName);
+                      return (
+                        <span key={`weld-matrix-head-${robotName}`} className="flex min-w-0 flex-1 items-center justify-center gap-1">
+                          <span className={`size-1.5 shrink-0 rounded-full ${colors.dot}`} />
+                          <span className="truncate text-[10px] font-medium text-slate-600">{robotName}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {roundSequences.map((sequence, roundIndex) => (
+                    <div key={`weld-matrix-round-${sequence}`} className={roundIndex > 0 ? 'mt-1.5 flex items-center gap-1.5' : 'mt-1 flex items-center gap-1.5'}>
+                      <span className="w-6 shrink-0 text-right text-[9px] font-semibold text-slate-400">R{sequence}</span>
+                      {robotNames.map((robotName) => {
+                        const roundSegments = timeline.segments.filter(
+                          (segment) => segment.sequence === sequence && segment.robotName === robotName,
+                        );
+                        const colors = getRobotColor(robotName);
                         return (
-                          <button
-                            key={segment.id}
-                            type="button"
-                            onClick={() => onSelectSegment(segmentIndex)}
-                            title={`${segment.name} · ${segment.robotName} · 第 ${segment.sequence} 轮`}
-                            className={`absolute top-[3px] flex h-[18px] items-center gap-1 truncate rounded-md pl-1 pr-1.5 text-left text-[10px] font-medium leading-[18px] text-white ${colors.bar} ${
-                              selected ? 'ring-1 ring-inset ring-slate-700/60' : ''
-                            }`}
-                            style={{
-                              left: `${(segment.start / timeline.totalDuration) * 100}%`,
-                              width: `${(segment.duration / timeline.totalDuration) * 100}%`,
-                            }}
-                          >
-                            <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-white/30 text-[8px] font-bold leading-none">
-                              {segment.sequence}
-                            </span>
-                            <span className="truncate">{segment.name.replace('焊缝 ', '')}</span>
-                          </button>
+                          <div key={`weld-matrix-cell-${sequence}-${robotName}`} className="flex min-h-[26px] flex-1 rounded-md bg-zinc-100/85 p-0.5">
+                            {roundSegments.length === 0 ? (
+                              <span className="flex flex-1 items-center justify-center text-[10px] text-slate-300">—</span>
+                            ) : (
+                              roundSegments.map((segment) => {
+                                const segmentIndex = timeline.segments.indexOf(segment);
+                                const selected = selectedSegmentIndex === segmentIndex;
+                                return (
+                                  <button
+                                    key={segment.id}
+                                    type="button"
+                                    onClick={() => onSelectSegment(segmentIndex)}
+                                    title={`${segment.name} · ${segment.robotName} · 第 ${segment.sequence} 轮`}
+                                    className={`flex h-[18px] flex-1 items-center justify-center truncate rounded px-1 text-[10px] font-medium leading-[18px] text-white ${colors.bar} ${
+                                      selected ? 'ring-1 ring-inset ring-slate-700/60' : ''
+                                    }`}
+                                  >
+                                    {segment.name.replace('焊缝 ', '')}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
                         );
                       })}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
