@@ -28,8 +28,9 @@ type WeldSeamEchoLayout = {
 };
 
 /**
- * 由贴板包围盒计算 4 条焊缝的回显位置（贴板四周，位于主板正面之上），焊缝两端略微内收避免超出边长。
- * 正视视角约定：+Z 方向观察、-Y 朝上，即屏幕左 = +X、上 = -Y、右 = -X、下 = +Y，
+ * 由贴板包围盒计算 4 条焊缝的回显位置（贴板四周，位于主板正面之上）。
+ * 每条焊缝为各边中点处约 5mm 的短段，不超过模型边长。
+ * 正视视角约定：+Z 方向观察、+Y 朝上，即屏幕左 = -X、上 = +Y、右 = +X、下 = -Y，
  * 因此焊缝 1/2/3/4 依次排布在贴板的左 / 上 / 右 / 下四条边（1/3 为两侧短边，2/4 为上下长边）。
  */
 function computeWeldSeamLayout(patchBox: THREE.Box3): WeldSeamEchoLayout {
@@ -40,16 +41,15 @@ function computeWeldSeamLayout(patchBox: THREE.Box3): WeldSeamEchoLayout {
   const x1 = center.x + size.x / 2;
   const y0 = center.y - size.y / 2;
   const y1 = center.y + size.y / 2;
-  const insetX = size.x * 0.02;
-  const insetY = size.y * 0.02;
+  const half = 2.5;
 
   return {
     markerRadius: Math.max(Math.min(Math.max(size.x, size.y) * 0.03, 8), 4),
     seams: [
-      { points: [[x1, y0 + insetY, z], [x1, y1 - insetY, z]], labelPosition: [x1, center.y, z], labelOffset: [-12, 0] },
-      { points: [[x0 + insetX, y0, z], [x1 - insetX, y0, z]], labelPosition: [center.x, y0, z], labelOffset: [0, -14] },
-      { points: [[x0, y0 + insetY, z], [x0, y1 - insetY, z]], labelPosition: [x0, center.y, z], labelOffset: [12, 0] },
-      { points: [[x0 + insetX, y1, z], [x1 - insetX, y1, z]], labelPosition: [center.x, y1, z], labelOffset: [0, 14] },
+      { points: [[x0, center.y - half, z], [x0, center.y + half, z]], labelPosition: [x0, center.y, z], labelOffset: [-12, 0] },
+      { points: [[center.x - half, y1, z], [center.x + half, y1, z]], labelPosition: [center.x, y1, z], labelOffset: [0, -14] },
+      { points: [[x1, center.y - half, z], [x1, center.y + half, z]], labelPosition: [x1, center.y, z], labelOffset: [12, 0] },
+      { points: [[center.x - half, y0, z], [center.x + half, y0, z]], labelPosition: [center.x, y0, z], labelOffset: [0, 14] },
     ],
   };
 }
@@ -130,8 +130,8 @@ export function WeldSeamEcho({
 }
 
 /**
- * 正视相机控制：点选焊缝时把视角平滑切换到正视工件（+Z 方向、-Y 朝上，
- * 屏幕左 = +X、上 = -Y，主板长轴水平展示），并同步调整 near/far 避免裁剪。
+ * 正视相机控制：点选焊缝时把视角平滑切换到正视工件（+Z 方向、+Y 朝上，
+ * 屏幕左 = -X、上 = +Y，主板长轴水平展示），并同步调整 near/far 避免裁剪。
  */
 export function WeldFaceOnCameraController({
   focusKey,
@@ -180,7 +180,7 @@ export function WeldFaceOnCameraController({
         size.x / (2 * Math.tan(horizontalFov / 2)),
       ) * 1.16 + size.z;
 
-      camera.up.set(0, -1, 0);
+      camera.up.set(0, 1, 0);
       const goalPosition = center.clone().add(new THREE.Vector3(0, 0, distance));
       const goalTarget = center.clone();
       const margin = Math.max(size.x, size.y, size.z);
