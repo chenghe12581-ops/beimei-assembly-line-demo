@@ -105,7 +105,6 @@ export function WeldRobotTimelinePanel({
       {!collapsed && (
         <div className="min-h-0 flex-1 overflow-auto p-2">
           <div className="rounded-md bg-white/30 p-1.5 ring-1 ring-inset ring-white/30">
-            <div className="mb-1 text-[10px] text-slate-500">开局双机并行 · Robot1 续焊剩余焊缝</div>
             <div>
               {timeline.rows.map((row, rowIndex) => {
                 const colors = getRobotColor(row.robotName);

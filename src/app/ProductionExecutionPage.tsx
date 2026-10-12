@@ -105,7 +105,7 @@ import { visionAssemblyWorkpieceCode } from './components/production/vision-asse
 import { WeldSegmentListPanel, WeldRobotTimelinePanel } from './components/production/WeldRobotTimelinePanels';
 import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import type { WeldTimelineSegment } from './components/production/weld-robot-timeline';
-import { WeldCircleEcho } from './components/production/WeldCircleEcho';
+import { WeldSeamEcho, WeldFaceOnCameraController } from './components/production/WeldSeamEcho';
 import { createFixedPlanningProcesses, type PlanningProcessLocationId } from './process-planning-model';
 
 type DeviceState = 'connected' | 'disconnected' | 'abnormal';
@@ -1235,16 +1235,29 @@ function ProductionSTLModel({
 function ProductionModelScene({
   relatedPartIds,
   weldEchoSegments = null,
+  weldPatchPartId = null,
+  weldFocusKey = 0,
   selectedWeldSegmentIndex = null,
   onSelectWeldSegment,
 }: {
   relatedPartIds: Set<string>;
-  /** 焊接任务时序视图态：非空时在工件上圆周回显全部焊缝。 */
+  /** 焊接任务时序视图态：非空时在工件（贴板四周）回显全部焊缝。 */
   weldEchoSegments?: WeldTimelineSegment[] | null;
+  /** 当前焊接工步对应的贴板零件号：焊缝回显围绕该贴板排布。 */
+  weldPatchPartId?: string | null;
+  /** 每次点选焊缝时 +1，触发视角切到正视工件。 */
+  weldFocusKey?: number;
   selectedWeldSegmentIndex?: number | null;
   onSelectWeldSegment?: (segmentIndex: number) => void;
 }) {
   const isolationActive = relatedPartIds.size > 0;
+  const partGroupRefs = useRef<(THREE.Group | null)[]>([]);
+  const plateGroupRef = useRef<THREE.Group | null>(null);
+  const controlsRef = useRef<any>(null);
+  const weldPatchPartIndex = Math.max(
+    productionModelParts.findIndex((part) => part.id === weldPatchPartId),
+    0,
+  );
 
   return (
     <>
@@ -1258,25 +1271,39 @@ function ProductionModelScene({
             const related = relatedPartIds.has(part.id);
             const dimmed = isolationActive && !related;
             return (
-              <ProductionSTLModel
+              <group
                 key={part.id}
-                part={part}
-                color={productionModelColors[index % productionModelColors.length]}
-                related={related}
-                dimmed={dimmed}
-              />
+                ref={(node) => {
+                  partGroupRefs.current[index] = node;
+                  if (index === 0) plateGroupRef.current = node;
+                }}
+              >
+                <ProductionSTLModel
+                  part={part}
+                  color={productionModelColors[index % productionModelColors.length]}
+                  related={related}
+                  dimmed={dimmed}
+                />
+              </group>
             );
           })}
-          {weldEchoSegments && onSelectWeldSegment && (
-            <WeldCircleEcho
-              segments={weldEchoSegments}
-              selectedSegmentIndex={selectedWeldSegmentIndex ?? null}
-              onSelectSegment={onSelectWeldSegment}
-            />
-          )}
         </group>
       </Bounds>
-      <OrbitControls makeDefault />
+      {weldEchoSegments && onSelectWeldSegment && (
+        <WeldSeamEcho
+          partGroupRefs={partGroupRefs}
+          patchPartIndex={weldPatchPartIndex}
+          segments={weldEchoSegments}
+          selectedSegmentIndex={selectedWeldSegmentIndex ?? null}
+          onSelectSegment={onSelectWeldSegment}
+        />
+      )}
+      <WeldFaceOnCameraController
+        focusKey={weldFocusKey}
+        plateGroupRef={plateGroupRef}
+        controlsRef={controlsRef}
+      />
+      <OrbitControls makeDefault ref={controlsRef} />
     </>
   );
 }
@@ -1735,6 +1762,18 @@ function ProductionModelViewport({
   const weldTimeline = useMemo(() => (weldWorkstepName ? createWeldRobotTimeline() : null), [weldWorkstepName]);
   const weldViewActive = Boolean(weldTimeline && weldWorkstepName);
   const [selectedWeldSegmentIndex, setSelectedWeldSegmentIndex] = useState<number | null>(null);
+  /** 每次点选焊缝时 +1：驱动 3D 视角平滑切到正视工件。 */
+  const [weldFocusKey, setWeldFocusKey] = useState(0);
+  /** 当前焊接工步对应的贴板零件：焊缝回显围绕该贴板排布。 */
+  const weldPatchPartId = useMemo(() => {
+    const match = weldWorkstepName?.match(/0162-01-010101-\d+/);
+    return match?.[0] ?? '0162-01-010101-02';
+  }, [weldWorkstepName]);
+
+  const handleSelectWeldSegment = (segmentIndex: number | null) => {
+    setSelectedWeldSegmentIndex(segmentIndex);
+    if (segmentIndex !== null) setWeldFocusKey((current) => current + 1);
+  };
 
   useEffect(() => {
     setSelectedWeldSegmentIndex(null);
@@ -1770,8 +1809,10 @@ function ProductionModelViewport({
             <ProductionModelScene
               relatedPartIds={highlightedPartIds}
               weldEchoSegments={weldViewActive ? weldTimeline.segments : null}
+              weldPatchPartId={weldPatchPartId}
+              weldFocusKey={weldFocusKey}
               selectedWeldSegmentIndex={selectedWeldSegmentIndex}
-              onSelectWeldSegment={setSelectedWeldSegmentIndex}
+              onSelectWeldSegment={handleSelectWeldSegment}
             />
           </Suspense>
         </Canvas>
@@ -1805,7 +1846,7 @@ function ProductionModelViewport({
               timeline={weldTimeline}
               workstepName={weldWorkstepName}
               selectedSegmentIndex={selectedWeldSegmentIndex}
-              onSelectSegment={setSelectedWeldSegmentIndex}
+              onSelectSegment={handleSelectWeldSegment}
             />
           )}
         </div>
@@ -1816,7 +1857,7 @@ function ProductionModelViewport({
           <WeldRobotTimelinePanel
             timeline={weldTimeline}
             selectedSegmentIndex={selectedWeldSegmentIndex}
-            onSelectSegment={setSelectedWeldSegmentIndex}
+            onSelectSegment={handleSelectWeldSegment}
           />
         </div>
       )}
