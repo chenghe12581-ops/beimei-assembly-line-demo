@@ -62,6 +62,12 @@ export function WeldSegmentListPanel({
                   <span className={`size-1.5 shrink-0 rounded-full ${colors.dot}`} />
                   <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{segment.name}</span>
                   <span className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${colors.chip}`}>{segment.robotName}</span>
+                  <span
+                    className="shrink-0 rounded bg-white/75 px-1 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200/80"
+                    title={`第 ${segment.sequence} 轮焊接`}
+                  >
+                    R{segment.sequence}
+                  </span>
                 </button>
               );
             })}
