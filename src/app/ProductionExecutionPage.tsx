@@ -1243,7 +1243,7 @@ function ProductionModelScene({
   relatedPartIds: Set<string>;
   /** 焊接任务时序视图态：非空时在工件（贴板四周）回显全部焊缝。 */
   weldEchoSegments?: WeldTimelineSegment[] | null;
-  /** 当前焊接工步对应的贴板零件号：焊缝回显围绕该贴板排布。 */
+  /** 焊缝回显围绕的贴板零件号：固定为正面加强板 02（绿色贴板）。 */
   weldPatchPartId?: string | null;
   /** 每次点选焊缝时 +1，触发视角切到正视工件。 */
   weldFocusKey?: number;
@@ -1764,11 +1764,8 @@ function ProductionModelViewport({
   const [selectedWeldSegmentIndex, setSelectedWeldSegmentIndex] = useState<number | null>(null);
   /** 每次点选焊缝时 +1：驱动 3D 视角平滑切到正视工件。 */
   const [weldFocusKey, setWeldFocusKey] = useState(0);
-  /** 当前焊接工步对应的贴板零件：焊缝回显围绕该贴板排布。 */
-  const weldPatchPartId = useMemo(() => {
-    const match = weldWorkstepName?.match(/0162-01-010101-\d+/);
-    return match?.[0] ?? '0162-01-010101-02';
-  }, [weldWorkstepName]);
+  /** 焊缝回显围绕的贴板零件：固定为正面加强板 02（绿色贴板），与所选焊接工步无关。 */
+  const weldPatchPartId = '0162-01-010101-02';
 
   const handleSelectWeldSegment = (segmentIndex: number | null) => {
     setSelectedWeldSegmentIndex(segmentIndex);

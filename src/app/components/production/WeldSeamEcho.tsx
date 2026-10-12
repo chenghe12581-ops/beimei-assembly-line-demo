@@ -29,7 +29,7 @@ type WeldSeamEchoLayout = {
 
 /**
  * 由贴板包围盒计算 4 条焊缝的回显位置（贴板四周，位于主板正面之上）。
- * 每条焊缝为各边中点处约 30mm 的短段，不超过模型边长。
+ * 每条焊缝为各边中点处约 50mm 的短段，不超过模型边长。
  * 正视视角约定：+Z 方向观察、+Y 朝上，即屏幕左 = -X、上 = +Y、右 = +X、下 = -Y，
  * 因此焊缝 1/2/3/4 依次排布在贴板的左 / 上 / 右 / 下四条边（1/3 为两侧短边，2/4 为上下长边）。
  */
@@ -41,7 +41,7 @@ function computeWeldSeamLayout(patchBox: THREE.Box3): WeldSeamEchoLayout {
   const x1 = center.x + size.x / 2;
   const y0 = center.y - size.y / 2;
   const y1 = center.y + size.y / 2;
-  const half = 15;
+  const half = 25;
 
   return {
     markerRadius: Math.max(Math.min(Math.max(size.x, size.y) * 0.03, 8), 4),
