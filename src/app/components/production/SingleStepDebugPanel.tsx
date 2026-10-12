@@ -90,6 +90,8 @@ type SingleStepDebugPanelProps = {
   onEditTrayMaterial?: (trayCode: string) => void;
   onDispatchTrayAgv?: (trayCode: string, pickupPoint: string) => void;
   onManualCommand?: (message: string) => void;
+  /** 单步模式下选中工位工步的回调：用于模型视图联动（如贴板焊接工步的焊缝时序视图）。 */
+  onSelectedWorkstepChange?: (workstepIndex: number) => void;
 };
 
 const modeOptions: Array<{
@@ -173,8 +175,13 @@ export function SingleStepDebugPanel({
   onEditTrayMaterial,
   onDispatchTrayAgv,
   onManualCommand,
+  onSelectedWorkstepChange,
 }: SingleStepDebugPanelProps) {
   const [selectedWorkstepIndex, setSelectedWorkstepIndex] = useState(0);
+  const handleSelectWorkstep = (index: number) => {
+    setSelectedWorkstepIndex(index);
+    onSelectedWorkstepChange?.(index);
+  };
   const [demoExecutingWorkstepIndex, setDemoExecutingWorkstepIndex] = useState<number | null>(null);
   const selectedMode = modeOptions.find((option) => option.id === executionMode) ?? modeOptions[0];
   const isRunning = taskState === 'running';
@@ -470,7 +477,7 @@ export function SingleStepDebugPanel({
                   executingIndex={!snapshot.process ? demoExecutingWorkstepIndex : undefined}
                   interactive={executionMode === 'single-step'}
                   disabled={singleStepExecutionActive}
-                  onSelect={(index) => setSelectedWorkstepIndex(index)}
+                  onSelect={handleSelectWorkstep}
                   renderStepSuffix={(step) => {
                     const positioningResultKey = positioningResultKeysByWorkstep[step.index];
                     if (!positioningResultKey || !onViewPositioningResult) return null;

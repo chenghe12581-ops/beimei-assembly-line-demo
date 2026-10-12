@@ -102,6 +102,8 @@ import { VisionFeedBar, visionFeedOptions } from './components/production/Vision
 import { PositioningChoiceDialog, type PositioningDialogImportStatus } from './components/production/PositioningChoiceDialog';
 import { VisionPositionResultPanel, type VisionPositionResult, type PositioningResultSource } from './components/production/VisionPositionResultPanel';
 import { visionAssemblyWorkpieceCode } from './components/production/vision-assembly-demo';
+import { WeldSegmentListPanel, WeldRobotTimelinePanel } from './components/production/WeldRobotTimelinePanels';
+import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import { createFixedPlanningProcesses, type PlanningProcessLocationId } from './process-planning-model';
 
 type DeviceState = 'connected' | 'disconnected' | 'abnormal';
@@ -1697,6 +1699,8 @@ function ProductionModelViewport({
   task: ProductionTask | null;
   selectedProcessId: string | null;
   relatedPartIds: Set<string>;
+  /** 单步模式选中的「贴板[xx]焊接」工步名：非空时模型视图切换为焊接任务时序视图态。 */
+  weldWorkstepName?: string | null;
   onDeselectProcess: () => void;
 }) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
@@ -1705,6 +1709,33 @@ function ProductionModelViewport({
     () => (selectedPartId ? new Set([selectedPartId]) : relatedPartIds),
     [relatedPartIds, selectedPartId],
   );
+
+  // 焊接任务时序视图态：焊缝列表 + 双机甘特播放
+  const weldTimeline = useMemo(() => (weldWorkstepName ? createWeldRobotTimeline(6) : null), [weldWorkstepName]);
+  const [weldPlayTime, setWeldPlayTime] = useState(0);
+  const [weldPlaying, setWeldPlaying] = useState(false);
+  const [weldSpeed, setWeldSpeed] = useState(1);
+  const [selectedWeldSegmentIndex, setSelectedWeldSegmentIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setWeldPlayTime(0);
+    setWeldPlaying(false);
+    setSelectedWeldSegmentIndex(null);
+  }, [weldWorkstepName]);
+
+  useEffect(() => {
+    if (!weldPlaying || !weldTimeline) return;
+    const timer = window.setInterval(() => {
+      setWeldPlayTime((current) => Math.min(weldTimeline.totalDuration, current + 0.1 * weldSpeed));
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [weldPlaying, weldSpeed, weldTimeline]);
+
+  useEffect(() => {
+    if (weldTimeline && weldPlaying && weldPlayTime >= weldTimeline.totalDuration) {
+      setWeldPlaying(false);
+    }
+  }, [weldPlayTime, weldPlaying, weldTimeline]);
 
   useEffect(() => {
     setSelectedPartId(null);
@@ -1746,19 +1777,50 @@ function ProductionModelViewport({
 
       {task && (
         <div className="absolute left-3 top-16 z-30 flex h-[calc(100%-15.5rem)] w-[292px] flex-col gap-2">
-          <ModelStructureTreeOverlay
-            task={task}
-            selectedProcessId={selectedProcessId}
-            relatedPartIds={relatedPartIds}
-            selectedPartId={selectedPartId}
-            onSelectPart={handleSelectPart}
-            onClearSelection={clearModelSelection}
-          />
-          <ProductionModelPropertiesOverlay
-            selectedPartId={selectedPartId}
-            relatedPartIds={relatedPartIds}
-            collapsed={propertiesCollapsed}
-            onToggleCollapsed={() => setPropertiesCollapsed((current) => !current)}
+          {weldTimeline && weldWorkstepName ? (
+            <WeldSegmentListPanel
+              timeline={weldTimeline}
+              time={weldPlayTime}
+              workstepName={weldWorkstepName}
+              selectedSegmentIndex={selectedWeldSegmentIndex}
+              onSelectSegment={setSelectedWeldSegmentIndex}
+            />
+          ) : (
+            <>
+              <ModelStructureTreeOverlay
+                task={task}
+                selectedProcessId={selectedProcessId}
+                relatedPartIds={relatedPartIds}
+                selectedPartId={selectedPartId}
+                onSelectPart={handleSelectPart}
+                onClearSelection={clearModelSelection}
+              />
+              <ProductionModelPropertiesOverlay
+                selectedPartId={selectedPartId}
+                relatedPartIds={relatedPartIds}
+                collapsed={propertiesCollapsed}
+                onToggleCollapsed={() => setPropertiesCollapsed((current) => !current)}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {task && weldTimeline && weldWorkstepName && (
+        <div className="absolute right-3 top-16 z-30 h-[calc(100%-15.5rem)] w-[300px]">
+          <WeldRobotTimelinePanel
+            timeline={weldTimeline}
+            time={weldPlayTime}
+            playing={weldPlaying}
+            speed={weldSpeed}
+            selectedSegmentIndex={selectedWeldSegmentIndex}
+            onPlayPause={() => {
+              if (!weldPlaying && weldPlayTime >= weldTimeline.totalDuration) setWeldPlayTime(0);
+              setWeldPlaying((current) => !current);
+            }}
+            onSeek={setWeldPlayTime}
+            onSpeedChange={setWeldSpeed}
+            onSelectSegment={setSelectedWeldSegmentIndex}
           />
         </div>
       )}
@@ -3529,6 +3591,8 @@ export function ProductionExecutionPage({
   ));
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [executionMode, setExecutionMode] = useState<ProductionDebugExecutionMode>('auto');
+  /** 单步调试面板当前选中的工位工步索引：驱动模型视图焊接时序等联动视图。 */
+  const [singleStepSelectedWorkstepIndex, setSingleStepSelectedWorkstepIndex] = useState<number | null>(null);
   const [activeExecutionMode, setActiveExecutionMode] = useState<ProductionDebugExecutionMode | null>(null);
   const [activeExecutionStationId, setActiveExecutionStationId] = useState<string | null>(null);
   const [detailTarget, setDetailTarget] = useState<ProductionDetailTarget>(() => ({
@@ -3726,6 +3790,18 @@ export function ProductionExecutionPage({
       currentWorkstepIndex,
     };
   }, [activeProcessOptions, detailTarget, selectedTask]);
+
+  // 切换工位/复合工位时清空单步选中工步，避免跨工位残留触发联动视图
+  useEffect(() => {
+    setSingleStepSelectedWorkstepIndex(null);
+  }, [selectedDebugStationSnapshot?.stationId]);
+
+  // 单步模式选中「贴板[xx]焊接」工步时，模型视图进入焊接任务时序视图态
+  const weldTimelineWorkstepName = useMemo(() => {
+    if (executionMode !== 'single-step' || !selectedDebugStationSnapshot || singleStepSelectedWorkstepIndex == null) return null;
+    const name = selectedDebugStationSnapshot.workstepNames[singleStepSelectedWorkstepIndex];
+    return name && /^贴板\[.+\]焊接$/.test(name) ? name : null;
+  }, [executionMode, selectedDebugStationSnapshot, singleStepSelectedWorkstepIndex]);
 
   const getPositioningTargetForIndex = (workstepIndex: number): PositioningTarget | null => {
     const snapshot = selectedDebugStationSnapshot;
@@ -5742,6 +5818,7 @@ export function ProductionExecutionPage({
                 task={selectedTask}
                 selectedProcessId={selectedProcessId}
                 relatedPartIds={relatedPartIds}
+                weldWorkstepName={weldTimelineWorkstepName}
                 onDeselectProcess={() => setSelectedProcessId(null)}
               />
             ) : (
@@ -5825,6 +5902,7 @@ export function ProductionExecutionPage({
                 onInitialize={handleInitialize}
                 onRunOrPause={() => handleRunOrPause(selectedDebugStationSnapshot?.stationId)}
                 onExecuteStep={handleExecuteStep}
+                onSelectedWorkstepChange={setSingleStepSelectedWorkstepIndex}
                 onEditTrayMaterial={handleStartTrayCardEdit}
                 onDispatchTrayAgv={handleDispatchTrayAgv}
                 onManualCommand={addLog}

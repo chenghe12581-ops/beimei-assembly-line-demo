@@ -12,6 +12,8 @@ import { ProcessFieldGroup } from './components/process/ProcessFieldGroup';
 import { ProcessJointAngleRow as JointAngleRowDemo } from './components/process/ProcessJointAngleRow';
 import { ProcessPathPointModeToolbar } from './components/process/ProcessPathPointModeToolbar';
 import { ClampPointConfigPanel, createDefaultClampPointSegments, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
+import { WeldSegmentListPanel, WeldRobotTimelinePanel } from './components/production/WeldRobotTimelinePanels';
+import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import { ProcessPathPointMarkerModel } from './components/process/GrindToolHeadPoseModel';
 import { ProcessResultPointPanel } from './components/process/ProcessResultPointPanel';
 import { ProcessSelectionPanel } from './components/process/ProcessSelectionPanel';
@@ -347,6 +349,7 @@ type ComponentSection =
   | 'point-row'
   | 'pick-path-points'
   | 'clamp-point-config'
+  | 'weld-robot-timeline'
   | 'joint-row'
   | 'pick-parameters'
   | 'viewport-workspace'
@@ -7470,6 +7473,18 @@ export function ComponentLabPage() {
   const [pickPathPoints, setPickPathPoints] = useState<PickPathPointDemoValue[]>(createDefaultPickPathPointDemoValues);
   const [clampPointSegments, setClampPointSegments] = useState<ClampPointSegmentConfig[]>(createDefaultClampPointSegments);
   const [clampPointActiveSegmentIndex, setClampPointActiveSegmentIndex] = useState(0);
+  const weldTimelineLab = useMemo(() => createWeldRobotTimeline(6), []);
+  const [weldTimelineLabTime, setWeldTimelineLabTime] = useState(9);
+  const [weldTimelineLabPlaying, setWeldTimelineLabPlaying] = useState(false);
+  const [weldTimelineLabSpeed, setWeldTimelineLabSpeed] = useState(1);
+  const [weldTimelineLabSelected, setWeldTimelineLabSelected] = useState<number | null>(1);
+  useEffect(() => {
+    if (!weldTimelineLabPlaying) return;
+    const timer = window.setInterval(() => {
+      setWeldTimelineLabTime((current) => (current + 0.1 * weldTimelineLabSpeed) % weldTimelineLab.totalDuration);
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [weldTimelineLabPlaying, weldTimelineLabSpeed, weldTimelineLab]);
   const [processJoints, setProcessJoints] = useState(['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20']);
   const [urdfJointDemoValues, setUrdfJointDemoValues] = useState(['0.0', '0.0']);
   const visionDemoAbsolutePose = resolveVisionAbsolutePose(
@@ -7866,6 +7881,7 @@ export function ComponentLabPage() {
     'point-row': { id: 'point-row', title: '点位信息单行', description: '点位名称 + XYZ/RPY 回显与编辑。' },
     'pick-path-points': { id: 'pick-path-points', title: '工艺安全点浮窗', description: '打磨单组安全点、图例折叠、单点启用和 6 个 XYZ / RPY 点位。' },
     'clamp-point-config': { id: 'clamp-point-config', title: '压紧点配置面板', description: '内嵌于焊缝段表格当前段，承载启用压紧开关与 J1-J6 关节角编辑。' },
+    'weld-robot-timeline': { id: 'weld-robot-timeline', title: '焊接时序面板', description: '生产执行模型视图焊接态：左焊缝列表 + 右双机任务卡片与双行甘特时序图，分区沿用任务分区规则。' },
     'joint-row': { id: 'joint-row', title: '关节角组件', description: '外部轴与 URDF 姿态共用的 slider + stepper 行，支持标签、单位、范围和步长配置。' },
     'pick-parameters': { id: 'pick-parameters', title: '抓取参数校验区', description: '抓具切换、磁铁启用、左/右 Z 值、中磁铁 Z 只读、磁力档位与阈值回显。' },
     'viewport-workspace': { id: 'viewport-workspace', title: '视窗工作区组件', description: '3D 视窗壳、视窗内浮层、模型对象 pill 和特征回显，不混入任务面板。' },
@@ -7901,7 +7917,7 @@ export function ComponentLabPage() {
       page: 'process-execution',
       title: '领域复合组件',
       description: '表达工艺参数、点位、路径、关节角和组合配置等领域控件。',
-      sections: ['axis-row', 'point-row', 'pick-path-points', 'clamp-point-config', 'joint-row', 'pick-parameters', 'support-settings', 'composite'],
+      sections: ['axis-row', 'point-row', 'pick-path-points', 'clamp-point-config', 'weld-robot-timeline', 'joint-row', 'pick-parameters', 'support-settings', 'composite'],
     },
     {
       id: 'workspace-viewport',
@@ -8520,6 +8536,38 @@ export function ComponentLabPage() {
             </div>
             <div className="mt-3 text-[11px] leading-5 text-slate-400">
               样式 C 焊接任务路径点位改为焊缝段表格：段切换由外层段列表承担，本面板内嵌于选中段的「压紧配置」视图，只负责当前段的启用压紧开关与 J1-J6 关节角编辑（J1 为 mm、其余为 °）；关闭压紧后关节角行禁用。已取代原压紧点配置浮窗。
+            </div>
+          </DemoCard>
+        );
+      case 'weld-robot-timeline':
+        return (
+          <DemoCard title="焊接时序面板">
+            <div className="flex w-full max-w-full gap-2 rounded-lg bg-slate-100/85 p-2">
+              <div className="w-[240px] shrink-0 self-start">
+                <WeldSegmentListPanel
+                  timeline={weldTimelineLab}
+                  time={weldTimelineLabTime}
+                  workstepName="贴板[0162-01-010101-02]焊接"
+                  selectedSegmentIndex={weldTimelineLabSelected}
+                  onSelectSegment={setWeldTimelineLabSelected}
+                />
+              </div>
+              <div className="h-[320px] min-w-0 flex-1">
+                <WeldRobotTimelinePanel
+                  timeline={weldTimelineLab}
+                  time={weldTimelineLabTime}
+                  playing={weldTimelineLabPlaying}
+                  speed={weldTimelineLabSpeed}
+                  selectedSegmentIndex={weldTimelineLabSelected}
+                  onPlayPause={() => setWeldTimelineLabPlaying((current) => !current)}
+                  onSeek={setWeldTimelineLabTime}
+                  onSpeedChange={setWeldTimelineLabSpeed}
+                  onSelectSegment={setWeldTimelineLabSelected}
+                />
+              </div>
+            </div>
+            <div className="mt-3 text-[11px] leading-5 text-slate-400">
+              生产执行模型视图在单步模式选中「贴板[xx]焊接」工步时进入焊接任务视图态：左侧焊缝列表显示该工步全部焊缝段（分区 chip、状态点、单段工时），右侧双机任务面板提供播放控制、机器人状态卡与双行甘特时序图；分区沿用任务分区规则（奇偶段交替 Robot1/Robot2），demo 单段工时按 8/10/12s 循环，点甘特色块或总进度条可联动。
             </div>
           </DemoCard>
         );
@@ -10960,7 +11008,7 @@ export function ComponentLabPage() {
                           {layer.sections.map((sectionId) => (
                             <div
                               key={`${layer.id}-${sectionId}`}
-                              className={sectionId === 'unit-number' || sectionId === 'checkbox' || sectionId === 'object-select' || sectionId === 'pick-path-points' || sectionId === 'clamp-point-config' || sectionId === 'viewport-workspace' || sectionId === 'process-panel' || sectionId === 'production-task-panels' || sectionId === 'production-execution' || sectionId === 'tray-card' ? 'col-span-full' : ''}
+                              className={sectionId === 'unit-number' || sectionId === 'checkbox' || sectionId === 'object-select' || sectionId === 'pick-path-points' || sectionId === 'clamp-point-config' || sectionId === 'weld-robot-timeline' || sectionId === 'viewport-workspace' || sectionId === 'process-panel' || sectionId === 'production-task-panels' || sectionId === 'production-execution' || sectionId === 'tray-card' ? 'col-span-full' : ''}
                             >
                               {renderComponentDetail(sectionId)}
                             </div>
