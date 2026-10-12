@@ -118,45 +118,74 @@ export function WeldRobotTimelinePanel({
       {!collapsed && (
         <div className="min-h-0 flex-1 overflow-auto p-2">
           <div className="rounded-md bg-white/30 p-2 ring-1 ring-inset ring-white/30">
-            <div>
-              {timeline.rows.map((row, rowIndex) => {
-                const colors = getRobotColor(row.robotName);
-                return (
-                  <div key={`weld-gantt-row-${row.robotName}`} className={rowIndex > 0 ? 'mt-2' : ''}>
-                    <div className="mb-1 flex items-center gap-1.5">
-                      <span className={`size-2 rounded-full ${colors.dot}`} />
-                      <span className="text-xs font-medium text-slate-700">{row.robotName}</span>
-                    </div>
-                    <div className="relative h-6 overflow-hidden rounded-md bg-zinc-100/85">
-                      {row.segments.map((segment) => {
-                        const segmentIndex = timeline.segments.indexOf(segment);
-                        const selected = selectedSegmentIndex === segmentIndex;
-                        return (
-                          <button
-                            key={segment.id}
-                            type="button"
-                            onClick={() => onSelectSegment(segmentIndex)}
-                            title={`${segment.name} · ${segment.robotName} · 第 ${segment.sequence} 轮`}
-                            className={`absolute top-[3px] flex h-[18px] items-center gap-1 truncate rounded-md pl-1 pr-1.5 text-left text-[10px] font-medium leading-[18px] text-white ${colors.bar} ${
-                              selected ? 'ring-1 ring-inset ring-slate-700/60' : ''
-                            }`}
-                            style={{
-                              left: `${(segment.start / timeline.totalDuration) * 100}%`,
-                              width: `${(segment.duration / timeline.totalDuration) * 100}%`,
-                            }}
-                          >
-                            <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-white/30 text-[8px] font-bold leading-none">
-                              {segment.sequence}
-                            </span>
-                            <span className="truncate">{segment.name.replace('焊缝 ', '')}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+            {(() => {
+              const roundSequences = Array.from(new Set(timeline.segments.map((segment) => segment.sequence))).sort(
+                (left, right) => left - right,
+              );
+              const roundPct = (sequence: number) => ((sequence - 1) / timeline.totalDuration) * 100;
+              const roundWidth = (1 / timeline.totalDuration) * 100;
+              return (
+                <div className="relative">
+                  <div className="relative mb-1 h-3.5">
+                    {roundSequences.map((sequence) => (
+                      <span
+                        key={`weld-round-caption-${sequence}`}
+                        className="absolute truncate text-center text-[9px] font-medium text-slate-400"
+                        style={{ left: `${roundPct(sequence)}%`, width: `${roundWidth}%` }}
+                      >
+                        第 {sequence} 轮
+                      </span>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                  {roundSequences.map((sequence) => (
+                    <div
+                      key={`weld-round-frame-${sequence}`}
+                      className={`pointer-events-none absolute bottom-0 rounded-lg ring-1 ring-inset ${
+                        timeline.segments.filter((segment) => segment.sequence === sequence).length > 1
+                          ? 'bg-emerald-400/[0.09] ring-emerald-300/50'
+                          : 'bg-slate-400/[0.05] ring-slate-300/40'
+                      }`}
+                      style={{ left: `calc(${roundPct(sequence)}% + 2px)`, width: `calc(${roundWidth}% - 4px)`, top: 18 }}
+                    />
+                  ))}
+                  {timeline.rows.map((row, rowIndex) => {
+                    const colors = getRobotColor(row.robotName);
+                    return (
+                      <div key={`weld-gantt-row-${row.robotName}`} className={`items-center gap-1.5 ${rowIndex > 0 ? 'mt-2 flex' : 'flex'}`}>
+                        <span className={`size-2 shrink-0 rounded-full ${colors.dot}`} />
+                        <span className="w-11 shrink-0 truncate text-xs font-medium text-slate-700">{row.robotName}</span>
+                        <div className="relative h-6 min-w-0 flex-1 overflow-hidden rounded-md bg-zinc-100/85">
+                          {row.segments.map((segment) => {
+                            const segmentIndex = timeline.segments.indexOf(segment);
+                            const selected = selectedSegmentIndex === segmentIndex;
+                            return (
+                              <button
+                                key={segment.id}
+                                type="button"
+                                onClick={() => onSelectSegment(segmentIndex)}
+                                title={`${segment.name} · ${segment.robotName} · 第 ${segment.sequence} 轮`}
+                                className={`absolute top-[3px] flex h-[18px] items-center gap-1 truncate rounded-md pl-1 pr-1.5 text-left text-[10px] font-medium leading-[18px] text-white ${colors.bar} ${
+                                  selected ? 'ring-1 ring-inset ring-slate-700/60' : ''
+                                }`}
+                                style={{
+                                  left: `${(segment.start / timeline.totalDuration) * 100}%`,
+                                  width: `${(segment.duration / timeline.totalDuration) * 100}%`,
+                                }}
+                              >
+                                <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-white/30 text-[8px] font-bold leading-none">
+                                  {segment.sequence}
+                                </span>
+                                <span className="truncate">{segment.name.replace('焊缝 ', '')}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
