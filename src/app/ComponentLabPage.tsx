@@ -12,7 +12,7 @@ import { ProcessFieldGroup } from './components/process/ProcessFieldGroup';
 import { ProcessJointAngleRow as JointAngleRowDemo } from './components/process/ProcessJointAngleRow';
 import { ProcessPathPointModeToolbar } from './components/process/ProcessPathPointModeToolbar';
 import { ClampPointConfigPanel, createDefaultClampPointSegments, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
-import { WeldSegmentListPanel, WeldRobotTimelinePanel } from './components/production/WeldRobotTimelinePanels';
+import { WeldSegmentListPanel } from './components/production/WeldRobotTimelinePanels';
 import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import { ProcessPathPointMarkerModel } from './components/process/GrindToolHeadPoseModel';
 import { ProcessResultPointPanel } from './components/process/ProcessResultPointPanel';
@@ -7871,7 +7871,7 @@ export function ComponentLabPage() {
     'point-row': { id: 'point-row', title: '点位信息单行', description: '点位名称 + XYZ/RPY 回显与编辑。' },
     'pick-path-points': { id: 'pick-path-points', title: '工艺安全点浮窗', description: '打磨单组安全点、图例折叠、单点启用和 6 个 XYZ / RPY 点位。' },
     'clamp-point-config': { id: 'clamp-point-config', title: '压紧点配置面板', description: '内嵌于焊缝段表格当前段，承载启用压紧开关与 J1-J6 关节角编辑。' },
-    'weld-robot-timeline': { id: 'weld-robot-timeline', title: '焊接时序面板', description: '生产执行模型视图焊接态：属性参数下方可缩回焊缝列表 + 右侧可缩回双行甘特时序图，焊缝按机器人分配着色。' },
+    'weld-robot-timeline': { id: 'weld-robot-timeline', title: '焊缝列表面板', description: '生产执行模型视图焊接态：属性参数下方可缩回焊缝列表，焊缝按机器人分配着色并标轮次。' },
     'joint-row': { id: 'joint-row', title: '关节角组件', description: '外部轴与 URDF 姿态共用的 slider + stepper 行，支持标签、单位、范围和步长配置。' },
     'pick-parameters': { id: 'pick-parameters', title: '抓取参数校验区', description: '抓具切换、磁铁启用、左/右 Z 值、中磁铁 Z 只读、磁力档位与阈值回显。' },
     'viewport-workspace': { id: 'viewport-workspace', title: '视窗工作区组件', description: '3D 视窗壳、视窗内浮层、模型对象 pill 和特征回显，不混入任务面板。' },
@@ -8531,26 +8531,17 @@ export function ComponentLabPage() {
         );
       case 'weld-robot-timeline':
         return (
-          <DemoCard title="焊接时序面板">
-            <div className="flex w-full max-w-full gap-2 rounded-lg bg-slate-100/85 p-2">
-              <div className="w-[240px] shrink-0 self-start">
-                <WeldSegmentListPanel
-                  timeline={weldTimelineLab}
-                  workstepName="贴板[0162-01-010101-02]焊接"
-                  selectedSegmentIndex={weldTimelineLabSelected}
-                  onSelectSegment={setWeldTimelineLabSelected}
-                />
-              </div>
-              <div className="h-[240px] min-w-0 flex-1">
-                <WeldRobotTimelinePanel
-                  timeline={weldTimelineLab}
-                  selectedSegmentIndex={weldTimelineLabSelected}
-                  onSelectSegment={setWeldTimelineLabSelected}
-                />
-              </div>
+          <DemoCard title="焊缝列表面板">
+            <div className="w-[292px] max-w-full rounded-lg bg-slate-100/85 p-2">
+              <WeldSegmentListPanel
+                timeline={weldTimelineLab}
+                workstepName="贴板[0162-01-010101-02]焊接"
+                selectedSegmentIndex={weldTimelineLabSelected}
+                onSelectSegment={setWeldTimelineLabSelected}
+              />
             </div>
             <div className="mt-3 text-[11px] leading-5 text-slate-400">
-              生产执行模型视图在单步模式选中「贴板[xx]焊接」工步时进入焊接任务视图态：原结构树自动缩回，属性参数下方新增可缩回的焊缝列表（机器人 chip 按分配着色、R 标签标轮次，焊缝按加工轮次以 W1-W4 命名：第 1 轮 Robot1→W1、Robot2→W2，之后 W3、W4），焊缝列表下方为同列的「焊接时序」轮次矩阵面板（可缩回、自适应高度）——demo 场景共 4 条焊缝（W1/W3/W4 → Robot1、W2 → Robot2），开局双机并行焊接 W1 和 W2，之后 Robot1 单独续焊 W3 和 W4；矩阵行 = 轮次、列 = 机器人，格内为焊缝色块，仅表达先后顺序，不含播放控制与时间显示。模型中在当前贴板四周回显 4 条焊缝（按机器人着色、带 1-4 序号标，复用路径点标记组件），点击焊缝线、列表行或色块均可联动选中，且视角自动平滑切到正视工件（+Z 方向、+Y 朝上，主板长轴水平展示）。
+              生产执行模型视图在单步模式选中「贴板[xx]焊接」工步时进入焊接任务视图态：原结构树自动缩回，属性参数下方新增可缩回的焊缝列表（机器人 chip 按分配着色、轮次标签标第几轮，列表内显示为焊缝 1-4；三维焊缝回显编号保持 W1-W4 不变），点击列表行与 3D 焊缝线联动选中，视角自动平滑切到正视工件。
             </div>
           </DemoCard>
         );

@@ -102,7 +102,7 @@ import { VisionFeedBar, visionFeedOptions } from './components/production/Vision
 import { PositioningChoiceDialog, type PositioningDialogImportStatus } from './components/production/PositioningChoiceDialog';
 import { VisionPositionResultPanel, type VisionPositionResult, type PositioningResultSource } from './components/production/VisionPositionResultPanel';
 import { visionAssemblyWorkpieceCode } from './components/production/vision-assembly-demo';
-import { WeldSegmentListPanel, WeldRobotTimelinePanel } from './components/production/WeldRobotTimelinePanels';
+import { WeldSegmentListPanel } from './components/production/WeldRobotTimelinePanels';
 import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import type { WeldTimelineSegment } from './components/production/weld-robot-timeline';
 import { WeldSeamEcho, WeldFaceOnCameraController } from './components/production/WeldSeamEcho';
@@ -1842,13 +1842,6 @@ function ProductionModelViewport({
             <WeldSegmentListPanel
               timeline={weldTimeline}
               workstepName={weldWorkstepName}
-              selectedSegmentIndex={selectedWeldSegmentIndex}
-              onSelectSegment={handleSelectWeldSegment}
-            />
-          )}
-          {weldTimeline && weldWorkstepName && (
-            <WeldRobotTimelinePanel
-              timeline={weldTimeline}
               selectedSegmentIndex={selectedWeldSegmentIndex}
               onSelectSegment={handleSelectWeldSegment}
             />
