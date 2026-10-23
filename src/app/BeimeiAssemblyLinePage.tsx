@@ -11066,7 +11066,7 @@ export function BeimeiAssemblyLinePage() {
                 <button
                   type="button"
                   onClick={() => togglePicker(kind)}
-                  className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${
+                  className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs transition-colors ${
                     isPickerOpen(kind) ? 'bg-orange-50 text-ds-brand-primary-text' : 'text-ds-brand-primary-text hover:bg-orange-50'
                   }`}
                 >
@@ -11076,7 +11076,7 @@ export function BeimeiAssemblyLinePage() {
               </div>
               {isPickerOpen(kind) && (
                 <div className="mb-1 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-orange-200">
-                  <div className="px-2 py-1 text-[10px] text-slate-400">选择要添加的基准线</div>
+                  <div className="px-2 py-1.5 text-[11px] text-slate-400">选择要添加的基准线</div>
                   {FINE_POSITION_DATUM_PAIRS.map(([a, b]) => {
                     const optionItem = createFinePositionDatumItem(fineBaseId, a, b, 0);
                     return (
@@ -11084,7 +11084,7 @@ export function BeimeiAssemblyLinePage() {
                         key={optionItem.datumFeatureId}
                         type="button"
                         onClick={() => pickFineDatum(kind, [a, b])}
-                        className="flex w-full items-center gap-1 whitespace-nowrap px-2 py-1 text-left text-[11px] text-slate-600 transition-colors hover:bg-orange-50 hover:text-ds-brand-primary-text"
+                        className="flex w-full items-center gap-1 whitespace-nowrap px-2 py-1.5 text-left text-xs text-slate-600 transition-colors hover:bg-orange-50 hover:text-ds-brand-primary-text"
                       >
                         <Crosshair className="size-3 shrink-0 text-slate-300" />
                         <span className="truncate">{optionItem.datumName}</span>
@@ -11094,17 +11094,17 @@ export function BeimeiAssemblyLinePage() {
                 </div>
               )}
               <div className="overflow-hidden rounded-lg ring-1 ring-slate-100">
-                <table className="w-full text-[11px]">
+                <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50/80 text-slate-400">
-                      <th className="px-2 py-1 text-left font-normal">基准名称</th>
-                      <th className="w-9 px-1 py-1 text-center font-normal">操作</th>
+                      <th className="px-2 py-1.5 text-left font-normal">基准名称</th>
+                      <th className="w-9 px-1 py-1.5 text-center font-normal">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.length === 0 ? (
                       <tr>
-                        <td colSpan={2} className="bg-white px-2 py-2 text-center text-[11px] text-slate-300">
+                        <td colSpan={2} className="bg-white px-2 py-2.5 text-center text-xs text-slate-300">
                           暂无基准线，点击右上角「添加」
                         </td>
                       </tr>
@@ -11114,12 +11114,12 @@ export function BeimeiAssemblyLinePage() {
                         const datumSelected = selectedId === item.datumFeatureId;
                         return (
                           <tr key={item.id} className="border-t border-slate-100 bg-white">
-                            <td className="px-2 py-1">
+                            <td className="px-2 py-1.5">
                               <button
                                 type="button"
                                 title="点击在三维视图中高亮该基准线"
                                 onClick={() => setSelectedId(item.datumFeatureId)}
-                                className={`flex max-w-full items-center gap-1 whitespace-nowrap text-[11px] transition-colors ${
+                                className={`flex max-w-full items-center gap-1 whitespace-nowrap text-xs transition-colors ${
                                   datumSelected ? 'text-ds-brand-primary-text' : 'text-slate-700 hover:text-ds-brand-primary-text'
                                 }`}
                               >
@@ -11127,7 +11127,7 @@ export function BeimeiAssemblyLinePage() {
                                 <span className="truncate">{datumNode?.name ?? item.datumName}</span>
                               </button>
                             </td>
-                            <td className="px-1 py-1 text-center">
+                            <td className="px-1 py-1.5 text-center">
                               <button
                                 type="button"
                                 aria-label={`删除${title}`}
