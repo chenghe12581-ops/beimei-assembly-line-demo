@@ -10756,7 +10756,17 @@ export function BeimeiAssemblyLinePage() {
       const supportAdjustConfig = step.supportAdjustConfig ?? createEmptySupportAdjustConfig();
       const supportAdjustRootStepId = getRootProcessStepId(step.id) || step.id;
       const supportAdjustDirty = processPointDirtyStepIds.has(supportAdjustRootStepId);
-      const supportAdjustJoints = supportAdjustConfig.joints ?? [];
+      // 兼容旧数据：早期生成的配置可能缺少工作台或轴数与工位不符，按所属工序工位补齐
+      const owningPlanningProcess = step.processId
+        ? fixedPlanningProcesses.find((process) => process.id === step.processId)
+        : undefined;
+      const supportAdjustWorkbenchType = supportAdjustConfig.workbenchType
+        ?? (owningPlanningProcess ? getSupportAdjustWorkbenchType(owningPlanningProcess) : '主筋板正面装配平台');
+      const supportAdjustAxisCount = getSupportAdjustAxisCount(supportAdjustWorkbenchType);
+      const generatedSupportAdjustJoints = createSupportAdjustJointRows(supportAdjustAxisCount);
+      const supportAdjustJoints = Array.from({ length: supportAdjustAxisCount }, (_, index) =>
+        supportAdjustConfig.joints?.[index] ?? generatedSupportAdjustJoints[index]
+      );
       if (!supportAdjustJoints.some((jointValue) => jointValue !== '')) {
         return (
           <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
@@ -10767,10 +10777,10 @@ export function BeimeiAssemblyLinePage() {
       return (
         <div className="flex flex-col gap-ds-300">
           <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
-            <div className="ds-label-input-compact">
+            <div className="ds-label-input-compact w-fit">
               <div className="ds-label-input-compact-label">工作台</div>
-              <div className="flex h-8 min-w-0 items-center rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
-                <span className="truncate">{supportAdjustConfig.workbenchType}</span>
+              <div className="flex h-8 w-fit items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                <span>{supportAdjustWorkbenchType}</span>
               </div>
             </div>
           </div>
@@ -10797,9 +10807,8 @@ export function BeimeiAssemblyLinePage() {
                       ...currentStep,
                       supportAdjustConfig: {
                         ...supportAdjustConfig,
-                        joints: (currentStep.supportAdjustConfig?.joints ?? supportAdjustJoints).map((v, i) =>
-                          i === jointIndex ? nextValue : v
-                        ),
+                        workbenchType: supportAdjustWorkbenchType,
+                        joints: supportAdjustJoints.map((v, i) => (i === jointIndex ? nextValue : v)),
                       },
                     }));
                   }}
