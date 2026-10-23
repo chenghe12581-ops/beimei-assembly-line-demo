@@ -5992,8 +5992,6 @@ export function BeimeiAssemblyLinePage() {
   const [createModelDrafts, setCreateModelDrafts] = useState<Record<string, CreateModelFlow>>({});
   const [createModelFolderPickerHint, setCreateModelFolderPickerHint] = useState<CreateModelFlow | null>(null);
   const createModelFolderPickerTimerRef = useRef<number | null>(null);
-  const [addAssemblyDialog, setAddAssemblyDialog] = useState<{ target: 'project' | 'group0162'; projectId?: string } | null>(null);
-  const [newAssemblyName, setNewAssemblyName] = useState('新建装配体');
   const [drawingRequiredDialog, setDrawingRequiredDialog] = useState<{ projectId: string; name: string } | null>(null);
   // 图纸管理：当前选中的图纸项（用于右侧预览）
   const [selectedDrawingItem, setSelectedDrawingItem] = useState<{
@@ -7179,6 +7177,26 @@ export function BeimeiAssemblyLinePage() {
     showToast(`${projectName} 项目包已导出`, 'success');
   };
 
+  /** 项目管理列表顶部「导出」：导出勾选的装配体（沿用首次失败、再次成功的演示节奏）。 */
+  const handleProjectListExport = () => {
+    const selectedProjects = projects.filter((project) => checkedIds.has(project.tree.id));
+    if (selectedProjects.length === 0) {
+      showToast('请先勾选要导出的装配体', 'info');
+      return;
+    }
+
+    const attempts = exportAttemptsRef.current['project-management-export'] ?? 0;
+    const nextAttempts = attempts + 1;
+    exportAttemptsRef.current['project-management-export'] = nextAttempts;
+
+    if (nextAttempts % 2 === 1) {
+      showToast('装配体项目包导出失败，请检查装配体图纸完整性', 'error');
+      return;
+    }
+
+    showToast(`已导出 ${selectedProjects.length} 个装配体项目包`, 'success');
+  };
+
   const handleBatchImport = (projectId: string) => {
     const attempts = (importAttempts[projectId] || 0) + 1;
     setImportAttempts((prev) => ({ ...prev, [projectId]: attempts }));
@@ -7230,44 +7248,6 @@ export function BeimeiAssemblyLinePage() {
     setPreviewSelectedId(selectedNodeId);
     setSelectedDrawingItem(null);
     setDrawingManagerOpen(true);
-  };
-
-  const openCreateModelFlow = (target: 'project' | 'group0162', projectId?: string) => {
-    const draftKey = target === 'project' ? `project:${projectId ?? 'unknown'}` : 'group0162';
-    const existingDraft = createModelDrafts[draftKey];
-    const nextGroupIndex = projects.filter((project) => project.id.startsWith('0162-')).length + 1;
-    const groupIndexText = String(nextGroupIndex).padStart(2, '0');
-    const assemblyName = existingDraft?.assemblyName ?? (target === 'group0162' ? `0162-${groupIndexText}-${groupIndexText}${groupIndexText}${groupIndexText}` : '0162-01-010101');
-    const assemblyId = existingDraft?.assemblyId ?? (target === 'group0162' ? assemblyName : `${projectId}-assembly-${Date.now()}`);
-    const nextFlow: CreateModelFlow = existingDraft ?? {
-      draftKey,
-      target,
-      projectId,
-      assemblyId,
-      assemblyName,
-      stage: 'missing-assembly',
-      failedPartIds: [],
-    };
-    if (createModelFolderPickerTimerRef.current) {
-      window.clearTimeout(createModelFolderPickerTimerRef.current);
-    }
-    setDrawingManagerOpen(false);
-    setCreateModelFlow(null);
-    setCreateModelFolderPickerHint(nextFlow);
-    setPreviewProjectId(projectId ?? null);
-    setPreviewSelectedId(null);
-    setSelectedDrawingItem(null);
-    createModelFolderPickerTimerRef.current = window.setTimeout(() => {
-      setCreateModelFolderPickerHint(null);
-      setCreateModelFlow(nextFlow);
-      setSelectedDrawingItem({
-        type: 'assembly',
-        id: assemblyId,
-        name: '装配图纸',
-      });
-      setDrawingManagerOpen(true);
-      createModelFolderPickerTimerRef.current = null;
-    }, 2000);
   };
 
   const closeDrawingManager = () => {
@@ -11681,29 +11661,6 @@ export function BeimeiAssemblyLinePage() {
     setCloseProcessPlanningConfirm(null);
   };
 
-  const handleCreateProject = () => {
-    const newId = `proj-${Date.now()}`;
-    const newProject: Project = {
-      id: newId,
-      name: '新建项目',
-      tree: {
-        id: newId,
-        name: '新建项目',
-      },
-      processSteps: [],
-    };
-    setProjects((prev) => [newProject, ...prev]);
-    setEditingProjectId(newId);
-    setEditingProjectName('新建项目');
-    setPreviewProjectId(null);
-    setPreviewSelectedId(null);
-    setCurrentProjectId(null);
-    setTimeout(() => {
-      projectInputRef.current?.focus();
-      projectInputRef.current?.select();
-    }, 50);
-  };
-
   const handleDeleteProject = (projectId: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     if (previewProjectId === projectId) {
@@ -11771,31 +11728,6 @@ export function BeimeiAssemblyLinePage() {
       } else {
         next.add(node.id);
         descendantIds.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  };
-  const getProjectListSelectableIds = (node: TreeNode) => [
-    node.id,
-    ...collectDescendantIds(node, isProjectListVisibleNode),
-  ];
-  const isProjectGroupChecked = (groupProjects: Project[]) =>
-    groupProjects.length > 0 && groupProjects.every((project) => isProjectListNodeChecked(project.tree));
-  const isProjectGroupIndeterminate = (groupProjects: Project[]) => {
-    const checked = isProjectGroupChecked(groupProjects);
-    if (checked) return false;
-    return groupProjects.some((project) => isProjectListNodeChecked(project.tree) || isProjectListNodeIndeterminate(project.tree));
-  };
-  const toggleProjectGroupChecked = (groupProjects: Project[]) => {
-    const checked = isProjectGroupChecked(groupProjects);
-    const selectableIds = groupProjects.flatMap((project) => getProjectListSelectableIds(project.tree));
-
-    setCheckedIds((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        selectableIds.forEach((id) => next.delete(id));
-      } else {
-        selectableIds.forEach((id) => next.add(id));
       }
       return next;
     });
@@ -12449,66 +12381,6 @@ export function BeimeiAssemblyLinePage() {
   const confirmRegenerateProcessSequence = () => {
     setProcessRegenerationConfirmOpen(false);
     handleGenerateProcessSequence(true);
-  };
-
-  const openAddAssemblyDialog = (target: 'project' | 'group0162', projectId?: string) => {
-    setNewAssemblyName('新建装配体');
-    setAddAssemblyDialog({ target, projectId });
-  };
-
-  const handleConfirmAddAssembly = () => {
-    if (!addAssemblyDialog) return;
-    const name = newAssemblyName.trim();
-    if (!name) {
-      showToast('请输入装配体名称', 'error');
-      return;
-    }
-
-    if (addAssemblyDialog.target === 'project' && addAssemblyDialog.projectId) {
-      const newAssemblyId = `assembly-${Date.now()}`;
-      const newAssembly: TreeNode = {
-        id: newAssemblyId,
-        name,
-        children: [],
-      };
-
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === addAssemblyDialog.projectId
-            ? { ...p, tree: { ...p.tree, children: [...(p.tree.children || []), newAssembly] } }
-            : p
-        )
-      );
-      setProjectListCollapsed((prev) => {
-        const next = new Set(prev);
-        next.delete(addAssemblyDialog.projectId!);
-        return next;
-      });
-    }
-
-    if (addAssemblyDialog.target === 'group0162') {
-      const newProjectId = `0162-${Date.now()}`;
-      const newProject: Project = {
-        id: newProjectId,
-        name,
-        tree: {
-          id: newProjectId,
-          name,
-          children: [],
-        },
-        processSteps: [],
-      };
-
-      setProjects((prev) => [...prev, newProject]);
-      setProjectListCollapsed((prev) => {
-        const next = new Set(prev);
-        next.delete('group-0162');
-        return next;
-      });
-    }
-
-    setAddAssemblyDialog(null);
-    showToast('装配体创建成功', 'success');
   };
 
   const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -13450,108 +13322,11 @@ export function BeimeiAssemblyLinePage() {
   );
   const assemblyDatumSelectionInvalid = assemblyDatumBothSelected && !assemblyDatumPartsAdjacent;
 
-  // 项目管理列表：按 0162 前缀分组显示
-  const group0162 = projects.filter((p) => p.id.startsWith('0162-'));
-  const otherProjects = projects.filter((p) => !p.id.startsWith('0162-'));
-  const group0162Collapsed = projectListCollapsed.has('group-0162');
+  // 项目管理列表：装配体即最高层级，直接平铺展示，不再区分文件夹 / 分组
   const projectManagementAssemblyPaddingBump = 6;
   const projectManagementPartPaddingBump = -1;
   const getProjectManagementGroupPaddingLeft = () => (styleCProjectManagementLayout ? 12 : 16);
   const getProjectManagementAssemblyPaddingLeft = () => getProjectManagementGroupPaddingLeft() + projectManagementAssemblyPaddingBump;
-
-  const renderTopLevelProjectGroup = (project: Project) => {
-    const isCollapsed = projectListCollapsed.has(project.id);
-    const visibleChildren = getProjectListVisibleChildren(project.tree);
-    const hasChildren = visibleChildren.length > 0;
-    const isEditing = editingProjectId === project.id;
-    return (
-      <div key={project.id}>
-        <div
-          className={`group flex items-center gap-1 rounded-md px-1 py-1.5 text-sm text-ds-text-secondary transition-colors ${
-            isEditing ? 'bg-orange-50 text-ds-brand-primary-text' : 'cursor-pointer hover:bg-zinc-100'
-          }`}
-          style={{ paddingLeft: `${getProjectManagementGroupPaddingLeft()}px` }}
-          onClick={() => {
-            if (isEditing) return;
-            toggleProjectListCollapse(project.id);
-            setPreviewProjectId(null);
-            setPreviewSelectedId(null);
-          }}
-        >
-          <Button
-            size="sm"
-            variant="ghost"
-            className="size-5 shrink-0 p-0 text-ds-text-disabled"
-            title={isCollapsed ? '展开' : '折叠'}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleProjectListCollapse(project.id);
-            }}
-          >
-            {hasChildren ? (
-              isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />
-            ) : (
-              <span className="size-3.5" />
-            )}
-          </Button>
-          <ThemedCheckbox
-            className={getProjectListCheckboxClassName(isProjectListNodeChecked(project.tree) || isProjectListNodeIndeterminate(project.tree))}
-            checked={isProjectListNodeChecked(project.tree)}
-            indeterminate={isProjectListNodeIndeterminate(project.tree)}
-            onChange={() => toggleProjectListChecked(project.tree)}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <FolderOpen className="size-4 shrink-0 text-amber-500" />
-          {isEditing ? (
-            <input
-              ref={projectInputRef}
-              type="text"
-              value={editingProjectName}
-              onChange={handleProjectNameChange}
-              onBlur={handleProjectNameBlur}
-              onKeyDown={handleProjectNameKeyDown}
-              onClick={(e) => e.stopPropagation()}
-              className="min-w-0 flex-1 rounded-lg border border-orange-300 bg-white px-1.5 py-0.5 text-sm outline-none focus:border-ds-brand-primary"
-              placeholder="项目名称"
-            />
-          ) : (
-            <span className="ds-tree-icon-title-gap min-w-0 flex-1 truncate font-medium">{project.name}</span>
-          )}
-          <div className="flex shrink-0 items-center gap-0.5">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="size-6 p-0 text-ds-text-disabled hover:text-orange-500"
-              title="导出项目"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleProjectExport(project.id, project.name);
-              }}
-            >
-              <Download className="size-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="size-6 p-0 text-ds-text-disabled hover:text-emerald-600"
-              title="新增装配体"
-              onClick={(e) => {
-                e.stopPropagation();
-                openCreateModelFlow('project', project.id);
-              }}
-            >
-              <FolderPlus className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-        {hasChildren && !isCollapsed && (
-          <div className="ml-4 mt-0.5 space-y-0.5">
-            {visibleChildren.map((child) => renderProjectListTreeNode(child, 0, project.id))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const renderProjectItem = (project: Project) => {
     const isCollapsed = projectListCollapsed.has(project.id);
@@ -13643,34 +13418,6 @@ export function BeimeiAssemblyLinePage() {
             <span className="ds-tree-icon-title-gap min-w-0 flex-1 truncate font-medium">{project.name}</span>
           )}
           <div className="flex shrink-0 items-center gap-0.5">
-            {project.id.startsWith('proj-') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="size-6 p-0 text-ds-text-disabled hover:text-orange-500"
-                title="导出项目"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleProjectExport(project.id, project.name);
-                }}
-              >
-                <Download className="size-3.5" />
-              </Button>
-            )}
-            {project.id.startsWith('proj-') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="size-6 p-0 text-ds-text-disabled hover:text-emerald-600"
-                title="新增装配体"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openCreateModelFlow('project', project.id);
-                }}
-              >
-                <FolderPlus className="size-3.5" />
-              </Button>
-            )}
             {!project.id.startsWith('proj-') && (
               <Button
                 size="sm"
@@ -14391,19 +14138,19 @@ export function BeimeiAssemblyLinePage() {
                   <button
                     type="button"
                     className="flex h-16 min-w-[82px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-transparent px-2.5 ds-process-toolbar-action text-ds-text-control transition-colors hover:bg-white/80 hover:text-ds-text-control-strong"
-                    onClick={handleCreateProject}
+                    onClick={handleProjectManagementImport}
                   >
-                    <Plus className="size-6" />
-                    <span>新建项目</span>
+                    <Import className="size-6" />
+                    <span>导入项目</span>
                   </button>
                   <div className="h-9 w-px shrink-0 bg-ds-bg-process-planning-separator" />
                   <button
                     type="button"
                     className="flex h-16 min-w-[82px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-transparent px-2.5 ds-process-toolbar-action text-ds-text-control transition-colors hover:bg-white/80 hover:text-ds-text-control-strong"
-                    onClick={handleProjectManagementImport}
+                    onClick={handleProjectListExport}
                   >
-                    <Import className="size-6" />
-                    <span>导入项目</span>
+                    <Download className="size-6" />
+                    <span>导出项目</span>
                   </button>
                 </div>
                 <div />
@@ -14461,18 +14208,13 @@ export function BeimeiAssemblyLinePage() {
                     '项目管理'
                   )}
                 </CardTitle>
-	                <Button
-	                  size="sm"
-	                  variant={styleCProjectManagementLayout ? 'ghost' : 'outline'}
-	                  className={`ml-auto h-7 gap-1 px-2 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`}
-	                  onClick={handleCreateProject}
-	                >
-                  <Plus className="size-3.5" />
-                  新建
-                </Button>
-	                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`h-7 gap-1 px-2 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectManagementImport}>
+                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`ml-auto h-7 gap-1 px-2 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectManagementImport}>
                   <FolderOpen className="size-3.5" />
                   导入
+                </Button>
+                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`h-7 gap-1 px-2 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectListExport}>
+                  <Download className="size-3.5" />
+                  导出
                 </Button>
                 {checkedIds.size === 0 ? (
                   <Tooltip title="请先选中零件模型">
@@ -14669,73 +14411,7 @@ export function BeimeiAssemblyLinePage() {
                 </div>
               ) : (
                 <div className="min-w-0 space-y-1 p-3">
-                  {group0162.length > 0 && (
-                    <div>
-                      <div
-                                        className="group flex cursor-pointer items-center gap-1 rounded-md px-1 py-1.5 text-sm transition-colors hover:bg-ds-bg-process-planning-tree-group-hover"
-                        style={styleCProjectManagementLayout ? { paddingLeft: `${getProjectManagementGroupPaddingLeft()}px` } : undefined}
-                        onClick={() => toggleProjectListCollapse('group-0162')}
-                      >
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="size-5 shrink-0 p-0 text-slate-400"
-                          title={group0162Collapsed ? '展开' : '折叠'}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleProjectListCollapse('group-0162');
-                          }}
-                        >
-                          {group0162Collapsed ? (
-                            <ChevronRight className="size-3.5" />
-                          ) : (
-                            <ChevronDown className="size-3.5" />
-                          )}
-                        </Button>
-                        <ThemedCheckbox
-                          className={getProjectListCheckboxClassName(isProjectGroupChecked(group0162) || isProjectGroupIndeterminate(group0162))}
-                          checked={isProjectGroupChecked(group0162)}
-                          indeterminate={isProjectGroupIndeterminate(group0162)}
-                          onChange={() => toggleProjectGroupChecked(group0162)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <FolderOpen className="size-4 shrink-0 text-amber-500" />
-                        <span className="ds-tree-icon-title-gap min-w-0 flex-1 truncate font-medium">0162</span>
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="size-6 p-0 text-slate-400 hover:text-orange-500"
-                            title="导出项目"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProjectExport('group-0162', '0162');
-                            }}
-                          >
-                            <Download className="size-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="size-6 p-0 text-slate-400 hover:text-emerald-600"
-                            title="新增装配体"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openCreateModelFlow('group0162');
-                            }}
-                          >
-                            <FolderPlus className="size-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                      {!group0162Collapsed && (
-                        <div className="ml-4 mt-0.5 space-y-0.5">
-                          {group0162.map(renderProjectItem)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {otherProjects.map(renderTopLevelProjectGroup)}
+                  {projects.map(renderProjectItem)}
                 </div>
               )}
             </ScrollArea>
@@ -17285,36 +16961,6 @@ export function BeimeiAssemblyLinePage() {
               >
                 去上传图纸
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {addAssemblyDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45">
-          <div className="w-[420px] rounded-lg border border-white/50 bg-ds-bg-glass-modal shadow-lg shadow-black/5 backdrop-blur-md">
-            <div className="flex items-center gap-2 border-b border-white/50 px-5 py-3">
-              <FolderPlus className="size-5 text-emerald-500" />
-              <span className="text-sm font-medium">新增装配体</span>
-            </div>
-            <div className="space-y-2 px-5 py-4">
-              <label className="text-xs text-slate-400" htmlFor="new-assembly-name">装配体名称</label>
-              <input
-                id="new-assembly-name"
-                value={newAssemblyName}
-                onChange={(event) => setNewAssemblyName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') handleConfirmAddAssembly();
-                  if (event.key === 'Escape') setAddAssemblyDialog(null);
-                }}
-                autoFocus
-                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-orange-300"
-                placeholder="请输入装配体名称"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
-              <Button size="sm" variant="outline" onClick={() => setAddAssemblyDialog(null)}>取消</Button>
-              <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={handleConfirmAddAssembly}>确认创建</Button>
             </div>
           </div>
         </div>
