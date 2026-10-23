@@ -2023,7 +2023,7 @@ function getCompactProcessDetailTabs(type?: string): { key: CompactProcessDetail
   if (type === 'assemble') {
     return [{ key: 'path-points', label: '路径点位' }];
   }
-  if (type === 'place' || type === 'turnover-clamp') {
+  if (type === 'pick' || type === 'place' || type === 'turnover-clamp') {
     return [{ key: 'parameter-results', label: '工艺参数' }];
   }
   // 支撑调整 / 粗定位 / 精定位 / 调整：无路径点位，仅保留工艺参数
@@ -9754,8 +9754,6 @@ export function BeimeiAssemblyLinePage() {
 
     if (step.type === 'place' && step.placeConfig) {
       const placeConfig = step.placeConfig;
-      const placeRootStepId = getRootProcessStepId(step.id) || step.id;
-      const placeDirty = processPointDirtyStepIds.has(placeRootStepId);
       const placeHasResults = placeConfig.joints?.some((j) => j !== '') ?? false;
 
       if (activeDetailTab === 'path-points') {
@@ -9858,76 +9856,52 @@ export function BeimeiAssemblyLinePage() {
       };
 
       return (
-        <div className="flex flex-col gap-ds-300">
-          <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
-            <div className="ds-label-input-compact w-fit">
-              <div className="ds-label-input-compact-label">零件名称</div>
-              <div className="flex h-8 w-fit items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
-                <span>{placePartNode?.name ?? placeConfig.workpieceIds[0] ?? '--'}</span>
-              </div>
-            </div>
-            <div className="grid gap-ds-150 md:grid-cols-2">
-              <div className="ds-label-input-compact">
-                <div className="ds-label-input-compact-label">放置位置</div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(['x', 'y', 'z'] as const).map((axis) => (
-                    <ProcessNumberField
-                      key={`compact-place-position-${axis}`}
-                      value={placePosition[axis]}
-                      unit="mm"
-                      placeholder={axis.toUpperCase()}
-                      inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
-                      onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="ds-label-input-compact">
-                <div className="ds-label-input-compact-label">基准边偏移</div>
-                <ProcessNumberField
-                  value={datumEdgeOffset}
-                  unit="mm"
-                  inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
-                  onChange={updateDatumEdgeOffset}
-                />
-              </div>
+        <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+          <div className="ds-label-input-compact">
+            <div className="ds-label-input-compact-label">工作台</div>
+            <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+              <span className="truncate">{placeConfig.workbenchType}</span>
             </div>
           </div>
-          {renderPlaceSupportParameterControls(step.id, placeConfig, true)}
-          <ProcessResultPointPanel
-            title="结果点位"
-            //subtitle="J1-J8"
-            dirty={placeDirty}
-            onApplyUpdate={() => step.id && clearProcessPointDirty(step.id)}
-            variant="flush"
-            headerClassName="px-ds-150"
-            showUpdateButton={false}
-          >
-            <div className="grid gap-2">
-              {(placeConfig.joints ?? []).map((jointValue, jointIndex) => (
-                <ProcessJointAngleRow
-                  key={`compact-place-joint-${jointIndex}`}
-                  index={jointIndex}
-                  value={jointValue}
-                  selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
-                  selectedVariant="subtle"
-                  onSelect={() => step.id && showResultPointPosePreview(step.id, jointIndex)}
-                  onChange={(nextValue) => {
-                    markProcessPointDirty(step.id!);
-                    updateProcessStepById(step.id!, (currentStep) => ({
-                      ...currentStep,
-                      placeConfig: {
-                        ...(currentStep.placeConfig ?? createEmptyPlaceProcessConfig()),
-                        joints: (currentStep.placeConfig?.joints ?? []).map((v, i) =>
-                          i === jointIndex ? nextValue : v
-                        ),
-                      },
-                    }));
-                  }}
-                />
-              ))}
+          <div className="ds-label-input-compact">
+            <div className="ds-label-input-compact-label">零件名称</div>
+            <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+              <span className="truncate">{placePartNode?.name ?? placeConfig.workpieceIds[0] ?? '--'}</span>
             </div>
-          </ProcessResultPointPanel>
+          </div>
+          <div className="grid gap-ds-150 md:grid-cols-2">
+            <div className="ds-label-input-compact md:col-span-2">
+              <div className="ds-label-input-compact-label">放置位置</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['x', 'y', 'z'] as const).map((axis) => (
+                  <ProcessNumberField
+                    key={`compact-place-position-${axis}`}
+                    value={placePosition[axis]}
+                    unit="mm"
+                    placeholder={axis.toUpperCase()}
+                    inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                    onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
+                  />
+                ))}
+              </div>
+              <div className="mt-0.5 grid grid-cols-3 gap-1.5">
+                {(['X', 'Y', 'Z'] as const).map((axisLabel) => (
+                  <span key={`compact-place-position-label-${axisLabel}`} className="px-2 text-left text-[10px] leading-3 text-slate-400">
+                    {axisLabel}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="ds-label-input-compact">
+              <div className="ds-label-input-compact-label">基准边偏移</div>
+              <ProcessNumberField
+                value={datumEdgeOffset}
+                unit="mm"
+                inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                onChange={updateDatumEdgeOffset}
+              />
+            </div>
+          </div>
         </div>
       );
     }
@@ -10937,26 +10911,26 @@ export function BeimeiAssemblyLinePage() {
       const datumLineSelected = selectedId === roughPositionConfig.datumFeatureId;
       return (
         <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
-          <div className="ds-label-input-compact w-fit">
+          <div className="ds-label-input-compact">
             <div className="ds-label-input-compact-label">零件名称</div>
-            <div className="flex h-8 w-fit items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
-              <span>{roughPartNode?.name ?? roughPositionConfig.partId}</span>
+            <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+              <span className="truncate">{roughPartNode?.name ?? roughPositionConfig.partId}</span>
             </div>
           </div>
-          <div className="ds-label-input-compact w-fit">
+          <div className="ds-label-input-compact">
             <div className="ds-label-input-compact-label">定位基准线</div>
             <button
               type="button"
               title="点击在三维视图中高亮定位基准线"
               onClick={() => setSelectedId(roughPositionConfig.datumFeatureId)}
-              className={`flex h-8 w-fit items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-medium ring-1 transition-colors ${
+              className={`flex h-8 w-[240px] max-w-full items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-left text-xs font-medium ring-1 transition-colors ${
                 datumLineSelected
                   ? 'bg-orange-50 text-ds-brand-primary-text ring-orange-200'
                   : 'bg-white text-slate-700 ring-slate-100 hover:bg-orange-50/60 hover:text-ds-brand-primary-text hover:ring-orange-200'
               }`}
             >
               <Crosshair className="size-3.5 shrink-0" />
-              <span>{roughDatumNode?.name ?? roughPositionConfig.datumName}</span>
+              <span className="truncate">{roughDatumNode?.name ?? roughPositionConfig.datumName}</span>
             </button>
           </div>
         </div>
