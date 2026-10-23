@@ -307,7 +307,7 @@ function SimulationRobotPoseOverlayDemo() {
   );
 }
 const newTaskPreviewRowsDemo = [
-  { id: 'generated-grind-01', index: '02', name: '打磨', part: '0162-01-010101-01', sidePlate: false },
+  { id: 'generated-grind-01', index: '02', name: '打磨', part: '0162-01-010101-01', sidePlate: false, ribGrind: true },
   { id: 'generated-grind-02', index: '05', name: '侧面打磨', part: '0162-01-010101-02', sidePlate: true },
   { id: 'generated-assemble-02', index: '06', name: '装配', part: '0162-01-010101-02 + 0162-01-010101-01', sidePlate: false },
   { id: 'generated-grind-03', index: '10', name: '侧面打磨', part: '0162-01-010101-03', sidePlate: true },
@@ -7593,6 +7593,10 @@ export function ComponentLabPage() {
   const newTaskPreviewAllSidePlateDisabledDemo = newTaskPreviewSidePlateIdsDemo.every((rowId) =>
     newTaskPreviewDisabledIdsDemo.has(rowId)
   );
+  const newTaskPreviewRibGrindIdsDemo = newTaskPreviewRowsDemo.filter((row) => row.ribGrind).map((row) => row.id);
+  const newTaskPreviewAllRibGrindDisabledDemo = newTaskPreviewRibGrindIdsDemo.every((rowId) =>
+    newTaskPreviewDisabledIdsDemo.has(rowId)
+  );
   const setNewTaskPreviewRowsDisabledDemo = (rowIds: string[], disabled: boolean) => {
     setNewTaskPreviewDisabledIdsDemo((current) => {
       const next = new Set(current);
@@ -9607,6 +9611,30 @@ export function ComponentLabPage() {
                     >
                       <Ban className="size-3.5" />
                       {newTaskPreviewAllSidePlateDisabledDemo ? '启用' : '禁用'}
+                    </Button>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/70 px-2.5 py-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-slate-600">主筋板打磨</div>
+                      <div className="mt-0.5 text-[11px] text-slate-400">主筋板打磨任务</div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className={`h-7 gap-1.5 px-2.5 text-[11px] ${
+                        newTaskPreviewAllRibGrindDisabledDemo
+                          ? 'border-zinc-200 bg-zinc-100 text-zinc-500 hover:bg-white hover:text-zinc-700'
+                          : 'border-orange-100 bg-orange-50/70 text-ds-brand-primary-text hover:bg-orange-100'
+                      }`}
+                      onClick={() => setNewTaskPreviewRowsDisabledDemo(
+                        newTaskPreviewRibGrindIdsDemo,
+                        !newTaskPreviewAllRibGrindDisabledDemo,
+                      )}
+                      aria-pressed={newTaskPreviewAllRibGrindDisabledDemo}
+                    >
+                      <Ban className="size-3.5" />
+                      {newTaskPreviewAllRibGrindDisabledDemo ? '启用' : '禁用'}
                     </Button>
                   </div>
                 </div>

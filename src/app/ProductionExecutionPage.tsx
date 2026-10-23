@@ -2502,6 +2502,12 @@ function NewTaskDialog({
   const allSidePlateGrindingDisabled =
     sidePlateGrindingProcessIds.length > 0
     && sidePlateGrindingProcessIds.every((processId) => disabledPreviewProcessIds.has(processId));
+  const ribGrindingProcessIds = availableProcesses
+    .filter((process) => process.batchGroup === 'rib-grind')
+    .map((process) => process.id);
+  const allRibGrindingDisabled =
+    ribGrindingProcessIds.length > 0
+    && ribGrindingProcessIds.every((processId) => disabledPreviewProcessIds.has(processId));
   const previewRelatedPartIds = selectedPreviewPartId ? new Set([selectedPreviewPartId]) : getProcessRelatedPartIdSet(selectedPreviewProcessId);
   const filteredWorkpieceIds = filteredLibrary.map((item) => item.id);
   const allFilteredWorkpiecesExpanded =
@@ -2753,6 +2759,9 @@ function NewTaskDialog({
   };
   const toggleSidePlateGrindingDisabled = () => {
     setPreviewProcessesDisabled(sidePlateGrindingProcessIds, !allSidePlateGrindingDisabled);
+  };
+  const toggleRibGrindingDisabled = () => {
+    setPreviewProcessesDisabled(ribGrindingProcessIds, !allRibGrindingDisabled);
   };
   const togglePreviewProcessSelected = (processId: string) => {
     setSelectedPreviewProcessIds((current) => {
@@ -3238,6 +3247,32 @@ function NewTaskDialog({
                           >
                             <Ban className="size-3.5" />
                             {allSidePlateGrindingDisabled ? '启用' : '禁用'}
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/70 px-2.5 py-2">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-slate-600">主筋板打磨</div>
+                        <div className="mt-0.5 text-[11px] text-slate-400">主筋板打磨任务</div>
+                      </div>
+                      <Tooltip title={allRibGrindingDisabled ? '启用主筋板打磨任务' : '禁用主筋板打磨任务'}>
+                        <span className="inline-flex">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className={`h-7 gap-1.5 px-2.5 text-[11px] ${
+                              allRibGrindingDisabled
+                                ? 'border-zinc-200 bg-zinc-100 text-zinc-500 hover:bg-white hover:text-zinc-700'
+                                : 'border-orange-100 bg-orange-50/70 text-ds-brand-primary-text hover:bg-orange-100'
+                            }`}
+                            onClick={toggleRibGrindingDisabled}
+                            disabled={ribGrindingProcessIds.length === 0}
+                            aria-pressed={allRibGrindingDisabled}
+                          >
+                            <Ban className="size-3.5" />
+                            {allRibGrindingDisabled ? '启用' : '禁用'}
                           </Button>
                         </span>
                       </Tooltip>
