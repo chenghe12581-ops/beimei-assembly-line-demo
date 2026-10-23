@@ -413,6 +413,11 @@ type PlaceProcessConfig = {
   joints?: string[];
 };
 
+// 支撑调整工步：仅保留支撑三个轴（J1-J3）的轴值，无工作台 / 编号 / 覆盖率
+type SupportAdjustProcessConfig = {
+  joints: string[];
+};
+
 type WeldProcessParams = {
   weldLegHeight: string;
   scanDistance: string;
@@ -496,6 +501,7 @@ type ProcessStep = {
   assembleConfig?: FeatureProcessConfig;
   weldConfig?: FeatureProcessConfig;
   weldScanConfig?: FeatureProcessConfig;
+  supportAdjustConfig?: SupportAdjustProcessConfig;
 };
 
 type ProcessStepType = PlanningTaskType;
@@ -926,6 +932,8 @@ const createPathPointGroups = (groupCount: number, step?: ProcessStep) =>
   Array.from({ length: groupCount }, (_, segmentIndex) => (step ? createDefaultGeneratedPathPoints(step, segmentIndex) : createPickPathPointRows()));
 const createWeldPathPointGroups = (step?: ProcessStep) => createPathPointGroups(4, step);
 const createDemoJointRows = () => ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20'];
+const createEmptySupportAdjustConfig = (): SupportAdjustProcessConfig => ({ joints: ['', '', ''] });
+const createGeneratedSupportAdjustConfig = (): SupportAdjustProcessConfig => ({ joints: createDemoJointRows().slice(0, 3) });
 const createGeneratedPlacePoints = () => [
   { x: '80.0', y: '40.0', z: '0.0' },
   { x: '220.0', y: '40.0', z: '0.0' },
@@ -7209,6 +7217,7 @@ export function BeimeiAssemblyLinePage() {
         grindConfig: cloneProcessConfig(step.grindConfig),
         assembleConfig: cloneProcessConfig(step.assembleConfig),
         weldConfig: cloneProcessConfig(step.weldConfig),
+        supportAdjustConfig: cloneProcessConfig(step.supportAdjustConfig),
       })),
       hasAssemblyDrawing: true,
     };
@@ -7744,8 +7753,11 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'weld-scan') {
           return { ...baseStep, weldConfig: createGeneratedWeldScanConfig(slot.featureIds, weldScanParams) };
         }
-        // 支撑调整 / 粗定位 / 精定位 / 调整等新增工步暂不提供工艺参数与路径点位，后续再设计
-        if (slot.type === 'support-adjust' || slot.type === 'rough-position' || slot.type === 'fine-position' || slot.type === 'adjust') {
+        // 支撑调整：工艺参数为支撑三个轴（J1-J3）轴值；粗定位 / 精定位 / 调整暂留空，后续再设计
+        if (slot.type === 'support-adjust') {
+          return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig() };
+        }
+        if (slot.type === 'rough-position' || slot.type === 'fine-position' || slot.type === 'adjust') {
           return baseStep;
         }
         return { ...baseStep, weldConfig: createGeneratedWeldConfig(slot.featureIds, weldParams) };
@@ -10710,8 +10722,66 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 支撑调整 / 粗定位 / 精定位 / 调整：工艺参数与路径点位暂留空，后续再设计
-    if (step.type === 'support-adjust' || step.type === 'rough-position' || step.type === 'fine-position' || step.type === 'adjust') {
+    // 支撑调整：工艺参数为支撑三个轴（J1-J3）轴值，无路径点位
+    if (step.type === 'support-adjust') {
+      if (activeDetailTab === 'path-points') {
+        return (
+          <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
+            该工步暂无路径点位
+          </div>
+        );
+      }
+      const supportAdjustConfig = step.supportAdjustConfig ?? createEmptySupportAdjustConfig();
+      const supportAdjustRootStepId = getRootProcessStepId(step.id) || step.id;
+      const supportAdjustDirty = processPointDirtyStepIds.has(supportAdjustRootStepId);
+      const supportAdjustJoints = supportAdjustConfig.joints ?? [];
+      if (!supportAdjustJoints.some((jointValue) => jointValue !== '')) {
+        return (
+          <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
+            该工步暂无工艺参数
+          </div>
+        );
+      }
+      return (
+        <div className="flex flex-col gap-ds-300">
+          <ProcessResultPointPanel
+            title="结果点位"
+            dirty={supportAdjustDirty}
+            onApplyUpdate={() => step.id && clearProcessPointDirty(step.id)}
+            variant="flush"
+            headerClassName="px-ds-150"
+            showUpdateButton={false}
+          >
+            <div className="grid gap-2">
+              {supportAdjustJoints.map((jointValue, jointIndex) => (
+                <ProcessJointAngleRow
+                  key={`compact-support-adjust-joint-${jointIndex}`}
+                  index={jointIndex}
+                  value={jointValue}
+                  selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
+                  selectedVariant="subtle"
+                  onSelect={() => step.id && showResultPointPosePreview(step.id, jointIndex)}
+                  onChange={(nextValue) => {
+                    markProcessPointDirty(step.id!);
+                    updateProcessStepById(step.id!, (currentStep) => ({
+                      ...currentStep,
+                      supportAdjustConfig: {
+                        joints: (currentStep.supportAdjustConfig?.joints ?? ['', '', '']).map((v, i) =>
+                          i === jointIndex ? nextValue : v
+                        ),
+                      },
+                    }));
+                  }}
+                />
+              ))}
+            </div>
+          </ProcessResultPointPanel>
+        </div>
+      );
+    }
+
+    // 粗定位 / 精定位 / 调整：工艺参数与路径点位暂留空，后续再设计
+    if (step.type === 'rough-position' || step.type === 'fine-position' || step.type === 'adjust') {
       return (
         <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
           {activeDetailTab === 'path-points' ? '该工步暂无路径点位' : '该工步暂无工艺参数'}
@@ -12140,6 +12210,7 @@ export function BeimeiAssemblyLinePage() {
       } : {}),
       ...(type === 'weld' ? { weldConfig: createFeatureProcessConfigWithParams({ weldParams }) } : {}),
       ...(type === 'weld-scan' ? { weldConfig: createFeatureProcessConfigWithParams({ weldParams: weldScanParams }) } : {}),
+      ...(type === 'support-adjust' ? { supportAdjustConfig: createEmptySupportAdjustConfig() } : {}),
     };
 
     setProjects((prev) =>
