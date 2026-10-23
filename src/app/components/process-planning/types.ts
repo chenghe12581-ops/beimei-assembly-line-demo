@@ -22,8 +22,7 @@ export type ProcessPivotSnapPoint = {
 export type AssemblyDatumModalState = {
   open: boolean;
   minimized: boolean;
-  partAId: string | null;
-  partBId: string | null;
+  partId: string | null;
   selectedEdgeId: string | null;
   datumName: string;
   error: string | null;

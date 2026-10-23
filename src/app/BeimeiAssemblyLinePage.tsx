@@ -6902,12 +6902,11 @@ export function BeimeiAssemblyLinePage() {
     weld: false,
     datum: false,
   });
-  // 装配基准提取弹窗状态
+  // 装配特征提取弹窗状态
   const [assemblyDatumModal, setAssemblyDatumModal] = useState<{
     open: boolean;
     minimized: boolean;
-    partAId: string | null;
-    partBId: string | null;
+    partId: string | null;
     selectedEdgeId: string | null;
     datumName: string;
     error: string | null;
@@ -11616,7 +11615,7 @@ export function BeimeiAssemblyLinePage() {
     setAssemblyDatumModal(null);
     setSelectedId(baseId);
     markFeatureDirty(currentProject.id);
-    showToast('装配基准特征已批量创建，可一键生成任务', 'success');
+    showToast('装配特征已批量创建，可一键生成任务', 'success');
   };
 
   const openAssemblyDatumSelectionModal = () => {
@@ -11625,32 +11624,29 @@ export function BeimeiAssemblyLinePage() {
     setAssemblyDatumModal({
       open: true,
       minimized: false,
-      partAId: null,
-      partBId: null,
+      partId: null,
       selectedEdgeId: null,
       datumName: '',
       error: null,
     });
   };
 
-  // 装配基准名称自动生成：子板名 + 基准线序号（该子板下已有基准数 + 1）
-  const buildAutoDatumName = (partAId: string | null, partBId: string | null) => {
-    if (!currentProject || !partAId || !partBId) return '';
-    const partA = findNodeById(currentProject.tree, partAId);
-    const existingCount = (currentProject.datums ?? []).filter((datum) => datum.partAId === partAId).length;
-    return `${partA?.name ?? '子板'}基准线${existingCount + 1}`;
+  // 装配特征名称自动生成：零件名 + 特征序号（该零件下已有特征数 + 1）
+  const buildAutoDatumName = (partId: string | null) => {
+    if (!currentProject || !partId) return '';
+    const part = findNodeById(currentProject.tree, partId);
+    const existingCount = (currentProject.datums ?? []).filter((datum) => datum.partAId === partId).length;
+    return `${part?.name ?? '零件'}特征${existingCount + 1}`;
   };
 
-  const handleAssemblyDatumPartChange = (partKey: 'A' | 'B', nextId: string | null) => {
+  const handleAssemblyDatumPartChange = (nextId: string | null) => {
     setAssemblyDatumModal((prev) => {
       if (!prev) return prev;
-      const nextPartAId = partKey === 'A' ? nextId : prev.partAId;
-      const nextPartBId = partKey === 'B' ? nextId : prev.partBId;
       return {
         ...prev,
-        ...(partKey === 'A' ? { partAId: nextId } : { partBId: nextId }),
+        partId: nextId,
         selectedEdgeId: null,
-        datumName: buildAutoDatumName(nextPartAId, nextPartBId),
+        datumName: buildAutoDatumName(nextId),
         error: null,
       };
     });
@@ -11678,59 +11674,52 @@ export function BeimeiAssemblyLinePage() {
     if (!currentProject || !assemblyDatumModal) return;
     if (!guardRequiresWeldFeatures()) return;
     const {
-      partAId,
-      partBId,
+      partId,
       selectedEdgeId,
       datumName,
     } = assemblyDatumModal;
-    const partA = findNodeById(currentProject.tree, partAId ?? '');
-    const partB = findNodeById(currentProject.tree, partBId ?? '');
-    const aName = partA?.name ?? partAId ?? '';
-    const bName = partB?.name ?? partBId ?? '';
+    const part = findNodeById(currentProject.tree, partId ?? '');
+    const partName = part?.name ?? partId ?? '';
 
     const fail = (reason: string) => {
-      showToast(`零件[${aName}]与零件[${bName}]装配基准设置失败：${reason}`, 'error');
+      showToast(`零件[${partName}]装配特征添加失败：${reason}`, 'error');
       setAssemblyDatumModal((prev) => (prev ? { ...prev, error: reason } : prev));
     };
 
-    if (!partAId || !partBId) {
-      fail('定位基准无效，无法满足装配');
-      return;
-    }
-    if (!arePartsAdjacent(partAId, partBId, currentProject.tree)) {
-      fail('定位基准无效，无法满足装配');
+    if (!partId) {
+      fail('请选择零件');
       return;
     }
     if (!selectedEdgeId) {
-      fail('请选择基准线');
+      fail('请选择特征线');
       return;
     }
     const trimmedName = datumName.trim();
     if (!trimmedName) {
-      fail('请输入基准名称');
+      fail('请输入特征名称');
       return;
     }
 
-    const datumId = `${currentProject.tree.id}-${partAId}-datum-${selectedEdgeId}`;
+    const datumId = `${currentProject.tree.id}-${partId}-datum-${selectedEdgeId}`;
     if (findNodeById(currentProject.tree, datumId)) {
-      fail('该基准线已添加为装配基准');
+      fail('该特征线已添加为装配特征');
       return;
     }
     const edgeModelUrl = `${ASSET_BASE}models/datum-edges/${selectedEdgeId}.obj`;
-    // 基准特征层级绑定在子板零件下
+    // 装配特征层级绑定在所选零件下
     const featureDefinitions: { parentId: string; node: TreeNode }[] = [
       {
-        parentId: partAId,
+        parentId: partId,
         node: {
           id: datumId,
           name: trimmedName,
           nodeType: 'feature',
           featureType: 'datum',
           featureUrl: edgeModelUrl,
-          relatedPartIds: [partAId, partBId],
+          relatedPartIds: [partId],
           datumMeta: {
-            partAId,
-            partBId,
+            partAId: partId,
+            partBId: partId,
             edgeModelUrl,
             edgeModelUrls: [edgeModelUrl],
           },
@@ -11747,8 +11736,8 @@ export function BeimeiAssemblyLinePage() {
           {
             id: datumId,
             name: trimmedName,
-            partAId,
-            partBId,
+            partAId: partId,
+            partBId: partId,
             edgeModelUrl,
           },
         ];
@@ -11756,14 +11745,14 @@ export function BeimeiAssemblyLinePage() {
       })
     );
 
-    // 展开子板节点并选中新添加的基准特征，便于在左侧列表中确认
+    // 展开零件节点并选中新添加的装配特征，便于在左侧列表中确认
     setCollapsedIds((prev) => {
       const next = new Set(prev);
-      next.delete(partAId);
+      next.delete(partId);
       return next;
     });
     setSelectedId(datumId);
-    showToast(`装配基准[${trimmedName}]已添加`, 'success');
+    showToast(`装配特征[${trimmedName}]已添加`, 'success');
     markFeatureDirty(currentProject.id);
     setAssemblyDatumModal(null);
   };
@@ -13862,7 +13851,7 @@ export function BeimeiAssemblyLinePage() {
       : [];
   const secondaryTreeHighlightIds = new Set(secondaryHighlightIds);
 
-  // 装配基准提取：根据当前选中的零件对生成可点击的棱边曲线列表
+  // 装配特征提取：根据当前选中的零件生成可点击的棱边曲线列表
   const inDatumMode = Boolean(assemblyDatumModal?.open);
   const datumEdgeCandidates = useMemo(() => {
     if (!inDatumMode || !currentProject) return [];
@@ -13879,11 +13868,11 @@ export function BeimeiAssemblyLinePage() {
     ];
   }, [inDatumMode, currentProject]);
   const activeDatumPartIds = useMemo(() => {
-    if (!assemblyDatumModal?.partAId || !assemblyDatumModal?.partBId) return [];
-    return [assemblyDatumModal.partAId, assemblyDatumModal.partBId];
-  }, [assemblyDatumModal?.partAId, assemblyDatumModal?.partBId]);
+    if (!assemblyDatumModal?.partId) return [];
+    return [assemblyDatumModal.partId];
+  }, [assemblyDatumModal?.partId]);
   const datumEdgeViews = datumEdgeCandidates
-    .filter((edge) => edge.partIds.every((id) => activeDatumPartIds.includes(id)))
+    .filter((edge) => edge.partIds.some((id) => activeDatumPartIds.includes(id)))
     .map((edge) => ({
       id: edge.id,
       sourceId: edge.id,
@@ -13891,16 +13880,6 @@ export function BeimeiAssemblyLinePage() {
       selected: assemblyDatumModal?.selectedEdgeId === edge.id,
     }));
   const visibleDatumEdges = inDatumMode ? datumEdgeViews : datumFeatureViews;
-  const assemblyDatumPartAId = assemblyDatumModal?.partAId ?? null;
-  const assemblyDatumPartBId = assemblyDatumModal?.partBId ?? null;
-  const assemblyDatumBothSelected = Boolean(assemblyDatumPartAId && assemblyDatumPartBId);
-  const assemblyDatumPartsAdjacent = Boolean(
-    objectTree &&
-      assemblyDatumPartAId &&
-      assemblyDatumPartBId &&
-      arePartsAdjacent(assemblyDatumPartAId, assemblyDatumPartBId, objectTree)
-  );
-  const assemblyDatumSelectionInvalid = assemblyDatumBothSelected && !assemblyDatumPartsAdjacent;
 
   // 项目管理列表：装配体即最高层级，直接平铺展示，不再区分文件夹 / 分组
   const projectManagementAssemblyPaddingBump = 6;
@@ -15332,8 +15311,6 @@ export function BeimeiAssemblyLinePage() {
                   modal={assemblyDatumModal}
                   parts={collectLeafParts(objectTree)}
                   immersive={immersiveProjectLayout}
-                  adjacent={assemblyDatumPartsAdjacent}
-                  selectionInvalid={assemblyDatumSelectionInvalid}
                   onToggleMinimized={() => setAssemblyDatumModal((prev) => prev ? { ...prev, minimized: !prev.minimized } : prev)}
                   onClose={() => setAssemblyDatumModal(null)}
                   onPartChange={handleAssemblyDatumPartChange}

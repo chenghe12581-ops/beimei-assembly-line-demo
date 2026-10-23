@@ -5537,43 +5537,37 @@ function ModalCatalogTab() {
             </div>
           </div>
         </div>
-        <ModalSource notes={<>浮层容器：w-[280px] + rounded-lg + bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5；宽度与装配基准提取一致。焊缝浮窗在零件选择下方提供“选择面”和“生成焊缝”。打磨浮窗顶部先选焊缝特征并回显，分割线下方指配零件 A/B，确认后创建两条打磨特征，分别归属于零件 A 和零件 B。底部 footer 使用 border-t + px-3 py-2，与装配基准提取一致；零件不相接提示与关闭/确认同处 footer。焊缝/打磨入口已拆分为各自的“自动提取 / 手动提取”下拉，浮窗内部不再展示 tab、特征类型标题、手动点选模式或说明文案。坐标转换、手动焊缝、手动打磨和装配特征提取同一时间只显示一个操作浮窗。</>}>
+        <ModalSource notes={<>浮层容器：w-[280px] + rounded-lg + bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5；宽度与装配特征提取一致。焊缝浮窗在零件选择下方提供“选择面”和“生成焊缝”。打磨浮窗顶部先选焊缝特征并回显，分割线下方指配零件 A/B，确认后创建两条打磨特征，分别归属于零件 A 和零件 B。底部 footer 使用 border-t + px-3 py-2，与装配特征提取一致；提示文案与关闭/确认同处 footer。焊缝/打磨入口已拆分为各自的“自动提取 / 手动提取”下拉，浮窗内部不再展示 tab、特征类型标题、手动点选模式或说明文案。坐标转换、手动焊缝、手动打磨和装配特征提取同一时间只显示一个操作浮窗。</>}>
           3D 视窗浮动工具栏“焊缝提取 / 打磨提取”下拉。
         </ModalSource>
       </DemoCard>
 
-      <DemoCard title="装配基准提取浮窗 / 3D 视窗内浮层">
+      <DemoCard title="装配特征提取浮窗 / 3D 视窗内浮层">
         <div className="relative h-[380px] rounded-xl bg-slate-200 p-3">
           <div className="absolute left-3 top-3 w-[280px] rounded-lg border border-white/50 bg-ds-bg-glass-float shadow-lg shadow-black/5 backdrop-blur-md">
             <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-              <div className="flex items-center gap-1.5"><Target className="size-4 text-orange-500" /><span className="text-xs font-medium">装配基准提取</span></div>
+              <div className="flex items-center gap-1.5"><Target className="size-4 text-orange-500" /><span className="text-xs font-medium">装配特征提取</span></div>
               <div className="flex items-center gap-1"><Minus className="size-3.5 text-slate-400" /><X className="size-3.5 text-slate-400" /></div>
             </div>
             <div className="space-y-3 p-3">
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <div className="text-[11px] text-slate-500">子板</div>
-                  <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 shadow-sm">0162-01-010101-02</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-[11px] text-slate-500">父板</div>
-                  <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 shadow-sm">0162-01-010101-01</div>
-                </div>
+              <div className="space-y-1">
+                <div className="text-[11px] text-slate-500">零件</div>
+                <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 shadow-sm">0162-01-010101-02</div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 rounded-md border border-emerald-100 bg-emerald-50/40 px-2 py-1.5 text-[11px] text-emerald-600">
                   <CircleCheck className="size-3.5 shrink-0" />
-                  <span className="min-w-0 truncate">已选择基准线：02-datum-edge-01</span>
+                  <span className="min-w-0 truncate">已选择特征线：02-datum-edge-01</span>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[11px] text-slate-500">基准名称</div>
-                  <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">贴板1基准线1</div>
+                  <div className="text-[11px] text-slate-500">特征名称</div>
+                  <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">贴板1特征1</div>
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[11px] text-slate-400">可确认添加基准</div>
+                <div className="truncate text-[11px] text-slate-400">可确认添加特征</div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]">关闭</Button>
@@ -5582,8 +5576,8 @@ function ModalCatalogTab() {
             </div>
           </div>
         </div>
-        <ModalSource notes={<>浮层容器：bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5 + border-white/50；内部下拉选择使用 bg-ds-bg-glass-modal-sidebar；不经过 fullscreen 遮罩，直接定位在 3D 视窗工具浮窗列。零件选择下方为基准线提醒（未选为“请选择基准线”，已选为绿色回显）与可编辑的基准名称输入框；零件不相接提示放在 footer 左侧，与关闭/确认同处一行；确认后基准特征挂到左侧列表子板零件下；与坐标转换、手动焊缝、手动打磨互斥。</>}>
-          3D 视窗浮动工具栏“焊缝提取 / 打磨提取”下拉与“装配基准提取”。
+        <ModalSource notes={<>浮层容器：bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5 + border-white/50；内部下拉选择使用 bg-ds-bg-glass-modal-sidebar；不经过 fullscreen 遮罩，直接定位在 3D 视窗工具浮窗列。仅需选择一个零件，零件选择下方为特征线提醒（未选为“请选择特征线”，已选为绿色回显）与可编辑的特征名称输入框；提示文案放在 footer 左侧，与关闭/确认同处一行；确认后装配特征挂到左侧列表所选零件下；与坐标转换、手动焊缝、手动打磨互斥。</>}>
+          3D 视窗浮动工具栏“焊缝提取 / 打磨提取”下拉与“装配特征提取”。
         </ModalSource>
       </DemoCard>
 
@@ -5706,9 +5700,9 @@ function ToastCatalogTab() {
       items: [
         { type: 'success', text: '焊缝特征提取完成，已生成 3 条焊缝', source: '3D 视窗浮动工具栏“焊缝提取”下拉的“自动提取”。' },
         { type: 'success', text: '打磨特征提取完成，已生成 5 条打磨线', source: '3D 视窗浮动工具栏“打磨提取”下拉的“自动提取”。' },
-        { type: 'error', text: '零件[A]与零件[B]装配基准设置失败：基准线不匹配', source: '装配基准提取浮窗确认失败。' },
-        { type: 'success', text: '装配基准设置完成，已生成装配基准特征', source: '装配基准提取浮窗确认成功。' },
-        { type: 'success', text: '装配基准特征已批量创建，可一键生成任务', source: '3D 视窗工具栏“装配基准提取”连续点击第二次。' },
+        { type: 'error', text: '零件[A]装配特征添加失败：该特征线已添加为装配特征', source: '装配特征提取浮窗确认失败。' },
+        { type: 'success', text: '装配特征[A特征1]已添加', source: '装配特征提取浮窗确认成功。' },
+        { type: 'success', text: '装配特征已批量创建，可一键生成任务', source: '3D 视窗工具栏“装配特征提取”连续点击第二次。' },
         { type: 'error', text: '请先提取打磨特征、焊缝特征、装配基准特征，无法生成任务', source: '任务列表“一键生成任务”前置校验失败。' },
         { type: 'success', text: '已一键生成完整任务列表', source: '任务列表“一键生成任务”成功。' },
         { type: 'success', text: '已完成对任务重新排序', source: '任务列表“重新排序”按钮。' },

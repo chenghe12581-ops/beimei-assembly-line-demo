@@ -316,7 +316,7 @@ export const componentRegistry: ComponentRegistryItem[] = [
     purpose: '特征提取里的零件 A/B 单选',
     contract: '完整',
     demo: '部分',
-    usedIn: ['手动焊缝提取', '手动打磨提取', '装配基准提取'],
+    usedIn: ['手动焊缝提取', '手动打磨提取', '装配特征提取'],
     tokenCoverage: 70,
     states: ['default', 'open', 'invalid', 'disabled'],
     risk: 'watch',
