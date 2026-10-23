@@ -4598,15 +4598,14 @@ function TreeCatalogTab() {
     <div className="space-y-6">
       <DemoCard title="项目管理结构树条目">
         <div className="space-y-1 rounded-xl bg-white p-3 ring-1 ring-slate-100">
-          <TreeRowDemo level={0} kind="project" name="0162-03-030303" checked />
-          <TreeRowDemo level={1} kind="assembly" name="0162-03-030303" highlighted />
-          <TreeRowDemo level={1} kind="assembly" name="0162-02-020202" drawingMissing />
-          <TreeRowDemo level={2} kind="part" name="0162-03-030303-01" selected />
-          <TreeRowDemo level={2} kind="part" name="0162-03-030303-02" />
-          <TreeRowDemo level={2} kind="part" name="0162-03-030303-03" />
-          <TreeRowDemo level={2} kind="part" name="0162-03-030303-04" />
+          <TreeRowDemo level={0} kind="assembly" name="0162-03-030303" highlighted />
+          <TreeRowDemo level={0} kind="assembly" name="0162-02-020202" drawingMissing />
+          <TreeRowDemo level={1} kind="part" name="0162-03-030303-01" selected />
+          <TreeRowDemo level={1} kind="part" name="0162-03-030303-02" />
+          <TreeRowDemo level={1} kind="part" name="0162-03-030303-03" />
+          <TreeRowDemo level={1} kind="part" name="0162-03-030303-04" />
         </div>
-        <ModalSource>项目管理左侧结构树：项目、装配体、零件层级条目；行内顺序为 caret 在前、checkbox 在后；不显示工作面分组，零件在装配体下同层展示。选中装配体下级零件时，零件使用选中高亮，装配体半选中状态复用工艺规划中关联零件高亮：半透明品牌浅底 + inset stroke。缺失装配图纸的装配体条目在原图纸管理位置显示红色 FileWarning icon，进入工艺规划 icon 不显示但保留占位。</ModalSource>
+        <ModalSource>项目管理左侧结构树：装配体即最高层级，全部装配体平铺展示，不再有项目/文件夹层级；行内顺序为 caret 在前、checkbox 在后；不显示工作面分组，零件在装配体下同层展示。选中装配体下级零件时，零件使用选中高亮，装配体半选中状态复用工艺规划中关联零件高亮：半透明品牌浅底 + inset stroke。缺失装配图纸的装配体条目在原图纸管理位置显示红色 FileWarning icon，进入工艺规划 icon 不显示但保留占位。</ModalSource>
       </DemoCard>
 
       <DemoCard title="项目管理属性参数卡片">
@@ -5719,10 +5718,13 @@ function ToastCatalogTab() {
       items: [
         { type: 'error', text: '项目文件解析失败，导入失败', source: '项目管理顶部“导入”第一次点击。' },
         { type: 'success', text: '项目解析成功，已导入 0163 项目', source: '项目管理顶部“导入”第二次点击。' },
+        { type: 'info', text: '请先勾选要导出的装配体', source: '项目管理顶部“导出”在未勾选装配体时点击。' },
+        { type: 'error', text: '装配体项目包导出失败，请检查装配体图纸完整性', source: '项目管理顶部“导出”第一次点击。' },
+        { type: 'success', text: '已导出 2 个装配体项目包', source: '项目管理顶部“导出”第二次点击。' },
         { type: 'error', text: '图纸解析失败，导入失败', source: '图纸管理弹窗内图纸导入/替换失败。' },
         { type: 'success', text: '解析成功，导入成功', source: '图纸管理弹窗内图纸导入/替换成功。' },
-        { type: 'error', text: '请输入装配体名称', source: '新增装配体弹窗确认时名称为空。' },
-        { type: 'success', text: '装配体创建成功', source: '项目行右侧新增装配体确认成功。' },
+        { type: 'error', text: '请输入装配体名称', source: '（历史）新增装配体弹窗确认时名称为空，该入口已随文件夹层级移除。' },
+        { type: 'success', text: '装配体创建成功', source: '（历史）项目行右侧新增装配体确认成功，该入口已随文件夹层级移除。' },
       ],
     },
     {
