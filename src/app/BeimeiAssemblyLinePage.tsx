@@ -9990,7 +9990,7 @@ export function BeimeiAssemblyLinePage() {
         );
       }
 
-      // 主筋板打磨工序的翻面：工作台 + 翻转角度（首次 180°，再翻 0°）+ 三个轴值
+      // 主筋板打磨工序的翻面：工作台 + 翻转角度（首次 180°，再翻 0°）+ 七个轴值
       const clampProcessId = step.processId ?? getPlanningProcessIdForTask(step);
       if (clampProcessId === 'proc-02-rib-grind') {
         const turnoverStepsInProcess = allProcessSteps.filter(
@@ -10023,7 +10023,7 @@ export function BeimeiAssemblyLinePage() {
               showUpdateButton={false}
             >
               <div className="grid gap-2">
-                {(clampConfig.joints ?? []).slice(0, 3).map((jointValue, jointIndex) => (
+                {Array.from({ length: 7 }, (_, jointIndex) => clampConfig.joints?.[jointIndex] ?? '').map((jointValue, jointIndex) => (
                   <ProcessJointAngleRow
                     key={`compact-clamp-joint-${jointIndex}`}
                     index={jointIndex}
@@ -10037,8 +10037,8 @@ export function BeimeiAssemblyLinePage() {
                         ...currentStep,
                         turnoverClampConfig: {
                           ...(currentStep.turnoverClampConfig ?? createEmptyTurnoverClampProcessConfig()),
-                          joints: (currentStep.turnoverClampConfig?.joints ?? []).map((v, i) =>
-                            i === jointIndex ? nextValue : v
+                          joints: Array.from({ length: 7 }, (_, i) =>
+                            i === jointIndex ? nextValue : (currentStep.turnoverClampConfig?.joints ?? [])[i] ?? ''
                           ),
                         },
                       }));
@@ -11024,8 +11024,8 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 粗定位 / 精定位：零件名称 + 定位基准线，点击基准线在三维视图中高亮
-    if (step.type === 'rough-position' || step.type === 'fine-position') {
+    // 粗定位 / 精定位 / 检验：零件名称 + 定位基准线，点击基准线在三维视图中高亮
+    if (step.type === 'rough-position' || step.type === 'fine-position' || step.type === 'inspect') {
       const owningRoughProcess = step.processId
         ? fixedPlanningProcesses.find((process) => process.id === step.processId)
         : undefined;
