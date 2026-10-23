@@ -9874,21 +9874,17 @@ export function BeimeiAssemblyLinePage() {
               <div className="ds-label-input-compact-label">放置位置</div>
               <div className="grid grid-cols-3 gap-1.5">
                 {(['x', 'y', 'z'] as const).map((axis) => (
-                  <ProcessNumberField
-                    key={`compact-place-position-${axis}`}
-                    value={placePosition[axis]}
-                    unit="mm"
-                    placeholder={axis.toUpperCase()}
-                    inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
-                    onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
-                  />
-                ))}
-              </div>
-              <div className="mt-0.5 grid grid-cols-3 gap-1.5">
-                {(['X', 'Y', 'Z'] as const).map((axisLabel) => (
-                  <span key={`compact-place-position-label-${axisLabel}`} className="px-2 text-left text-[10px] leading-3 text-slate-400">
-                    {axisLabel}
-                  </span>
+                  <div key={`compact-place-position-${axis}`} className="flex min-w-0 items-center gap-1">
+                    <span className="w-3 shrink-0 text-center text-xs font-medium text-slate-500">{axis.toUpperCase()}</span>
+                    <div className="min-w-0 flex-1">
+                      <ProcessNumberField
+                        value={placePosition[axis]}
+                        unit="mm"
+                        inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                        onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
