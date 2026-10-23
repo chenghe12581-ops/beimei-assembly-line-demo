@@ -6258,6 +6258,8 @@ export function BeimeiAssemblyLinePage() {
   const [compactProcessBatchMode, setCompactProcessBatchMode] = useState(false);
   const [checkedCompactProcessStepKeys, setCheckedCompactProcessStepKeys] = useState<Set<string>>(new Set());
   const [compactProcessFilterOpen, setCompactProcessFilterOpen] = useState(false);
+  // 贴板装配精定位：基准线添加选择器（按工步 + 父/子板区分）
+  const [fineDatumPicker, setFineDatumPicker] = useState<{ stepId: string; kind: 'parent' | 'child' } | null>(null);
   const [compactProcessFilterKinds, setCompactProcessFilterKinds] = useState<CompactProcessFilterKind[]>([]);
   const [compactProcessFilterValues, setCompactProcessFilterValues] = useState<Partial<Record<CompactProcessFilterKind, string[]>>>({});
   const [compactProcessTaskPaneHeight, setCompactProcessTaskPaneHeight] = useState<number | null>(null);
@@ -11030,23 +11032,32 @@ export function BeimeiAssemblyLinePage() {
               };
             });
           };
-          const addFineDatum = (kind: 'parent' | 'child') => {
-            const baseId = finePositionConfig.partId.slice(0, finePositionConfig.partId.lastIndexOf('-'));
-            const plateSuffix = getPartSuffix(finePositionConfig.partId);
-            const pool = kind === 'parent'
-              ? FINE_POSITION_DATUM_PAIRS.filter(([a, b]) => a === '01' || b === '01')
-              : FINE_POSITION_DATUM_PAIRS.filter(([a, b]) => a === plateSuffix || b === plateSuffix);
-            const currentItems = kind === 'parent' ? finePositionConfig.parentDatums : finePositionConfig.childDatums;
-            const existing = new Set(currentItems.map((item) => item.datumFeatureId));
-            const nextPair = pool.find(([a, b]) => !existing.has(createDatumFeatureIdForPair(baseId, a, b)));
-            if (!nextPair) {
-              showToast('已添加全部可用基准线', 'info');
-              return;
-            }
-            updateFineDatums(kind, (items) => [...items, createFinePositionDatumItem(baseId, nextPair[0], nextPair[1], Date.now())]);
-          };
+          const fineBaseId = finePositionConfig.partId.slice(0, finePositionConfig.partId.lastIndexOf('-'));
           const removeFineDatum = (kind: 'parent' | 'child', itemId: string) => {
             updateFineDatums(kind, (items) => items.filter((item) => item.id !== itemId));
+          };
+          const isPickerOpen = (kind: 'parent' | 'child') =>
+            fineDatumPicker?.stepId === step.id && fineDatumPicker.kind === kind;
+          const togglePicker = (kind: 'parent' | 'child') => {
+            setFineDatumPicker(isPickerOpen(kind) ? null : { stepId: step.id!, kind });
+          };
+          // 添加前必须逐条选定，且基准线必须在对应零件（父板 = 01 主筋板 / 子板 = 被装贴板）上
+          const pickFineDatum = (kind: 'parent' | 'child', pair: [string, string]) => {
+            const requiredSuffix = kind === 'parent' ? '01' : getPartSuffix(finePositionConfig.partId);
+            const [a, b] = pair;
+            if (requiredSuffix === '' || (a !== requiredSuffix && b !== requiredSuffix)) {
+              showToast(kind === 'parent' ? '该基准线不在父板零件上，无法添加' : '该基准线不在子板零件上，无法添加', 'error');
+              return;
+            }
+            const datumFeatureId = createDatumFeatureIdForPair(fineBaseId, a, b);
+            const currentItems = kind === 'parent' ? finePositionConfig.parentDatums : finePositionConfig.childDatums;
+            if (currentItems.some((item) => item.datumFeatureId === datumFeatureId)) {
+              showToast('该基准线已在列表中', 'info');
+              setFineDatumPicker(null);
+              return;
+            }
+            updateFineDatums(kind, (items) => [...items, createFinePositionDatumItem(fineBaseId, a, b, Date.now())]);
+            setFineDatumPicker(null);
           };
           const renderDatumTable = (title: string, kind: 'parent' | 'child', items: FinePositionDatumItem[]) => (
             <div className="ds-label-input-compact">
@@ -11054,25 +11065,46 @@ export function BeimeiAssemblyLinePage() {
                 <div className="ds-label-input-compact-label">{title}</div>
                 <button
                   type="button"
-                  onClick={() => addFineDatum(kind)}
-                  className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs text-ds-brand-primary-text transition-colors hover:bg-orange-50"
+                  onClick={() => togglePicker(kind)}
+                  className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${
+                    isPickerOpen(kind) ? 'bg-orange-50 text-ds-brand-primary-text' : 'text-ds-brand-primary-text hover:bg-orange-50'
+                  }`}
                 >
                   <Plus className="size-3" />
                   添加
                 </button>
               </div>
+              {isPickerOpen(kind) && (
+                <div className="mb-1 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-orange-200">
+                  <div className="px-2 py-1 text-[10px] text-slate-400">选择要添加的基准线</div>
+                  {FINE_POSITION_DATUM_PAIRS.map(([a, b]) => {
+                    const optionItem = createFinePositionDatumItem(fineBaseId, a, b, 0);
+                    return (
+                      <button
+                        key={optionItem.datumFeatureId}
+                        type="button"
+                        onClick={() => pickFineDatum(kind, [a, b])}
+                        className="flex w-full items-center gap-1 whitespace-nowrap px-2 py-1 text-left text-[11px] text-slate-600 transition-colors hover:bg-orange-50 hover:text-ds-brand-primary-text"
+                      >
+                        <Crosshair className="size-3 shrink-0 text-slate-300" />
+                        <span className="truncate">{optionItem.datumName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div className="overflow-hidden rounded-lg ring-1 ring-slate-100">
-                <table className="w-full text-xs">
+                <table className="w-full text-[11px]">
                   <thead>
                     <tr className="bg-slate-50/80 text-slate-400">
-                      <th className="px-2.5 py-1.5 text-left font-normal">基准名称</th>
-                      <th className="w-12 px-2 py-1.5 text-center font-normal">操作</th>
+                      <th className="px-2 py-1 text-left font-normal">基准名称</th>
+                      <th className="w-9 px-1 py-1 text-center font-normal">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.length === 0 ? (
                       <tr>
-                        <td colSpan={2} className="bg-white px-2.5 py-2.5 text-center text-slate-300">
+                        <td colSpan={2} className="bg-white px-2 py-2 text-center text-[11px] text-slate-300">
                           暂无基准线，点击右上角「添加」
                         </td>
                       </tr>
@@ -11082,12 +11114,12 @@ export function BeimeiAssemblyLinePage() {
                         const datumSelected = selectedId === item.datumFeatureId;
                         return (
                           <tr key={item.id} className="border-t border-slate-100 bg-white">
-                            <td className="px-2.5 py-1.5">
+                            <td className="px-2 py-1">
                               <button
                                 type="button"
                                 title="点击在三维视图中高亮该基准线"
                                 onClick={() => setSelectedId(item.datumFeatureId)}
-                                className={`flex max-w-full items-center gap-1 whitespace-nowrap transition-colors ${
+                                className={`flex max-w-full items-center gap-1 whitespace-nowrap text-[11px] transition-colors ${
                                   datumSelected ? 'text-ds-brand-primary-text' : 'text-slate-700 hover:text-ds-brand-primary-text'
                                 }`}
                               >
@@ -11095,14 +11127,14 @@ export function BeimeiAssemblyLinePage() {
                                 <span className="truncate">{datumNode?.name ?? item.datumName}</span>
                               </button>
                             </td>
-                            <td className="px-2 py-1.5 text-center">
+                            <td className="px-1 py-1 text-center">
                               <button
                                 type="button"
                                 aria-label={`删除${title}`}
                                 onClick={() => removeFineDatum(kind, item.id)}
                                 className="text-slate-300 transition-colors hover:text-red-500"
                               >
-                                <Trash2 className="size-3.5" />
+                                <Trash2 className="size-3" />
                               </button>
                             </td>
                           </tr>
@@ -11114,6 +11146,13 @@ export function BeimeiAssemblyLinePage() {
               </div>
             </div>
           );
+          const parentPartId = owningRoughProcess
+            ? (owningRoughProcess.workpieceIds.find((id) => getPartSuffix(id) === '01')
+              ?? owningRoughProcess.workpieceIds[owningRoughProcess.workpieceIds.length - 1])
+            : '';
+          const parentPartNode = objectTree && parentPartId ? findNodeById(objectTree, parentPartId) : null;
+          const parentTitle = `父板：${parentPartNode?.name ?? parentPartId ?? '--'}`;
+          const childTitle = `子板：${finePartNode?.name ?? finePositionConfig.partId}`;
           return (
             <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
               <div className="ds-label-input-compact">
@@ -11122,8 +11161,8 @@ export function BeimeiAssemblyLinePage() {
                   <span className="truncate">{finePartNode?.name ?? finePositionConfig.partId}</span>
                 </div>
               </div>
-              {renderDatumTable('父板基准', 'parent', finePositionConfig.parentDatums)}
-              {renderDatumTable('子板基准', 'child', finePositionConfig.childDatums)}
+              {renderDatumTable(parentTitle, 'parent', finePositionConfig.parentDatums)}
+              {renderDatumTable(childTitle, 'child', finePositionConfig.childDatums)}
             </div>
           );
         }
