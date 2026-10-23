@@ -10,7 +10,8 @@ export type PlanningTaskType =
   | 'support-adjust'
   | 'rough-position'
   | 'fine-position'
-  | 'adjust';
+  | 'adjust'
+  | 'inspect';
 
 export type PlanningProcessLocationId =
   | 'tray-01'
@@ -68,7 +69,7 @@ const fixedPlanningProcessTemplates: FixedPlanningProcessTemplate[] = [
   { id: 'proc-01-rib-feed', sequence: 1, name: '主筋板上料', partSuffixes: ['01'], station: '主筋板打磨平台', locationId: 'area-main-grinding', taskSummary: '支撑调整 + 主筋板粗定位 + 主筋板抓取 + 主筋板放置 + 精定位/导入工件位置', allowedTaskTypes: ['support-adjust', 'rough-position', 'pick', 'place', 'fine-position'], productionUnit: '上料' },
   { id: 'proc-02-rib-grind', sequence: 2, name: '主筋板打磨', partSuffixes: ['01'], station: '主筋板打磨平台', locationId: 'area-main-grinding', taskSummary: '正面打磨 + 翻面 + 反面打磨 + 翻面', allowedTaskTypes: ['polish', 'turnover-clamp'], productionUnit: '打磨' },
   { id: 'proc-03-rib-feed', sequence: 3, name: '主筋板上料', partSuffixes: ['01'], station: '多工位', locationId: 'area-main-assembly-1', taskSummary: '支撑调整 + 主筋板抓取 + 主筋板放置', allowedTaskTypes: ['support-adjust', 'pick', 'place'], productionUnit: '上料' },
-  { id: 'proc-04-up-plate-1', sequence: 4, name: '上贴板1-1装配', partSuffixes: ['02', '01'], displayGroups: [['02', '01']], station: '正装拼焊台', locationId: 'area-main-assembly-1', simulationSide: 'front', taskSummary: '粗定位 + 抓取 + 侧面打磨 + 正面打磨 + 放置 + 精定位 + 调整 + 焊接', allowedTaskTypes: ['rough-position', 'pick', 'polish', 'place', 'fine-position', 'adjust', 'weld-combined'], productionUnit: '装配', batchGroup: 'side-plate-grind' },
+  { id: 'proc-04-up-plate-1', sequence: 4, name: '上贴板1-1装配', partSuffixes: ['02', '01'], displayGroups: [['02', '01']], station: '正装拼焊台', locationId: 'area-main-assembly-1', simulationSide: 'front', taskSummary: '粗定位 + 抓取 + 侧面打磨 + 正面打磨 + 放置 + 精定位 + 调整 + 检验 + 焊接', allowedTaskTypes: ['rough-position', 'pick', 'polish', 'place', 'fine-position', 'adjust', 'inspect', 'weld-combined'], productionUnit: '装配', batchGroup: 'side-plate-grind' },
   { id: 'proc-05-up-plate-2', sequence: 5, name: '上贴板2-1装配', partSuffixes: ['03', '01'], displayGroups: [['03', '01']], station: '正装拼焊台', locationId: 'area-side-grind-1', simulationSide: 'front', taskSummary: '粗定位 + 抓取 + 侧面打磨 + 放置 + 精定位 + 调整 + 焊接', allowedTaskTypes: ['rough-position', 'pick', 'polish', 'place', 'fine-position', 'adjust', 'weld-combined'], productionUnit: '装配', batchGroup: 'side-plate-grind' },
   { id: 'proc-06-feed', sequence: 6, name: '上料', partSuffixes: ['01'], station: '多工位', locationId: 'area-turnover', taskSummary: '支撑调整 + 抓取 + 放置', allowedTaskTypes: ['support-adjust', 'pick', 'place'], productionUnit: '上料' },
   { id: 'proc-07-turnover', sequence: 7, name: '翻面', partSuffixes: ['01'], station: '翻面平台', locationId: 'area-turnover', taskSummary: '翻面', allowedTaskTypes: ['turnover-clamp'], productionUnit: '翻面' },
@@ -106,6 +107,7 @@ const fixedPlanningTaskSlotTemplates: Record<string, FixedPlanningTaskSlotTempla
     { id: 'proc-04-place', label: '放置', type: 'place' },
     { id: 'proc-04-fine-pos', label: '精定位', type: 'fine-position' },
     { id: 'proc-04-adjust', label: '调整', type: 'adjust' },
+    { id: 'proc-04-inspect', label: '检验', type: 'inspect' },
     { id: 'proc-04-weld', label: '焊接', type: 'weld-combined', featureIdSuffixes: ['02-weld-front'] },
   ],
   'proc-05-up-plate-2': [
@@ -217,6 +219,7 @@ const legacyTaskProcessIds: Record<string, string> = {
   'proc-04-place': 'proc-04-up-plate-1',
   'proc-04-fine-pos': 'proc-04-up-plate-1',
   'proc-04-adjust': 'proc-04-up-plate-1',
+  'proc-04-inspect': 'proc-04-up-plate-1',
   'proc-04-weld': 'proc-04-up-plate-1',
   'proc-05-rough-pos': 'proc-05-up-plate-2',
   'proc-05-pick': 'proc-05-up-plate-2',

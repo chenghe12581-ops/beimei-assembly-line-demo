@@ -437,6 +437,12 @@ type FinePositionConfig = {
   childDatums: FinePositionDatumItem[];
 };
 
+// 检验工步：在精定位（父板/子板基准）基础上追加最大偏差值 / 最大方向偏差
+type InspectProcessConfig = {
+  maxDeviation: string;
+  maxDirectionDeviation: string;
+};
+
 // 支撑调整工步：工作台 + 支撑轴轴值；正面拼焊站 4 轴，反面拼焊站 18 轴，无编号 / 覆盖率
 type SupportAdjustProcessConfig = {
   workbenchType: WorkbenchType;
@@ -529,6 +535,7 @@ type ProcessStep = {
   supportAdjustConfig?: SupportAdjustProcessConfig;
   roughPositionConfig?: RoughPositionConfig;
   finePositionConfig?: FinePositionConfig;
+  inspectConfig?: InspectProcessConfig;
 };
 
 type ProcessStepType = PlanningTaskType;
@@ -960,7 +967,8 @@ const createPathPointGroups = (groupCount: number, step?: ProcessStep) =>
 const createWeldPathPointGroups = (step?: ProcessStep) => createPathPointGroups(4, step);
 const createDemoJointRows = () => ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20'];
 const SUPPORT_ADJUST_AXIS_COUNT: Partial<Record<WorkbenchType, number>> = {
-  主筋板打磨翻面平台: 3,
+  主筋板打磨翻面平台: 7,
+  主筋板翻面平台: 7,
   主筋板正面装配平台: 4,
   主筋板背面装配平台: 18,
 };
@@ -2064,8 +2072,8 @@ function getCompactProcessDetailTabs(type?: string): { key: CompactProcessDetail
   if (type === 'pick' || type === 'place' || type === 'turnover-clamp') {
     return [{ key: 'parameter-results', label: '工艺参数' }];
   }
-  // 支撑调整 / 粗定位 / 精定位 / 调整：无路径点位，仅保留工艺参数
-  if (type === 'support-adjust' || type === 'rough-position' || type === 'fine-position' || type === 'adjust') {
+  // 支撑调整 / 粗定位 / 精定位 / 调整 / 检验：无路径点位，仅保留工艺参数
+  if (type === 'support-adjust' || type === 'rough-position' || type === 'fine-position' || type === 'adjust' || type === 'inspect') {
     return [{ key: 'parameter-results', label: '工艺参数' }];
   }
   return [
@@ -2872,6 +2880,9 @@ function getProcessIcon(type: string) {
   if (type === 'adjust') {
     return <Cog className="size-4 text-current" />;
   }
+  if (type === 'inspect') {
+    return <CircleCheck className="size-4 text-current" />;
+  }
   return <Hammer className="size-4 text-current" />;
 }
 
@@ -2888,6 +2899,7 @@ function getShortProcessStepTitle(type: string) {
   if (type === 'rough-position') return '粗定位';
   if (type === 'fine-position') return '精定位';
   if (type === 'adjust') return '调整';
+  if (type === 'inspect') return '检验';
   return '任务';
 }
 
@@ -7322,6 +7334,7 @@ export function BeimeiAssemblyLinePage() {
         supportAdjustConfig: cloneProcessConfig(step.supportAdjustConfig),
         roughPositionConfig: cloneProcessConfig(step.roughPositionConfig),
         finePositionConfig: cloneProcessConfig(step.finePositionConfig),
+        inspectConfig: cloneProcessConfig(step.inspectConfig),
       })),
       hasAssemblyDrawing: true,
     };
@@ -7875,6 +7888,14 @@ export function BeimeiAssemblyLinePage() {
             return { ...baseStep, finePositionConfig: createFinePositionConfig(process) };
           }
           return { ...baseStep, roughPositionConfig: createRoughPositionConfig(process) };
+        }
+        // 检验：精定位（父板/子板基准）+ 最大偏差值 / 最大方向偏差
+        if (slot.type === 'inspect') {
+          return {
+            ...baseStep,
+            finePositionConfig: createFinePositionConfig(process),
+            inspectConfig: { maxDeviation: '0.50', maxDirectionDeviation: '1.00' },
+          };
         }
         if (slot.type === 'adjust') {
           return baseStep;
@@ -11009,12 +11030,25 @@ export function BeimeiAssemblyLinePage() {
         ? fixedPlanningProcesses.find((process) => process.id === step.processId)
         : undefined;
 
-      // 贴板装配精定位：零件名称 + 父板基准 / 子板基准两张基准线小表格（支持增删）
-      if (step.type === 'fine-position') {
+      // 贴板装配精定位 / 检验：零件名称 + 父板基准 / 子板基准两张基准线小表格（支持增删）
+      if (step.type === 'fine-position' || step.type === 'inspect') {
         const finePositionConfig = step.finePositionConfig
           ?? (isPlateAssemblyProcess(owningRoughProcess) ? createFinePositionConfig(owningRoughProcess) : null);
         if (finePositionConfig) {
           const finePartNode = objectTree && finePositionConfig.partId ? findNodeById(objectTree, finePositionConfig.partId) : null;
+          const inspectConfig = step.inspectConfig ?? { maxDeviation: '0.50', maxDirectionDeviation: '1.00' };
+          const updateInspectConfig = (key: 'maxDeviation' | 'maxDirectionDeviation', nextValue: string) => {
+            markProcessParameterDirty();
+            updateProcessStepById(step.id!, (currentStep) => ({
+              ...currentStep,
+              inspectConfig: {
+                maxDeviation: '0.50',
+                maxDirectionDeviation: '1.00',
+                ...(currentStep.inspectConfig ?? {}),
+                [key]: nextValue,
+              },
+            }));
+          };
           const updateFineDatums = (
             kind: 'parent' | 'child',
             updater: (items: FinePositionDatumItem[]) => FinePositionDatumItem[]
@@ -11163,6 +11197,28 @@ export function BeimeiAssemblyLinePage() {
               </div>
               {renderDatumTable(parentTitle, 'parent', finePositionConfig.parentDatums)}
               {renderDatumTable(childTitle, 'child', finePositionConfig.childDatums)}
+              {step.type === 'inspect' && (
+                <div className="grid gap-ds-150 sm:grid-cols-2">
+                  <div className="ds-label-input-compact">
+                    <div className="ds-label-input-compact-label">最大偏差值</div>
+                    <ProcessNumberField
+                      value={inspectConfig.maxDeviation}
+                      unit="mm"
+                      inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                      onChange={(nextValue) => updateInspectConfig('maxDeviation', nextValue)}
+                    />
+                  </div>
+                  <div className="ds-label-input-compact">
+                    <div className="ds-label-input-compact-label">最大方向偏差</div>
+                    <ProcessNumberField
+                      value={inspectConfig.maxDirectionDeviation}
+                      unit="°"
+                      inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                      onChange={(nextValue) => updateInspectConfig('maxDirectionDeviation', nextValue)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           );
         }
@@ -12420,6 +12476,7 @@ export function BeimeiAssemblyLinePage() {
     { key: 'rough-position', label: '粗定位', icon: Target },
     { key: 'fine-position', label: '精定位', icon: ScanFace },
     { key: 'adjust', label: '调整', icon: Cog },
+    { key: 'inspect', label: '检验', icon: CircleCheck },
   ];
   const availableProcessStepTypeOptions = layoutVariant === 'immersive' && selectedPlanningProcess
     ? processStepTypeOptions.filter((option) => selectedPlanningProcess.allowedTaskTypes.includes(option.key))
@@ -12489,6 +12546,7 @@ export function BeimeiAssemblyLinePage() {
       'rough-position': '粗定位',
       'fine-position': '精定位',
       adjust: '调整',
+      inspect: '检验',
     };
 
     const fixedStyleCWorkpieceIds = layoutVariant === 'immersive' && selectedPlanningProcess
@@ -12608,6 +12666,7 @@ export function BeimeiAssemblyLinePage() {
       'rough-position': '粗定位',
       'fine-position': '精定位',
       adjust: '调整',
+      inspect: '检验',
     };
 
     let board = '';
