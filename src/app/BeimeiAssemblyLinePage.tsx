@@ -7816,14 +7816,15 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'weld-scan') {
           return { ...baseStep, weldConfig: createGeneratedWeldScanConfig(slot.featureIds, weldScanParams) };
         }
-        // 支撑调整：工艺参数为工作台 + 支撑轴轴值（正面拼焊站 4 轴 / 反面拼焊站 18 轴）；粗定位 / 精定位 / 调整暂留空，后续再设计
+        // 支撑调整：工艺参数为工作台 + 支撑轴轴值（正面拼焊站 4 轴 / 反面拼焊站 18 轴）
         if (slot.type === 'support-adjust') {
           return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig(getSupportAdjustWorkbenchType(process)) };
         }
-        if (slot.type === 'rough-position') {
+        // 粗定位 / 精定位：工艺参数为零件名称 + 定位基准线（与主筋板粗定位一致）
+        if (slot.type === 'rough-position' || slot.type === 'fine-position') {
           return { ...baseStep, roughPositionConfig: createRoughPositionConfig(process) };
         }
-        if (slot.type === 'fine-position' || slot.type === 'adjust') {
+        if (slot.type === 'adjust') {
           return baseStep;
         }
         return { ...baseStep, weldConfig: createGeneratedWeldConfig(slot.featureIds, weldParams) };
@@ -10888,8 +10889,8 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 粗定位：零件名称 + 定位基准线，点击基准线在三维视图中高亮
-    if (step.type === 'rough-position') {
+    // 粗定位 / 精定位：零件名称 + 定位基准线，点击基准线在三维视图中高亮
+    if (step.type === 'rough-position' || step.type === 'fine-position') {
       const owningRoughProcess = step.processId
         ? fixedPlanningProcesses.find((process) => process.id === step.processId)
         : undefined;
@@ -10933,8 +10934,8 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 精定位 / 调整：工艺参数与路径点位暂留空，后续再设计
-    if (step.type === 'fine-position' || step.type === 'adjust') {
+    // 调整：工艺参数暂留空，后续再设计
+    if (step.type === 'adjust') {
       return (
         <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
           该工步暂无工艺参数
