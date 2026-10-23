@@ -1396,6 +1396,64 @@ const initialProcessStepCounts = Object.fromEntries(
   initialProjects.map((project) => [project.id, project.processSteps.length])
 ) as Record<string, number>;
 const generatedProcessStepDefaultOrder = [
+  'proc-01-support',
+  'proc-01-rough-pos',
+  'proc-01-pick',
+  'proc-01-place',
+  'proc-01-fine-pos',
+  'proc-02-grind-front',
+  'proc-02-turnover-1',
+  'proc-02-grind-back',
+  'proc-02-turnover-2',
+  'proc-03-support',
+  'proc-03-pick',
+  'proc-03-place',
+  'proc-04-rough-pos',
+  'proc-04-pick',
+  'proc-04-side-grind',
+  'proc-04-front-grind',
+  'proc-04-place',
+  'proc-04-fine-pos',
+  'proc-04-adjust',
+  'proc-04-weld',
+  'proc-05-rough-pos',
+  'proc-05-pick',
+  'proc-05-side-grind',
+  'proc-05-place',
+  'proc-05-fine-pos',
+  'proc-05-adjust',
+  'proc-05-weld',
+  'proc-06-support',
+  'proc-06-pick',
+  'proc-06-place',
+  'proc-07-turnover',
+  'proc-08-support',
+  'proc-08-pick',
+  'proc-08-place',
+  'proc-09-rough-pos',
+  'proc-09-pick',
+  'proc-09-side-grind',
+  'proc-09-front-grind',
+  'proc-09-place',
+  'proc-09-fine-pos',
+  'proc-09-adjust',
+  'proc-09-weld',
+  'proc-10-rough-pos',
+  'proc-10-pick',
+  'proc-10-side-grind',
+  'proc-10-place',
+  'proc-10-fine-pos',
+  'proc-10-adjust',
+  'proc-10-weld',
+  'proc-11-rough-pos',
+  'proc-11-pick',
+  'proc-11-side-grind',
+  'proc-11-place',
+  'proc-11-fine-pos',
+  'proc-11-adjust',
+  'proc-11-weld',
+  'proc-12-pick',
+  'proc-12-place',
   'generated-pick-01',
   'generated-place-01',
   'generated-grind-01',
@@ -2694,6 +2752,18 @@ function getProcessIcon(type: string) {
   if (type === 'clamp' || type === 'turnover-clamp') {
     return <Pin className="size-4 text-current" />;
   }
+  if (type === 'support-adjust') {
+    return <SlidersHorizontal className="size-4 text-current" />;
+  }
+  if (type === 'rough-position') {
+    return <Target className="size-4 text-current" />;
+  }
+  if (type === 'fine-position') {
+    return <ScanFace className="size-4 text-current" />;
+  }
+  if (type === 'adjust') {
+    return <Cog className="size-4 text-current" />;
+  }
   return <Hammer className="size-4 text-current" />;
 }
 
@@ -2706,6 +2776,10 @@ function getShortProcessStepTitle(type: string) {
   if (type === 'weld-combined') return '焊接';
   if (type === 'weld-scan') return '定位焊扫描';
   if (type === 'weld') return '定位焊';
+  if (type === 'support-adjust') return '支撑调整';
+  if (type === 'rough-position') return '粗定位';
+  if (type === 'fine-position') return '精定位';
+  if (type === 'adjust') return '调整';
   return '任务';
 }
 
@@ -7670,6 +7744,10 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'weld-scan') {
           return { ...baseStep, weldConfig: createGeneratedWeldScanConfig(slot.featureIds, weldScanParams) };
         }
+        // 支撑调整 / 粗定位 / 精定位 / 调整等新增工步暂不提供工艺参数与路径点位，后续再设计
+        if (slot.type === 'support-adjust' || slot.type === 'rough-position' || slot.type === 'fine-position' || slot.type === 'adjust') {
+          return baseStep;
+        }
         return { ...baseStep, weldConfig: createGeneratedWeldConfig(slot.featureIds, weldParams) };
       })
     );
@@ -10632,6 +10710,15 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
+    // 支撑调整 / 粗定位 / 精定位 / 调整：工艺参数与路径点位暂留空，后续再设计
+    if (step.type === 'support-adjust' || step.type === 'rough-position' || step.type === 'fine-position' || step.type === 'adjust') {
+      return (
+        <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
+          {activeDetailTab === 'path-points' ? '该工步暂无路径点位' : '该工步暂无工艺参数'}
+        </div>
+      );
+    }
+
     if (step.type !== 'pick' || !step.pickConfig) {
       return (
         <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-zinc-200/80 bg-white/40 px-3 text-center text-[11px] leading-5 text-zinc-400">
@@ -11831,6 +11918,10 @@ export function BeimeiAssemblyLinePage() {
     { key: 'weld-combined', label: '焊接', icon: Hammer },
     { key: 'weld-scan', label: '定位焊扫描', icon: Target },
     { key: 'weld', label: '定位焊', icon: Hammer },
+    { key: 'support-adjust', label: '支撑调整', icon: SlidersHorizontal },
+    { key: 'rough-position', label: '粗定位', icon: Target },
+    { key: 'fine-position', label: '精定位', icon: ScanFace },
+    { key: 'adjust', label: '调整', icon: Cog },
   ];
   const availableProcessStepTypeOptions = layoutVariant === 'immersive' && selectedPlanningProcess
     ? processStepTypeOptions.filter((option) => selectedPlanningProcess.allowedTaskTypes.includes(option.key))
@@ -11896,6 +11987,10 @@ export function BeimeiAssemblyLinePage() {
       'weld-combined': '焊接',
       weld: '焊接',
       'weld-scan': '定位焊扫描',
+      'support-adjust': '支撑调整',
+      'rough-position': '粗定位',
+      'fine-position': '精定位',
+      adjust: '调整',
     };
 
     const fixedStyleCWorkpieceIds = layoutVariant === 'immersive' && selectedPlanningProcess
@@ -12011,6 +12106,10 @@ export function BeimeiAssemblyLinePage() {
       'weld-combined': '焊接',
       weld: '焊接',
       'weld-scan': '定位焊扫描',
+      'support-adjust': '支撑调整',
+      'rough-position': '粗定位',
+      'fine-position': '精定位',
+      adjust: '调整',
     };
 
     let board = '';
