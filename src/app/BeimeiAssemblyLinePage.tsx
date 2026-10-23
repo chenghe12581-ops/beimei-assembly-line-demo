@@ -413,8 +413,9 @@ type PlaceProcessConfig = {
   joints?: string[];
 };
 
-// 支撑调整工步：仅保留支撑三个轴（J1-J3）的轴值，无工作台 / 编号 / 覆盖率
+// 支撑调整工步：工作台 + 支撑轴轴值；正面拼焊站 4 轴，反面拼焊站 18 轴，无编号 / 覆盖率
 type SupportAdjustProcessConfig = {
+  workbenchType: WorkbenchType;
   joints: string[];
 };
 
@@ -932,8 +933,32 @@ const createPathPointGroups = (groupCount: number, step?: ProcessStep) =>
   Array.from({ length: groupCount }, (_, segmentIndex) => (step ? createDefaultGeneratedPathPoints(step, segmentIndex) : createPickPathPointRows()));
 const createWeldPathPointGroups = (step?: ProcessStep) => createPathPointGroups(4, step);
 const createDemoJointRows = () => ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20'];
-const createEmptySupportAdjustConfig = (): SupportAdjustProcessConfig => ({ joints: ['', '', ''] });
-const createGeneratedSupportAdjustConfig = (): SupportAdjustProcessConfig => ({ joints: createDemoJointRows().slice(0, 3) });
+const SUPPORT_ADJUST_AXIS_COUNT: Partial<Record<WorkbenchType, number>> = {
+  主筋板正面装配平台: 4,
+  主筋板背面装配平台: 18,
+};
+const getSupportAdjustAxisCount = (workbenchType: WorkbenchType) => SUPPORT_ADJUST_AXIS_COUNT[workbenchType] ?? 4;
+const getSupportAdjustWorkbenchType = (process: { station: string; locationId?: string; simulationSide?: string }): WorkbenchType => {
+  if (process.simulationSide === 'back' || process.locationId === 'area-main-assembly-2' || process.station === '反装拼焊台') {
+    return '主筋板背面装配平台';
+  }
+  if (process.station === '翻面平台') return '主筋板翻面平台';
+  if (process.station === '主筋板打磨平台') return '主筋板打磨翻面平台';
+  return '主筋板正面装配平台';
+};
+const createSupportAdjustJointRows = (count: number) =>
+  Array.from({ length: count }, (_, index) => {
+    const base = Number(createDemoJointRows()[index % 8]) || 0;
+    return (base + Math.floor(index / 8) * 7.35).toFixed(2);
+  });
+const createEmptySupportAdjustConfig = (): SupportAdjustProcessConfig => ({
+  workbenchType: '主筋板正面装配平台',
+  joints: ['', '', ''],
+});
+const createGeneratedSupportAdjustConfig = (workbenchType: WorkbenchType): SupportAdjustProcessConfig => ({
+  workbenchType,
+  joints: createSupportAdjustJointRows(getSupportAdjustAxisCount(workbenchType)),
+});
 const createGeneratedPlacePoints = () => [
   { x: '80.0', y: '40.0', z: '0.0' },
   { x: '220.0', y: '40.0', z: '0.0' },
@@ -1966,6 +1991,10 @@ function getCompactProcessDetailTabs(type?: string): { key: CompactProcessDetail
     return [{ key: 'path-points', label: '路径点位' }];
   }
   if (type === 'place' || type === 'turnover-clamp') {
+    return [{ key: 'parameter-results', label: '工艺参数' }];
+  }
+  // 支撑调整 / 粗定位 / 精定位 / 调整：无路径点位，仅保留工艺参数
+  if (type === 'support-adjust' || type === 'rough-position' || type === 'fine-position' || type === 'adjust') {
     return [{ key: 'parameter-results', label: '工艺参数' }];
   }
   return [
@@ -7753,9 +7782,9 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'weld-scan') {
           return { ...baseStep, weldConfig: createGeneratedWeldScanConfig(slot.featureIds, weldScanParams) };
         }
-        // 支撑调整：工艺参数为支撑三个轴（J1-J3）轴值；粗定位 / 精定位 / 调整暂留空，后续再设计
+        // 支撑调整：工艺参数为工作台 + 支撑轴轴值（正面拼焊站 4 轴 / 反面拼焊站 18 轴）；粗定位 / 精定位 / 调整暂留空，后续再设计
         if (slot.type === 'support-adjust') {
-          return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig() };
+          return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig(getSupportAdjustWorkbenchType(process)) };
         }
         if (slot.type === 'rough-position' || slot.type === 'fine-position' || slot.type === 'adjust') {
           return baseStep;
@@ -10722,15 +10751,8 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 支撑调整：工艺参数为支撑三个轴（J1-J3）轴值，无路径点位
+    // 支撑调整：工艺参数为工作台 + 支撑轴轴值（正面拼焊站 4 轴 / 反面拼焊站 18 轴），无路径点位
     if (step.type === 'support-adjust') {
-      if (activeDetailTab === 'path-points') {
-        return (
-          <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
-            该工步暂无路径点位
-          </div>
-        );
-      }
       const supportAdjustConfig = step.supportAdjustConfig ?? createEmptySupportAdjustConfig();
       const supportAdjustRootStepId = getRootProcessStepId(step.id) || step.id;
       const supportAdjustDirty = processPointDirtyStepIds.has(supportAdjustRootStepId);
@@ -10744,6 +10766,14 @@ export function BeimeiAssemblyLinePage() {
       }
       return (
         <div className="flex flex-col gap-ds-300">
+          <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+            <div className="ds-label-input-compact">
+              <div className="ds-label-input-compact-label">工作台</div>
+              <div className="flex h-8 min-w-0 items-center rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                <span className="truncate">{supportAdjustConfig.workbenchType}</span>
+              </div>
+            </div>
+          </div>
           <ProcessResultPointPanel
             title="结果点位"
             dirty={supportAdjustDirty}
@@ -10766,7 +10796,8 @@ export function BeimeiAssemblyLinePage() {
                     updateProcessStepById(step.id!, (currentStep) => ({
                       ...currentStep,
                       supportAdjustConfig: {
-                        joints: (currentStep.supportAdjustConfig?.joints ?? ['', '', '']).map((v, i) =>
+                        ...supportAdjustConfig,
+                        joints: (currentStep.supportAdjustConfig?.joints ?? supportAdjustJoints).map((v, i) =>
                           i === jointIndex ? nextValue : v
                         ),
                       },
