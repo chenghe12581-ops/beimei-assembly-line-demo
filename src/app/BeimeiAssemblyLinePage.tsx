@@ -27,6 +27,7 @@ import {
   FolderPlus,
   GripVertical,
   Hammer,
+  Layers,
   Layers3,
   ListTree,
   Minus,
@@ -12592,7 +12593,7 @@ export function BeimeiAssemblyLinePage() {
             isWorkfaceGroup
               ? workfaceGroupClassName
               : isAssemblyNode
-                ? `rounded-md py-1.5 text-sm ${
+                ? `rounded-md py-2 text-sm ${
                     isSelected
                         ? 'bg-orange-50 text-ds-brand-primary-text'
                       : assemblyHasSelectedChildPart
@@ -12634,9 +12635,13 @@ export function BeimeiAssemblyLinePage() {
           />
           {isWorkfaceGroup ? (
             <div className="size-3 shrink-0" />
-          ) : !isAssemblyNode && !hasModel ? (
+          ) : isAssemblyNode ? (
+            <Layers className="size-4 shrink-0 text-slate-400" />
+          ) : hasModel ? (
+            <Box className="size-4 shrink-0 text-slate-400" />
+          ) : (
             <Layers3 className="size-3 shrink-0 text-ds-text-disabled" />
-          ) : null}
+          )}
           {isEditingAssemblyNode ? (
             <input
               ref={assemblyInputRef}
@@ -12655,33 +12660,33 @@ export function BeimeiAssemblyLinePage() {
             </span>
           )}
           {isAssemblyNode && ownerProjectId && (
-            <div className="flex shrink-0 items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 size="sm"
                 variant="ghost"
-                className={`size-6 p-0 ${assemblyDrawingMissing ? 'text-red-500 hover:text-red-600' : 'text-ds-text-disabled hover:text-ds-text-muted'}`}
+                className={`size-8 p-0 ${assemblyDrawingMissing ? 'text-red-500 hover:text-red-600' : 'text-ds-text-disabled hover:text-ds-text-muted'}`}
                 title={assemblyDrawingMissing ? '装配图纸缺失' : '图纸管理'}
                 onClick={(e) => {
                   e.stopPropagation();
                   openDrawingManager(ownerProjectId);
                 }}
               >
-                {assemblyDrawingMissing ? <FileWarning className="size-3.5" /> : <FileCog className="size-3.5" />}
+                {assemblyDrawingMissing ? <FileWarning className="size-[18px]" /> : <FileCog className="size-[18px]" />}
               </Button>
               {assemblyDrawingMissing ? (
-                <span className="size-6 shrink-0" aria-hidden="true" />
+                <span className="size-8 shrink-0" aria-hidden="true" />
               ) : (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="size-6 p-0 text-ds-text-disabled hover:text-orange-500"
+                  className="size-8 p-0 text-ds-text-disabled hover:text-orange-500"
                   title="进入工艺规划"
                   onClick={(e) => {
                     e.stopPropagation();
                     selectProject(ownerProjectId, node.id);
                   }}
                 >
-                  <SquareArrowRight className="size-3.5" />
+                  <SquareArrowRight className="size-[18px]" />
                 </Button>
               )}
             </div>
@@ -13347,7 +13352,7 @@ export function BeimeiAssemblyLinePage() {
     return (
       <div key={project.id}>
         <div
-          className={`group flex items-center gap-1 rounded-md px-1 py-1.5 text-sm text-ds-text-secondary transition-colors ${
+          className={`group flex items-center gap-1 rounded-md px-1 py-2 text-sm text-ds-text-secondary transition-colors ${
             isEditing || isProjectItemSelected || projectItemHasSelectedChildPart ? '' : 'hover:bg-zinc-100'
           } ${
             isEditing ? 'bg-orange-50 text-ds-brand-primary-text' : 'cursor-pointer'
@@ -13398,7 +13403,7 @@ export function BeimeiAssemblyLinePage() {
             onClick={(e) => e.stopPropagation()}
           />
           {project.id.startsWith('0162-') ? (
-            null
+            <Layers className="size-4 shrink-0 text-slate-400" />
           ) : (
             <FolderOpen className="size-4 shrink-0 text-amber-500" />
           )}
@@ -13417,33 +13422,33 @@ export function BeimeiAssemblyLinePage() {
           ) : (
             <span className="ds-tree-icon-title-gap min-w-0 flex-1 truncate font-medium">{project.name}</span>
           )}
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-1">
             {!project.id.startsWith('proj-') && (
               <Button
                 size="sm"
                 variant="ghost"
-                className={`size-6 p-0 ${projectAssemblyDrawingMissing ? 'text-red-500 hover:text-red-600' : 'text-ds-text-disabled hover:text-ds-text-muted'}`}
+                className={`size-8 p-0 ${projectAssemblyDrawingMissing ? 'text-red-500 hover:text-red-600' : 'text-ds-text-disabled hover:text-ds-text-muted'}`}
                 title={projectAssemblyDrawingMissing ? '装配图纸缺失' : '图纸管理'}
                 onClick={(e) => {
                   e.stopPropagation();
                   openDrawingManager(project.id);
                 }}
               >
-                {projectAssemblyDrawingMissing ? <FileWarning className="size-3.5" /> : <FileCog className="size-3.5" />}
+                {projectAssemblyDrawingMissing ? <FileWarning className="size-[18px]" /> : <FileCog className="size-[18px]" />}
               </Button>
             )}
             {!project.id.startsWith('proj-') && (
               projectAssemblyDrawingMissing ? (
-                <span className="size-6 shrink-0" aria-hidden="true" />
+                <span className="size-8 shrink-0" aria-hidden="true" />
               ) : (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="size-6 p-0 text-ds-text-disabled hover:text-orange-500"
+                  className="size-8 p-0 text-ds-text-disabled hover:text-orange-500"
                   title="进入工艺规划"
                   onClick={() => selectProject(project.id)}
                 >
-                  <SquareArrowRight className="size-3.5" />
+                  <SquareArrowRight className="size-[18px]" />
                 </Button>
               )
             )}
@@ -14157,7 +14162,7 @@ export function BeimeiAssemblyLinePage() {
               </div>
             )}
             <Card className={processStructurePanelClassName}>
-          <CardHeader className={`${flatProjectLayout || immersiveProjectLayout || projectManagementImmersiveLayout ? 'hidden' : 'flex'} ${styleCProjectManagementLayout ? 'h-9 border-b border-zinc-200/75' : 'h-12 border-b border-slate-100'} shrink-0 items-center p-0 pb-0!`}>
+          <CardHeader className={`${flatProjectLayout || immersiveProjectLayout || projectManagementImmersiveLayout ? 'hidden' : 'flex'} ${styleCProjectManagementLayout ? 'h-12 border-b border-zinc-200/75' : 'h-12 border-b border-slate-100'} shrink-0 items-center p-0 pb-0!`}>
             {currentProject ? (
                 <div className="flex h-full w-full items-center gap-2 px-4">
                 <div className="flex min-w-0 items-center gap-1.5">
@@ -14208,12 +14213,12 @@ export function BeimeiAssemblyLinePage() {
                     '项目管理'
                   )}
                 </CardTitle>
-                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`ml-auto h-7 gap-1 px-2 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectManagementImport}>
-                  <FolderOpen className="size-3.5" />
+                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`ml-auto h-9 gap-1.5 px-3 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectManagementImport}>
+                  <FolderOpen className="size-4" />
                   导入
                 </Button>
-                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`h-7 gap-1 px-2 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectListExport}>
-                  <Download className="size-3.5" />
+                <Button size="sm" variant={styleCProjectManagementLayout ? 'ghost' : 'outline'} className={`h-9 gap-1.5 px-3 text-xs ${styleCProjectManagementLayout ? 'text-slate-500 hover:bg-transparent hover:text-slate-800' : ''}`} onClick={handleProjectListExport}>
+                  <Download className="size-4" />
                   导出
                 </Button>
                 {checkedIds.size === 0 ? (
@@ -14222,10 +14227,10 @@ export function BeimeiAssemblyLinePage() {
                       <Button
                         size="sm"
                         variant="outline"
-	                        className={`h-7 gap-1 px-2 text-xs text-red-600 hover:text-red-700 disabled:opacity-50 ${styleCProjectManagementLayout ? 'hover:bg-transparent' : 'hover:bg-red-50'}`}
+                        className={`h-9 gap-1.5 px-3 text-xs text-red-600 hover:text-red-700 disabled:opacity-50 ${styleCProjectManagementLayout ? 'hover:bg-transparent' : 'hover:bg-red-50'}`}
                         disabled
                       >
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-4" />
                         删除
                       </Button>
                     </span>
@@ -14234,10 +14239,10 @@ export function BeimeiAssemblyLinePage() {
                   <Button
                     size="sm"
                     variant="outline"
-	                      className={`h-7 gap-1 px-2 text-xs text-red-600 hover:text-red-700 ${styleCProjectManagementLayout ? 'hover:bg-transparent' : 'hover:bg-red-50'}`}
+                      className={`h-9 gap-1.5 px-3 text-xs text-red-600 hover:text-red-700 ${styleCProjectManagementLayout ? 'hover:bg-transparent' : 'hover:bg-red-50'}`}
                     onClick={handleBatchDelete}
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-4" />
                     删除 ({checkedIds.size})
                   </Button>
                 )}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ASSET_BASE } from '../asset-base';
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Box, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, CircleAlert, CircleCheck, Cog, Download, Eye, FileCog, FileQuestion, FileSpreadsheet, FileWarning, Filter, Flame, FolderOpen, FolderPlus, Forklift, GripVertical, Hammer, History, Import, Layers3, ListX, Minus, MonitorUp, Move3D, PanelLeft, Pin, Play, Plus, RefreshCw, Save, ScanFace, Search, SlidersHorizontal, Sparkles, Square, SquareArrowRight, Target, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Box, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, CircleAlert, CircleCheck, Cog, Download, Eye, FileCog, FileQuestion, FileSpreadsheet, FileWarning, Filter, Flame, FolderOpen, FolderPlus, Forklift, GripVertical, Hammer, History, Import, Layers, Layers3, ListX, Minus, MonitorUp, Move3D, PanelLeft, Pin, Play, Plus, RefreshCw, Save, ScanFace, Search, SlidersHorizontal, Sparkles, Square, SquareArrowRight, Target, Trash2, X } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { WeldFeatureIcon, GrindFeatureIcon, AssemblyFeatureIcon } from './components/icons/FeatureToolIcons';
@@ -3786,9 +3786,9 @@ function TreeRowDemo({
   const objectTextClassName = compact ? 'h-8 rounded-md text-xs' : 'h-9 rounded-md text-sm';
   const icon = (() => {
     if (kind === 'project') return <FolderOpen className="size-4 shrink-0 text-amber-500" />;
-    if (kind === 'assembly') return null;
+    if (kind === 'assembly') return <Layers className="size-4 shrink-0 text-slate-400" />;
     if (kind === 'workface') return null;
-    if (kind === 'part') return null;
+    if (kind === 'part') return <Box className="size-4 shrink-0 text-slate-400" />;
     if (kind === 'grind') return <Sparkles className="size-4 shrink-0 text-slate-500" />;
     if (kind === 'datum') return <Target className="size-4 shrink-0 text-slate-500" />;
     return <Flame className="size-4 shrink-0 text-slate-500" />;
@@ -4605,7 +4605,7 @@ function TreeCatalogTab() {
           <TreeRowDemo level={1} kind="part" name="0162-03-030303-03" />
           <TreeRowDemo level={1} kind="part" name="0162-03-030303-04" />
         </div>
-        <ModalSource>项目管理左侧结构树：装配体即最高层级，全部装配体平铺展示，不再有项目/文件夹层级；行内顺序为 caret 在前、checkbox 在后；不显示工作面分组，零件在装配体下同层展示。选中装配体下级零件时，零件使用选中高亮，装配体半选中状态复用工艺规划中关联零件高亮：半透明品牌浅底 + inset stroke。缺失装配图纸的装配体条目在原图纸管理位置显示红色 FileWarning icon，进入工艺规划 icon 不显示但保留占位。</ModalSource>
+        <ModalSource>项目管理左侧结构树：装配体即最高层级，全部装配体平铺展示，不再有项目/文件夹层级；装配体条目前显示层叠 Layers 图标、零件条目前显示立方体 Box 图标（均为 slate 灰蓝矢量小图标）；行内顺序为 caret 在前、checkbox 在后；不显示工作面分组，零件在装配体下同层展示。选中装配体下级零件时，零件使用选中高亮，装配体半选中状态复用工艺规划中关联零件高亮：半透明品牌浅底 + inset stroke。缺失装配图纸的装配体条目在原图纸管理位置显示红色 FileWarning icon，进入工艺规划 icon 不显示但保留占位。</ModalSource>
       </DemoCard>
 
       <DemoCard title="项目管理属性参数卡片">
