@@ -2811,47 +2811,6 @@ function getDatumFeatureDisplayName(partAId: string, partBId: string): string {
   return datumNames[pairKey] ?? '装配基准';
 }
 
-function getDatumEdgeOwnerSuffix(edgeId: string): string {
-  return edgeId.match(/^(\d{2})-datum-edge-/)?.[1] ?? '';
-}
-
-type AssemblyDatumStepKey = 'A1' | 'B1' | 'A2' | 'B2';
-
-const assemblyDatumStepOrder: AssemblyDatumStepKey[] = ['A1', 'B1', 'A2', 'B2'];
-
-const assemblyDatumStepMeta: Record<AssemblyDatumStepKey, { partKey: 'A' | 'B'; slot: 1 | 2; partLabel: string; shortLabel: string; actionLabel: string }> = {
-  A1: { partKey: 'A', slot: 1, partLabel: '子板', shortLabel: '子板基准1', actionLabel: '设为子板基准1' },
-  B1: { partKey: 'B', slot: 1, partLabel: '父板', shortLabel: '父板基准1', actionLabel: '设为父板基准1' },
-  A2: { partKey: 'A', slot: 2, partLabel: '子板', shortLabel: '子板基准2', actionLabel: '设为子板基准2' },
-  B2: { partKey: 'B', slot: 2, partLabel: '父板', shortLabel: '父板基准2', actionLabel: '设为父板基准2' },
-};
-
-function getAssemblyDatumStepValue(
-  modal: {
-    partAFeatureId1: string | null;
-    partAFeatureId2: string | null;
-    partBFeatureId1: string | null;
-    partBFeatureId2: string | null;
-  },
-  stepKey: AssemblyDatumStepKey
-) {
-  if (stepKey === 'A1') return modal.partAFeatureId1;
-  if (stepKey === 'B1') return modal.partBFeatureId1;
-  if (stepKey === 'A2') return modal.partAFeatureId2;
-  return modal.partBFeatureId2;
-}
-
-function getNextAssemblyDatumStep(
-  modal: {
-    partAFeatureId1: string | null;
-    partAFeatureId2: string | null;
-    partBFeatureId1: string | null;
-    partBFeatureId2: string | null;
-  }
-) {
-  return assemblyDatumStepOrder.find((stepKey) => !getAssemblyDatumStepValue(modal, stepKey)) ?? null;
-}
-
 function getProcessIcon(type: string) {
   if (type === 'pick') {
     return <Move3D className="size-4 text-current" />;
@@ -6949,12 +6908,8 @@ export function BeimeiAssemblyLinePage() {
     minimized: boolean;
     partAId: string | null;
     partBId: string | null;
-    partAFeatureId1: string | null;
-    partAFeatureId2: string | null;
-    partBFeatureId1: string | null;
-    partBFeatureId2: string | null;
     selectedEdgeId: string | null;
-    activeDatumPart: AssemblyDatumStepKey | null;
+    datumName: string;
     error: string | null;
   } | null>(null);
   const assemblyDatumQuickClickRef = useRef(0);
@@ -11672,33 +11627,37 @@ export function BeimeiAssemblyLinePage() {
       minimized: false,
       partAId: null,
       partBId: null,
-      partAFeatureId1: null,
-      partAFeatureId2: null,
-      partBFeatureId1: null,
-      partBFeatureId2: null,
       selectedEdgeId: null,
-      activeDatumPart: null,
+      datumName: '',
       error: null,
     });
   };
 
-  const resetAssemblyDatumSelection = () => {
-    setAssemblyDatumModal((prev) =>
-      prev
-        ? {
-            ...prev,
-            partAId: null,
-            partBId: null,
-            partAFeatureId1: null,
-            partAFeatureId2: null,
-            partBFeatureId1: null,
-            partBFeatureId2: null,
-            selectedEdgeId: null,
-            activeDatumPart: null,
-            error: null,
-          }
-        : prev
-    );
+  // 装配基准名称自动生成：子板名 + 基准线序号（该子板下已有基准数 + 1）
+  const buildAutoDatumName = (partAId: string | null, partBId: string | null) => {
+    if (!currentProject || !partAId || !partBId) return '';
+    const partA = findNodeById(currentProject.tree, partAId);
+    const existingCount = (currentProject.datums ?? []).filter((datum) => datum.partAId === partAId).length;
+    return `${partA?.name ?? '子板'}基准线${existingCount + 1}`;
+  };
+
+  const handleAssemblyDatumPartChange = (partKey: 'A' | 'B', nextId: string | null) => {
+    setAssemblyDatumModal((prev) => {
+      if (!prev) return prev;
+      const nextPartAId = partKey === 'A' ? nextId : prev.partAId;
+      const nextPartBId = partKey === 'B' ? nextId : prev.partBId;
+      return {
+        ...prev,
+        ...(partKey === 'A' ? { partAId: nextId } : { partBId: nextId }),
+        selectedEdgeId: null,
+        datumName: buildAutoDatumName(nextPartAId, nextPartBId),
+        error: null,
+      };
+    });
+  };
+
+  const handleAssemblyDatumNameChange = (nextName: string) => {
+    setAssemblyDatumModal((prev) => (prev ? { ...prev, datumName: nextName } : prev));
   };
 
   const handleOpenAssemblyDatumModal = () => {
@@ -11721,10 +11680,8 @@ export function BeimeiAssemblyLinePage() {
     const {
       partAId,
       partBId,
-      partAFeatureId1,
-      partAFeatureId2,
-      partBFeatureId1,
-      partBFeatureId2,
+      selectedEdgeId,
+      datumName,
     } = assemblyDatumModal;
     const partA = findNodeById(currentProject.tree, partAId ?? '');
     const partB = findNodeById(currentProject.tree, partBId ?? '');
@@ -11744,42 +11701,38 @@ export function BeimeiAssemblyLinePage() {
       fail('定位基准无效，无法满足装配');
       return;
     }
-    if (!partAFeatureId1 || !partAFeatureId2 || !partBFeatureId1 || !partBFeatureId2) {
-      fail('定位基准无效，无法满足装配');
+    if (!selectedEdgeId) {
+      fail('请选择基准线');
+      return;
+    }
+    const trimmedName = datumName.trim();
+    if (!trimmedName) {
+      fail('请输入基准名称');
       return;
     }
 
-    const partAForNode = findNodeById(currentProject.tree, partAId);
-    const partBForNode = findNodeById(currentProject.tree, partBId);
-    const datumId = `${currentProject.tree.id}-${partAId}-${partBId}-datum`;
-    const datumName = getDatumFeatureDisplayName(partAId, partBId);
-    const datumParentId =
-      getPartSuffix(partAId) === '02'
-        ? partAId
-        : getPartSuffix(partBId) === '02'
-          ? partBId
-          : partBId;
-    const edgeModelUrls = [
-      `${ASSET_BASE}models/datum-edges/${partAFeatureId1}.obj`,
-      `${ASSET_BASE}models/datum-edges/${partBFeatureId1}.obj`,
-      `${ASSET_BASE}models/datum-edges/${partAFeatureId2}.obj`,
-      `${ASSET_BASE}models/datum-edges/${partBFeatureId2}.obj`,
-    ];
+    const datumId = `${currentProject.tree.id}-${partAId}-datum-${selectedEdgeId}`;
+    if (findNodeById(currentProject.tree, datumId)) {
+      fail('该基准线已添加为装配基准');
+      return;
+    }
+    const edgeModelUrl = `${ASSET_BASE}models/datum-edges/${selectedEdgeId}.obj`;
+    // 基准特征层级绑定在子板零件下
     const featureDefinitions: { parentId: string; node: TreeNode }[] = [
       {
-        parentId: datumParentId,
+        parentId: partAId,
         node: {
           id: datumId,
-          name: datumName,
+          name: trimmedName,
           nodeType: 'feature',
           featureType: 'datum',
-          featureUrl: edgeModelUrls[0],
+          featureUrl: edgeModelUrl,
           relatedPartIds: [partAId, partBId],
           datumMeta: {
             partAId,
             partBId,
-            edgeModelUrl: edgeModelUrls[0],
-            edgeModelUrls,
+            edgeModelUrl,
+            edgeModelUrls: [edgeModelUrl],
           },
         },
       },
@@ -11793,20 +11746,24 @@ export function BeimeiAssemblyLinePage() {
           ...(project.datums || []),
           {
             id: datumId,
-            name: datumName === '装配基准' ? `${partAForNode?.name ?? partAId} / ${partBForNode?.name ?? partBId} 装配基准` : datumName,
+            name: trimmedName,
             partAId,
             partBId,
-            edgeModelUrl: edgeModelUrls[0],
+            edgeModelUrl,
           },
         ];
         return { ...project, tree: newTree, datums: newDatums };
       })
     );
 
-    showToast(
-      `零件[${partAForNode?.name ?? partAId}]与零件[${partBForNode?.name ?? partBId}]装配基准设置成功`,
-      'success'
-    );
+    // 展开子板节点并选中新添加的基准特征，便于在左侧列表中确认
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(partAId);
+      return next;
+    });
+    setSelectedId(datumId);
+    showToast(`装配基准[${trimmedName}]已添加`, 'success');
     markFeatureDirty(currentProject.id);
     setAssemblyDatumModal(null);
   };
@@ -11815,45 +11772,6 @@ export function BeimeiAssemblyLinePage() {
     setAssemblyDatumModal((prev) =>
       prev ? { ...prev, selectedEdgeId: edgeId, error: null } : prev
     );
-  };
-
-  const handleAssignDatumFeature = (partKey: 'A' | 'B', slot: 1 | 2) => {
-    setAssemblyDatumModal((prev) => {
-      if (!prev) return prev;
-      const { partAId, partBId, selectedEdgeId } = prev;
-      const stepKey = `${partKey}${slot}` as AssemblyDatumStepKey;
-      const stepMeta = assemblyDatumStepMeta[stepKey];
-      const tree = currentProject?.tree ?? objectTree;
-      if (!tree || !partAId || !partBId || !arePartsAdjacent(partAId, partBId, tree)) {
-        return { ...prev, activeDatumPart: stepKey, error: '请选择相接的子板和父板' };
-      }
-      if (!selectedEdgeId) {
-        return { ...prev, activeDatumPart: stepKey, error: '请在 3D 视窗中点击蓝色棱边' };
-      }
-      const expectedPartId = partKey === 'A' ? partAId : partBId;
-      if (getDatumEdgeOwnerSuffix(selectedEdgeId) !== getPartSuffix(expectedPartId)) {
-        return { ...prev, activeDatumPart: stepKey, error: `请选择${stepMeta.partLabel}对应的装配基准线` };
-      }
-      if (partKey === 'B') {
-        const pairedFeature = slot === 1 ? prev.partAFeatureId1 : prev.partAFeatureId2;
-        if (!pairedFeature) {
-          return { ...prev, activeDatumPart: stepKey, error: `请先设置子板的装配基准${slot}` };
-        }
-      }
-      const nextState = {
-        ...prev,
-        partAFeatureId1: partKey === 'A' && slot === 1 ? selectedEdgeId : prev.partAFeatureId1,
-        partAFeatureId2: partKey === 'A' && slot === 2 ? selectedEdgeId : prev.partAFeatureId2,
-        partBFeatureId1: partKey === 'B' && slot === 1 ? selectedEdgeId : prev.partBFeatureId1,
-        partBFeatureId2: partKey === 'B' && slot === 2 ? selectedEdgeId : prev.partBFeatureId2,
-        selectedEdgeId: null,
-        error: null,
-      };
-      return {
-        ...nextState,
-        activeDatumPart: getNextAssemblyDatumStep(nextState),
-      };
-    });
   };
 
   const resetManualFeatureSelection = () => {
@@ -15416,23 +15334,10 @@ export function BeimeiAssemblyLinePage() {
                   immersive={immersiveProjectLayout}
                   adjacent={assemblyDatumPartsAdjacent}
                   selectionInvalid={assemblyDatumSelectionInvalid}
-                  stepOrder={assemblyDatumStepOrder}
-                  stepMeta={assemblyDatumStepMeta}
-                  getStepValue={(stepKey) => getAssemblyDatumStepValue(assemblyDatumModal, stepKey)}
-                  nextStep={getNextAssemblyDatumStep(assemblyDatumModal)}
                   onToggleMinimized={() => setAssemblyDatumModal((prev) => prev ? { ...prev, minimized: !prev.minimized } : prev)}
                   onClose={() => setAssemblyDatumModal(null)}
-                  onPartChange={(partKey, nextId) => setAssemblyDatumModal((prev) => prev ? {
-                    ...prev,
-                    ...(partKey === 'A'
-                      ? { partAId: nextId, partAFeatureId1: null, partAFeatureId2: null }
-                      : { partBId: nextId, partBFeatureId1: null, partBFeatureId2: null }),
-                    selectedEdgeId: null,
-                    activeDatumPart: null,
-                    error: null,
-                  } : prev)}
-                  onAssign={handleAssignDatumFeature}
-                  onReset={resetAssemblyDatumSelection}
+                  onPartChange={handleAssemblyDatumPartChange}
+                  onNameChange={handleAssemblyDatumNameChange}
                   onConfirm={handleConfirmAssemblyDatum}
                 />
               )}

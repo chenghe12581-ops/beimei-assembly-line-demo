@@ -5537,7 +5537,7 @@ function ModalCatalogTab() {
             </div>
           </div>
         </div>
-        <ModalSource notes={<>浮层容器：w-[280px] + rounded-lg + bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5；宽度与装配基准提取一致。焊缝浮窗在零件选择下方提供“选择面”和“生成焊缝”。打磨浮窗顶部先选焊缝特征并回显，分割线下方指配零件 A/B，确认后创建两条打磨特征，分别归属于零件 A 和零件 B。底部 footer 使用 border-t + px-3 py-2，与装配基准提取一致；零件不相接提示与清空/确定同处 footer。焊缝/打磨入口已拆分为各自的“自动提取 / 手动提取”下拉，浮窗内部不再展示 tab、特征类型标题、手动点选模式或说明文案。坐标转换、手动焊缝、手动打磨和装配特征提取同一时间只显示一个操作浮窗。</>}>
+        <ModalSource notes={<>浮层容器：w-[280px] + rounded-lg + bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5；宽度与装配基准提取一致。焊缝浮窗在零件选择下方提供“选择面”和“生成焊缝”。打磨浮窗顶部先选焊缝特征并回显，分割线下方指配零件 A/B，确认后创建两条打磨特征，分别归属于零件 A 和零件 B。底部 footer 使用 border-t + px-3 py-2，与装配基准提取一致；零件不相接提示与关闭/确认同处 footer。焊缝/打磨入口已拆分为各自的“自动提取 / 手动提取”下拉，浮窗内部不再展示 tab、特征类型标题、手动点选模式或说明文案。坐标转换、手动焊缝、手动打磨和装配特征提取同一时间只显示一个操作浮窗。</>}>
           3D 视窗浮动工具栏“焊缝提取 / 打磨提取”下拉。
         </ModalSource>
       </DemoCard>
@@ -5560,55 +5560,29 @@ function ModalCatalogTab() {
                   <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 shadow-sm">0162-01-010101-01</div>
                 </div>
               </div>
-              {[
-                { slot: 1, rows: [
-                  { index: 1, status: 'selected' as const, value: '02-datum-edge-01', button: '设为子板基准1', selected: true },
-                  { index: 2, status: 'selected' as const, value: '01-datum-edge-02', button: '设为父板基准1', selected: true },
-                ] },
-                { slot: 2, rows: [
-                  { index: 3, status: 'pending' as const, value: '请点选子板基准线', button: '设为子板基准2', current: true },
-                  { index: 4, status: 'empty' as const, value: '待设置父板基准2', button: '设为父板基准2' },
-                ] },
-              ].map((group) => (
-                <div key={group.slot} className="space-y-1.5">
-                  <div className="text-[11px] font-medium text-slate-500">装配基准{group.slot}</div>
-                  {group.rows.map((row) => (
-                    <div
-                      key={row.index}
-                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
-                        row.current
-                          ? 'border-orange-200 bg-orange-50/80'
-                          : row.selected
-                            ? 'border-emerald-100 bg-emerald-50/40'
-                            : 'border-slate-100 bg-slate-50/65 opacity-70'
-                      }`}
-                    >
-                      <div className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium ${row.selected ? 'bg-emerald-500 text-white' : row.current ? 'bg-ds-brand-primary text-white' : 'bg-slate-200 text-slate-500'}`}>
-                        {row.selected ? <CircleCheck className="size-3.5" /> : row.index}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <FeatureCandidateStatusRowDemo status={row.status} value={row.value} surface={false} />
-                      </div>
-                      <Button size="sm" variant={row.current ? 'default' : 'outline'} className={`h-6 shrink-0 px-2 text-[11px] ${row.current ? 'bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover' : ''}`} disabled={!row.current && !row.selected}>
-                        {row.button}
-                      </Button>
-                    </div>
-                  ))}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 rounded-md border border-emerald-100 bg-emerald-50/40 px-2 py-1.5 text-[11px] text-emerald-600">
+                  <CircleCheck className="size-3.5 shrink-0" />
+                  <span className="min-w-0 truncate">已选择基准线：02-datum-edge-01</span>
                 </div>
-              ))}
+                <div className="space-y-1">
+                  <div className="text-[11px] text-slate-500">基准名称</div>
+                  <div className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">贴板1基准线1</div>
+                </div>
+              </div>
             </div>
             <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[11px] text-slate-400">当前：点选子板基准2</div>
+                <div className="truncate text-[11px] text-slate-400">可确认添加基准</div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]">清空</Button>
-                <Button size="sm" className="h-7 bg-ds-brand-primary px-2 text-[11px] text-white hover:bg-ds-brand-primary-hover" disabled>确定</Button>
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]">关闭</Button>
+                <Button size="sm" className="h-7 bg-ds-brand-primary px-2 text-[11px] text-white hover:bg-ds-brand-primary-hover">确认</Button>
               </div>
             </div>
           </div>
         </div>
-        <ModalSource notes={<>浮层容器：bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5 + border-white/50；内部下拉选择使用 bg-ds-bg-glass-modal-sidebar；不经过 fullscreen 遮罩，直接定位在 3D 视窗工具浮窗列；零件不相接提示放在 footer 左侧，与清空/确定同处一行；与坐标转换、手动焊缝、手动打磨互斥。</>}>
+        <ModalSource notes={<>浮层容器：bg-ds-bg-glass-float + backdrop-blur-md + shadow-black/5 + border-white/50；内部下拉选择使用 bg-ds-bg-glass-modal-sidebar；不经过 fullscreen 遮罩，直接定位在 3D 视窗工具浮窗列。零件选择下方为基准线提醒（未选为“请选择基准线”，已选为绿色回显）与可编辑的基准名称输入框；零件不相接提示放在 footer 左侧，与关闭/确认同处一行；确认后基准特征挂到左侧列表子板零件下；与坐标转换、手动焊缝、手动打磨互斥。</>}>
           3D 视窗浮动工具栏“焊缝提取 / 打磨提取”下拉与“装配基准提取”。
         </ModalSource>
       </DemoCard>

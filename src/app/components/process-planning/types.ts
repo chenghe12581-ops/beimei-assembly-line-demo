@@ -19,28 +19,14 @@ export type ProcessPivotSnapPoint = {
   sourcePartIds?: string[];
 };
 
-export type AssemblyDatumStepKey = 'A1' | 'B1' | 'A2' | 'B2';
-
 export type AssemblyDatumModalState = {
   open: boolean;
   minimized: boolean;
   partAId: string | null;
   partBId: string | null;
-  partAFeatureId1: string | null;
-  partAFeatureId2: string | null;
-  partBFeatureId1: string | null;
-  partBFeatureId2: string | null;
   selectedEdgeId: string | null;
-  activeDatumPart: AssemblyDatumStepKey | null;
+  datumName: string;
   error: string | null;
-};
-
-export type AssemblyDatumStepMeta = {
-  partKey: 'A' | 'B';
-  slot: 1 | 2;
-  partLabel: string;
-  shortLabel: string;
-  actionLabel: string;
 };
 
 export type ManualFeaturePanelType = 'weld' | 'grind';
