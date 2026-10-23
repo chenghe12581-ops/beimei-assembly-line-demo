@@ -424,6 +424,19 @@ type RoughPositionConfig = {
   datumFeatureId: string;
 };
 
+// 贴板装配精定位工步：父板基准 + 子板基准两张基准线小表格（支持增删，点击在三维视图中高亮）
+type FinePositionDatumItem = {
+  id: string;
+  datumName: string;
+  datumFeatureId: string;
+};
+
+type FinePositionConfig = {
+  partId: string;
+  parentDatums: FinePositionDatumItem[];
+  childDatums: FinePositionDatumItem[];
+};
+
 // 支撑调整工步：工作台 + 支撑轴轴值；正面拼焊站 4 轴，反面拼焊站 18 轴，无编号 / 覆盖率
 type SupportAdjustProcessConfig = {
   workbenchType: WorkbenchType;
@@ -515,6 +528,7 @@ type ProcessStep = {
   weldScanConfig?: FeatureProcessConfig;
   supportAdjustConfig?: SupportAdjustProcessConfig;
   roughPositionConfig?: RoughPositionConfig;
+  finePositionConfig?: FinePositionConfig;
 };
 
 type ProcessStepType = PlanningTaskType;
@@ -991,6 +1005,29 @@ const createRoughPositionConfig = (process: FixedPlanningProcess): RoughPosition
     datumFeatureId: createDatumFeatureIdForPair(baseId, partA, partB),
   };
 };
+// 贴板装配可用的装配基准对（父板基准：含主筋板 01 的对；子板基准：含被装贴板的对）
+const FINE_POSITION_DATUM_PAIRS: Array<[string, string]> = [['01', '02'], ['01', '03'], ['03', '04']];
+const createFinePositionDatumItem = (baseId: string, partA: string, partB: string, index: number): FinePositionDatumItem => ({
+  id: `fine-datum-${partA}-${partB}-${index}`,
+  datumName: getDatumFeatureDisplayName(`${baseId}-${partA}`, `${baseId}-${partB}`),
+  datumFeatureId: createDatumFeatureIdForPair(baseId, partA, partB),
+});
+const createFinePositionConfig = (process: FixedPlanningProcess): FinePositionConfig => {
+  const partId = process.workpieceIds[0] ?? '';
+  const baseId = partId.slice(0, partId.lastIndexOf('-'));
+  const plateSuffix = getPartSuffix(partId);
+  return {
+    partId,
+    parentDatums: FINE_POSITION_DATUM_PAIRS
+      .filter(([a, b]) => a === '01' || b === '01')
+      .map(([a, b], index) => createFinePositionDatumItem(baseId, a, b, index)),
+    childDatums: FINE_POSITION_DATUM_PAIRS
+      .filter(([a, b]) => a === plateSuffix || b === plateSuffix)
+      .map(([a, b], index) => createFinePositionDatumItem(baseId, a, b, index)),
+  };
+};
+const isPlateAssemblyProcess = (process: FixedPlanningProcess | undefined | null): process is FixedPlanningProcess =>
+  !!process && process.productionUnit === '装配';
 const createGeneratedPlacePoints = () => [
   { x: '80.0', y: '40.0', z: '0.0' },
   { x: '220.0', y: '40.0', z: '0.0' },
@@ -7282,6 +7319,7 @@ export function BeimeiAssemblyLinePage() {
         weldConfig: cloneProcessConfig(step.weldConfig),
         supportAdjustConfig: cloneProcessConfig(step.supportAdjustConfig),
         roughPositionConfig: cloneProcessConfig(step.roughPositionConfig),
+        finePositionConfig: cloneProcessConfig(step.finePositionConfig),
       })),
       hasAssemblyDrawing: true,
     };
@@ -7826,8 +7864,14 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'support-adjust') {
           return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig(getSupportAdjustWorkbenchType(process)) };
         }
-        // 粗定位 / 精定位：工艺参数为零件名称 + 定位基准线（与主筋板粗定位一致）
-        if (slot.type === 'rough-position' || slot.type === 'fine-position') {
+        // 粗定位：零件名称 + 定位基准线；贴板装配的精定位：父板基准 + 子板基准两张小表格
+        if (slot.type === 'rough-position') {
+          return { ...baseStep, roughPositionConfig: createRoughPositionConfig(process) };
+        }
+        if (slot.type === 'fine-position') {
+          if (isPlateAssemblyProcess(process)) {
+            return { ...baseStep, finePositionConfig: createFinePositionConfig(process) };
+          }
           return { ...baseStep, roughPositionConfig: createRoughPositionConfig(process) };
         }
         if (slot.type === 'adjust') {
@@ -10962,6 +11006,129 @@ export function BeimeiAssemblyLinePage() {
       const owningRoughProcess = step.processId
         ? fixedPlanningProcesses.find((process) => process.id === step.processId)
         : undefined;
+
+      // 贴板装配精定位：零件名称 + 父板基准 / 子板基准两张基准线小表格（支持增删）
+      if (step.type === 'fine-position') {
+        const finePositionConfig = step.finePositionConfig
+          ?? (isPlateAssemblyProcess(owningRoughProcess) ? createFinePositionConfig(owningRoughProcess) : null);
+        if (finePositionConfig) {
+          const finePartNode = objectTree && finePositionConfig.partId ? findNodeById(objectTree, finePositionConfig.partId) : null;
+          const updateFineDatums = (
+            kind: 'parent' | 'child',
+            updater: (items: FinePositionDatumItem[]) => FinePositionDatumItem[]
+          ) => {
+            updateProcessStepById(step.id!, (currentStep) => {
+              const currentConfig = currentStep.finePositionConfig ?? finePositionConfig;
+              return {
+                ...currentStep,
+                finePositionConfig: {
+                  ...currentConfig,
+                  [kind === 'parent' ? 'parentDatums' : 'childDatums']: updater(
+                    kind === 'parent' ? currentConfig.parentDatums : currentConfig.childDatums
+                  ),
+                },
+              };
+            });
+          };
+          const addFineDatum = (kind: 'parent' | 'child') => {
+            const baseId = finePositionConfig.partId.slice(0, finePositionConfig.partId.lastIndexOf('-'));
+            const plateSuffix = getPartSuffix(finePositionConfig.partId);
+            const pool = kind === 'parent'
+              ? FINE_POSITION_DATUM_PAIRS.filter(([a, b]) => a === '01' || b === '01')
+              : FINE_POSITION_DATUM_PAIRS.filter(([a, b]) => a === plateSuffix || b === plateSuffix);
+            const currentItems = kind === 'parent' ? finePositionConfig.parentDatums : finePositionConfig.childDatums;
+            const existing = new Set(currentItems.map((item) => item.datumFeatureId));
+            const nextPair = pool.find(([a, b]) => !existing.has(createDatumFeatureIdForPair(baseId, a, b)));
+            if (!nextPair) {
+              showToast('已添加全部可用基准线', 'info');
+              return;
+            }
+            updateFineDatums(kind, (items) => [...items, createFinePositionDatumItem(baseId, nextPair[0], nextPair[1], Date.now())]);
+          };
+          const removeFineDatum = (kind: 'parent' | 'child', itemId: string) => {
+            updateFineDatums(kind, (items) => items.filter((item) => item.id !== itemId));
+          };
+          const renderDatumTable = (title: string, kind: 'parent' | 'child', items: FinePositionDatumItem[]) => (
+            <div className="ds-label-input-compact">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="ds-label-input-compact-label">{title}</div>
+                <button
+                  type="button"
+                  onClick={() => addFineDatum(kind)}
+                  className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs text-ds-brand-primary-text transition-colors hover:bg-orange-50"
+                >
+                  <Plus className="size-3" />
+                  添加
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-lg ring-1 ring-slate-100">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50/80 text-slate-400">
+                      <th className="px-2.5 py-1.5 text-left font-normal">基准名称</th>
+                      <th className="w-12 px-2 py-1.5 text-center font-normal">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="bg-white px-2.5 py-2.5 text-center text-slate-300">
+                          暂无基准线，点击右上角「添加」
+                        </td>
+                      </tr>
+                    ) : (
+                      items.map((item) => {
+                        const datumNode = objectTree ? findNodeById(objectTree, item.datumFeatureId) : null;
+                        const datumSelected = selectedId === item.datumFeatureId;
+                        return (
+                          <tr key={item.id} className="border-t border-slate-100 bg-white">
+                            <td className="px-2.5 py-1.5">
+                              <button
+                                type="button"
+                                title="点击在三维视图中高亮该基准线"
+                                onClick={() => setSelectedId(item.datumFeatureId)}
+                                className={`flex max-w-full items-center gap-1 whitespace-nowrap transition-colors ${
+                                  datumSelected ? 'text-ds-brand-primary-text' : 'text-slate-700 hover:text-ds-brand-primary-text'
+                                }`}
+                              >
+                                <Crosshair className={`size-3 shrink-0 ${datumSelected ? 'text-ds-brand-primary-text' : 'text-slate-300'}`} />
+                                <span className="truncate">{datumNode?.name ?? item.datumName}</span>
+                              </button>
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              <button
+                                type="button"
+                                aria-label={`删除${title}`}
+                                onClick={() => removeFineDatum(kind, item.id)}
+                                className="text-slate-300 transition-colors hover:text-red-500"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+          return (
+            <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+              <div className="ds-label-input-compact">
+                <div className="ds-label-input-compact-label">零件名称</div>
+                <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                  <span className="truncate">{finePartNode?.name ?? finePositionConfig.partId}</span>
+                </div>
+              </div>
+              {renderDatumTable('父板基准', 'parent', finePositionConfig.parentDatums)}
+              {renderDatumTable('子板基准', 'child', finePositionConfig.childDatums)}
+            </div>
+          );
+        }
+      }
+
       const roughPositionConfig = step.roughPositionConfig
         ?? (owningRoughProcess ? createRoughPositionConfig(owningRoughProcess) : null);
       if (!roughPositionConfig) {
