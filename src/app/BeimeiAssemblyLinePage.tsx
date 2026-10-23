@@ -40,6 +40,7 @@ import {
   Plus,
   ArrowRight,
   ChevronUp,
+  Crosshair,
   Rotate3D,
   Save,
   RefreshCw,
@@ -117,6 +118,7 @@ import { AddProcessTaskDialog as AddProcessTaskDialogView } from './components/p
 import {
   createFixedPlanningProcesses,
   getPlanningProcessIdForTask,
+  type FixedPlanningProcess,
   type PlanningTaskType,
 } from './process-planning-model';
 
@@ -411,6 +413,15 @@ type PlaceProcessConfig = {
   points: { x: string; y: string; z: string }[];
   pathPoints: PickPathPoint[];
   joints?: string[];
+  placePosition?: { x: string; y: string; z: string };
+  datumEdgeOffset?: string;
+};
+
+// 粗定位工步：零件名称 + 定位基准线（点击在三维视图中高亮）
+type RoughPositionConfig = {
+  partId: string;
+  datumName: string;
+  datumFeatureId: string;
 };
 
 // 支撑调整工步：工作台 + 支撑轴轴值；正面拼焊站 4 轴，反面拼焊站 18 轴，无编号 / 覆盖率
@@ -503,6 +514,7 @@ type ProcessStep = {
   weldConfig?: FeatureProcessConfig;
   weldScanConfig?: FeatureProcessConfig;
   supportAdjustConfig?: SupportAdjustProcessConfig;
+  roughPositionConfig?: RoughPositionConfig;
 };
 
 type ProcessStepType = PlanningTaskType;
@@ -959,6 +971,25 @@ const createGeneratedSupportAdjustConfig = (workbenchType: WorkbenchType): Suppo
   workbenchType,
   joints: createSupportAdjustJointRows(getSupportAdjustAxisCount(workbenchType)),
 });
+const getRoughPositionDatumPair = (plateSuffix: string): [string, string] => {
+  if (plateSuffix === '03') return ['01', '03'];
+  if (plateSuffix === '04') return ['03', '04'];
+  return ['01', '02'];
+};
+const createDatumFeatureIdForPair = (baseId: string, partA: string, partB: string) =>
+  `${baseId}-${baseId}-${partA}-${baseId}-${partB}-datum`;
+const createRoughPositionConfig = (process: FixedPlanningProcess): RoughPositionConfig => {
+  const partId = process.workpieceIds[0] ?? '';
+  const baseId = partId.slice(0, partId.lastIndexOf('-'));
+  const [partA, partB] = getRoughPositionDatumPair(getPartSuffix(partId));
+  const partAId = `${baseId}-${partA}`;
+  const partBId = `${baseId}-${partB}`;
+  return {
+    partId,
+    datumName: getDatumFeatureDisplayName(partAId, partBId),
+    datumFeatureId: createDatumFeatureIdForPair(baseId, partA, partB),
+  };
+};
 const createGeneratedPlacePoints = () => [
   { x: '80.0', y: '40.0', z: '0.0' },
   { x: '220.0', y: '40.0', z: '0.0' },
@@ -1039,6 +1070,8 @@ const createDemoPlaceConfig = (workpieceIds: string[]): PlaceProcessConfig => ({
   points: createDemoPointRows(),
   pathPoints: createPickPathPointRows(),
   joints: createDemoJointRows(),
+  placePosition: { x: '80.0', y: '40.0', z: '0.0' },
+  datumEdgeOffset: '2.0',
 });
 
 const createGeneratedPlaceConfig = (workpieceIds: string[]): PlaceProcessConfig => ({
@@ -7247,6 +7280,7 @@ export function BeimeiAssemblyLinePage() {
         assembleConfig: cloneProcessConfig(step.assembleConfig),
         weldConfig: cloneProcessConfig(step.weldConfig),
         supportAdjustConfig: cloneProcessConfig(step.supportAdjustConfig),
+        roughPositionConfig: cloneProcessConfig(step.roughPositionConfig),
       })),
       hasAssemblyDrawing: true,
     };
@@ -7786,7 +7820,10 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'support-adjust') {
           return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig(getSupportAdjustWorkbenchType(process)) };
         }
-        if (slot.type === 'rough-position' || slot.type === 'fine-position' || slot.type === 'adjust') {
+        if (slot.type === 'rough-position') {
+          return { ...baseStep, roughPositionConfig: createRoughPositionConfig(process) };
+        }
+        if (slot.type === 'fine-position' || slot.type === 'adjust') {
           return baseStep;
         }
         return { ...baseStep, weldConfig: createGeneratedWeldConfig(slot.featureIds, weldParams) };
@@ -9793,8 +9830,69 @@ export function BeimeiAssemblyLinePage() {
         );
       }
 
+      const placePartNode = objectTree && placeConfig.workpieceIds[0] ? findNodeById(objectTree, placeConfig.workpieceIds[0]) : null;
+      const placePosition = placeConfig.placePosition ?? { x: '80.0', y: '40.0', z: '0.0' };
+      const datumEdgeOffset = placeConfig.datumEdgeOffset ?? '2.0';
+      const updatePlacePositionAxis = (axis: 'x' | 'y' | 'z', nextValue: string) => {
+        markProcessPointDirty(step.id!);
+        updateProcessStepById(step.id!, (currentStep) => {
+          const currentConfig = currentStep.placeConfig ?? createEmptyPlaceProcessConfig();
+          return {
+            ...currentStep,
+            placeConfig: {
+              ...currentConfig,
+              placePosition: { x: '0.0', y: '0.0', z: '0.0', ...(currentConfig.placePosition ?? {}), [axis]: nextValue },
+            },
+          };
+        });
+      };
+      const updateDatumEdgeOffset = (nextValue: string) => {
+        markProcessPointDirty(step.id!);
+        updateProcessStepById(step.id!, (currentStep) => ({
+          ...currentStep,
+          placeConfig: {
+            ...(currentStep.placeConfig ?? createEmptyPlaceProcessConfig()),
+            datumEdgeOffset: nextValue,
+          },
+        }));
+      };
+
       return (
         <div className="flex flex-col gap-ds-300">
+          <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+            <div className="ds-label-input-compact w-fit">
+              <div className="ds-label-input-compact-label">零件名称</div>
+              <div className="flex h-8 w-fit items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                <span>{placePartNode?.name ?? placeConfig.workpieceIds[0] ?? '--'}</span>
+              </div>
+            </div>
+            <div className="grid gap-ds-150 md:grid-cols-2">
+              <div className="ds-label-input-compact">
+                <div className="ds-label-input-compact-label">放置位置</div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['x', 'y', 'z'] as const).map((axis) => (
+                    <ProcessNumberField
+                      key={`compact-place-position-${axis}`}
+                      value={placePosition[axis]}
+                      unit="mm"
+                      placeholder={axis.toUpperCase()}
+                      inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                      onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="ds-label-input-compact">
+                <div className="ds-label-input-compact-label">基准边偏移</div>
+                <ProcessNumberField
+                  value={datumEdgeOffset}
+                  unit="mm"
+                  inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                  onChange={updateDatumEdgeOffset}
+                />
+              </div>
+            </div>
+          </div>
           {renderPlaceSupportParameterControls(step.id, placeConfig, true)}
           <ProcessResultPointPanel
             title="结果点位"
@@ -10820,11 +10918,56 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 粗定位 / 精定位 / 调整：工艺参数与路径点位暂留空，后续再设计
-    if (step.type === 'rough-position' || step.type === 'fine-position' || step.type === 'adjust') {
+    // 粗定位：零件名称 + 定位基准线，点击基准线在三维视图中高亮
+    if (step.type === 'rough-position') {
+      const owningRoughProcess = step.processId
+        ? fixedPlanningProcesses.find((process) => process.id === step.processId)
+        : undefined;
+      const roughPositionConfig = step.roughPositionConfig
+        ?? (owningRoughProcess ? createRoughPositionConfig(owningRoughProcess) : null);
+      if (!roughPositionConfig) {
+        return (
+          <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
+            该工步暂无工艺参数
+          </div>
+        );
+      }
+      const roughPartNode = objectTree && roughPositionConfig.partId ? findNodeById(objectTree, roughPositionConfig.partId) : null;
+      const roughDatumNode = objectTree ? findNodeById(objectTree, roughPositionConfig.datumFeatureId) : null;
+      const datumLineSelected = selectedId === roughPositionConfig.datumFeatureId;
+      return (
+        <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+          <div className="ds-label-input-compact w-fit">
+            <div className="ds-label-input-compact-label">零件名称</div>
+            <div className="flex h-8 w-fit items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+              <span>{roughPartNode?.name ?? roughPositionConfig.partId}</span>
+            </div>
+          </div>
+          <div className="ds-label-input-compact w-fit">
+            <div className="ds-label-input-compact-label">定位基准线</div>
+            <button
+              type="button"
+              title="点击在三维视图中高亮定位基准线"
+              onClick={() => setSelectedId(roughPositionConfig.datumFeatureId)}
+              className={`flex h-8 w-fit items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-medium ring-1 transition-colors ${
+                datumLineSelected
+                  ? 'bg-orange-50 text-ds-brand-primary-text ring-orange-200'
+                  : 'bg-white text-slate-700 ring-slate-100 hover:bg-orange-50/60 hover:text-ds-brand-primary-text hover:ring-orange-200'
+              }`}
+            >
+              <Crosshair className="size-3.5 shrink-0" />
+              <span>{roughDatumNode?.name ?? roughPositionConfig.datumName}</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 精定位 / 调整：工艺参数与路径点位暂留空，后续再设计
+    if (step.type === 'fine-position' || step.type === 'adjust') {
       return (
         <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
-          {activeDetailTab === 'path-points' ? '该工步暂无路径点位' : '该工步暂无工艺参数'}
+          该工步暂无工艺参数
         </div>
       );
     }
