@@ -946,6 +946,7 @@ const createPathPointGroups = (groupCount: number, step?: ProcessStep) =>
 const createWeldPathPointGroups = (step?: ProcessStep) => createPathPointGroups(4, step);
 const createDemoJointRows = () => ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20'];
 const SUPPORT_ADJUST_AXIS_COUNT: Partial<Record<WorkbenchType, number>> = {
+  主筋板打磨翻面平台: 3,
   主筋板正面装配平台: 4,
   主筋板背面装配平台: 18,
 };
@@ -7799,7 +7800,12 @@ export function BeimeiAssemblyLinePage() {
           return { ...baseStep, placeConfig: createGeneratedPlaceConfig(slot.workpieceIds) };
         }
         if (slot.type === 'turnover-clamp') {
-          return { ...baseStep, turnoverClampConfig: createGeneratedClampConfig(slot.workpieceIds) };
+          const clampConfig = createGeneratedClampConfig(slot.workpieceIds);
+          // 主筋板打磨工序的翻面使用打磨翻面平台工作台
+          if (process.station === '主筋板打磨平台') {
+            return { ...baseStep, turnoverClampConfig: { ...clampConfig, workbenchType: '主筋板打磨翻面平台' } };
+          }
+          return { ...baseStep, turnoverClampConfig: clampConfig };
         }
         if (slot.type === 'polish') {
           return { ...baseStep, grindConfig: createGeneratedGrindConfig(slot.featureIds) };
@@ -9913,6 +9919,68 @@ export function BeimeiAssemblyLinePage() {
         return (
           <div className="flex h-full items-center justify-center rounded-ds-md border border-dashed border-slate-200/70 bg-white/50 px-4 text-center text-xs leading-5 text-slate-400">
             选择工件模型并点击"生成压紧位置"后，这里显示工艺参数。
+          </div>
+        );
+      }
+
+      // 主筋板打磨工序的翻面：工作台 + 翻转角度（首次 180°，再翻 0°）+ 三个轴值
+      const clampProcessId = step.processId ?? getPlanningProcessIdForTask(step);
+      if (clampProcessId === 'proc-02-rib-grind') {
+        const turnoverStepsInProcess = allProcessSteps.filter(
+          (item) => item.processId === clampProcessId && item.type === 'turnover-clamp'
+        );
+        const turnoverIndex = Math.max(0, turnoverStepsInProcess.findIndex((item) => item.id === step.id));
+        const flipAngle = turnoverIndex % 2 === 0 ? '180°' : '0°';
+        return (
+          <div className="flex flex-col gap-ds-300">
+            <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+              <div className="ds-label-input-compact">
+                <div className="ds-label-input-compact-label">工作台</div>
+                <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                  <span className="truncate">主筋板打磨翻面平台</span>
+                </div>
+              </div>
+              <div className="ds-label-input-compact">
+                <div className="ds-label-input-compact-label">翻转角度</div>
+                <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                  <span>{flipAngle}</span>
+                </div>
+              </div>
+            </div>
+            <ProcessResultPointPanel
+              title="结果点位"
+              dirty={clampDirty}
+              onApplyUpdate={() => step.id && clearProcessPointDirty(step.id)}
+              variant="flush"
+              headerClassName="px-ds-150"
+              showUpdateButton={false}
+            >
+              <div className="grid gap-2">
+                {(clampConfig.joints ?? []).slice(0, 3).map((jointValue, jointIndex) => (
+                  <ProcessJointAngleRow
+                    key={`compact-clamp-joint-${jointIndex}`}
+                    index={jointIndex}
+                    value={jointValue}
+                    selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
+                    selectedVariant="subtle"
+                    onSelect={() => step.id && showResultPointPosePreview(step.id, jointIndex)}
+                    onChange={(nextValue) => {
+                      markProcessPointDirty(step.id!);
+                      updateProcessStepById(step.id!, (currentStep) => ({
+                        ...currentStep,
+                        turnoverClampConfig: {
+                          ...(currentStep.turnoverClampConfig ?? createEmptyTurnoverClampProcessConfig()),
+                          joints: (currentStep.turnoverClampConfig?.joints ?? []).map((v, i) =>
+                            i === jointIndex ? nextValue : v
+                          ),
+                        },
+                      }));
+                      setClampPreviewOverlayStepId(step.id!);
+                    }}
+                  />
+                ))}
+              </div>
+            </ProcessResultPointPanel>
           </div>
         );
       }
