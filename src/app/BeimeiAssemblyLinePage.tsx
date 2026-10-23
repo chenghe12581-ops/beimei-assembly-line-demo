@@ -15621,7 +15621,7 @@ export function BeimeiAssemblyLinePage() {
                                 }}
                               >
                                 <span className="flex min-w-0 items-start justify-between gap-2">
-                                  <span className="flex h-5 min-w-0 flex-1 items-center gap-1.5">
+                                  <span className="flex h-5 shrink-0 items-center gap-1.5">
                                     <span className="relative flex h-5 w-[18px] shrink-0 items-center justify-center">
                                       <span className={`ds-process-index text-xs font-normal text-zinc-400 transition-colors group-hover:text-ds-brand-primary-text group-focus:text-ds-brand-primary-text group-focus-within:text-ds-brand-primary-text ${processChecked ? 'opacity-0' : 'opacity-100 group-hover:opacity-0 group-focus:opacity-0 group-focus-within:opacity-0'}`}>
                                         {String(process.sequence).padStart(2, '0')}
@@ -15639,7 +15639,7 @@ export function BeimeiAssemblyLinePage() {
                                     </span>
                                     <span className="truncate text-sm font-medium text-zinc-800">{process.name}</span>
                                   </span>
-                                  <span className="flex min-w-0 flex-wrap justify-end gap-1">
+                                  <span className="flex min-w-0 flex-1 flex-wrap justify-end gap-1">
                                     {taskSlots.map((slot) => {
                                       const statusLabel = slot.status === 'generated'
                                         ? '已生成'
