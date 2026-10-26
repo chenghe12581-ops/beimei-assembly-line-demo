@@ -417,7 +417,7 @@ type PlaceProcessConfig = {
   pathPoints: PickPathPoint[];
   joints?: string[];
   placePosition?: { x: string; y: string; z: string; a?: string; b?: string; c?: string };
-  datumEdgeOffset?: string;
+  coarseAssemblyOffset?: { x: string; y: string };
 };
 
 // 粗定位工步：零件名称 + 定位基准线（点击在三维视图中高亮）
@@ -1121,7 +1121,7 @@ const createDemoPlaceConfig = (workpieceIds: string[]): PlaceProcessConfig => ({
   pathPoints: createPickPathPointRows(),
   joints: createDemoJointRows(),
   placePosition: { x: '80.0', y: '40.0', z: '0.0' },
-  datumEdgeOffset: '2.0',
+  coarseAssemblyOffset: { x: '2.0', y: '2.0' },
 });
 
 const createGeneratedPlaceConfig = (workpieceIds: string[]): PlaceProcessConfig => ({
@@ -9938,12 +9938,12 @@ export function BeimeiAssemblyLinePage() {
       const placePartNode = objectTree && placeConfig.workpieceIds[0] ? findNodeById(objectTree, placeConfig.workpieceIds[0]) : null;
       const placeProcessId = step.processId ?? getPlanningProcessIdForTask(step);
       const placeOwningProcess = fixedPlanningProcesses.find((process) => process.id === placeProcessId);
-      // 贴板装配工序（生产单元为装配）的放置才有基准边偏移；主筋板放置没有该参数
+      // 贴板装配工序（生产单元为装配）的放置才有粗装配偏移距离；主筋板放置没有该参数
       const isPlatePlaceStep = placeOwningProcess
         ? isPlateAssemblyProcess(placeOwningProcess)
         : !(placeConfig.workpieceIds[0] ?? '').endsWith('-01');
       const placePosition = placeConfig.placePosition ?? { x: '80.0', y: '40.0', z: '0.0' };
-      const datumEdgeOffset = placeConfig.datumEdgeOffset ?? '2.0';
+      const coarseAssemblyOffset = placeConfig.coarseAssemblyOffset ?? { x: '2.0', y: '2.0' };
       const updatePlacePositionAxis = (axis: 'x' | 'y' | 'z' | 'a' | 'b' | 'c', nextValue: string) => {
         markProcessPointDirty(step.id!);
         updateProcessStepById(step.id!, (currentStep) => {
@@ -9957,13 +9957,18 @@ export function BeimeiAssemblyLinePage() {
           };
         });
       };
-      const updateDatumEdgeOffset = (nextValue: string) => {
+      const updateCoarseAssemblyOffset = (axis: 'x' | 'y', nextValue: string) => {
         markProcessPointDirty(step.id!);
         updateProcessStepById(step.id!, (currentStep) => ({
           ...currentStep,
           placeConfig: {
             ...(currentStep.placeConfig ?? createEmptyPlaceProcessConfig()),
-            datumEdgeOffset: nextValue,
+            coarseAssemblyOffset: {
+              x: '2.0',
+              y: '2.0',
+              ...(currentStep.placeConfig?.coarseAssemblyOffset ?? {}),
+              [axis]: nextValue,
+            },
           },
         }));
       };
@@ -10022,13 +10027,22 @@ export function BeimeiAssemblyLinePage() {
           </div>
           {isPlatePlaceStep && (
             <div className="ds-label-input-compact">
-              <div className="ds-label-input-compact-label">基准边偏移</div>
-              <ProcessNumberField
-                value={datumEdgeOffset}
-                unit="mm"
-                inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
-                onChange={updateDatumEdgeOffset}
-              />
+              <div className="ds-label-input-compact-label">粗装配偏移距离</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(['x', 'y'] as const).map((axis) => (
+                  <div key={`compact-place-coarse-offset-${axis}`} className="flex min-w-0 items-center gap-1">
+                    <span className="w-3 shrink-0 text-center text-xs font-medium text-slate-500">{axis.toUpperCase()}</span>
+                    <div className="min-w-0 flex-1">
+                      <ProcessNumberField
+                        value={coarseAssemblyOffset[axis]}
+                        unit="mm"
+                        inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                        onChange={(nextValue) => updateCoarseAssemblyOffset(axis, nextValue)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -10287,6 +10301,33 @@ export function BeimeiAssemblyLinePage() {
                 {card.body}
               </div>
             ))}
+          </div>
+
+          <div className="ds-label-input-compact">
+            <div className="ds-label-input-compact-label">打磨偏移</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(['offsetX', 'offsetY', 'offsetZ'] as const).map((key, index) => (
+                <div key={`compact-grind-offset-${key}`} className="flex min-w-0 items-center gap-1">
+                  <span className="w-5 shrink-0 text-center text-xs font-medium text-slate-500">{['ΔX', 'ΔY', 'ΔZ'][index]}</span>
+                  <div className="min-w-0 flex-1">
+                    <ProcessNumberField
+                      value={grindParams[key]}
+                      unit="mm"
+                      inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                      onChange={(nextValue) =>
+                        updateCompactGrindConfig(
+                          (currentConfig) => ({
+                            ...currentConfig,
+                            grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), [key]: nextValue },
+                          }),
+                          { markParameter: true }
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="py-ds-300">
@@ -18849,34 +18890,6 @@ export function BeimeiAssemblyLinePage() {
                                         }
                                       />
                                     </div>
-                                    <div className="ds-parameter-field">
-                                      <div className="ds-parameter-label">零件位置</div>
-                                      <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
-                                        {['左端', '右端'].map((item) => {
-                                          const selected = supportSetting.partPosition === item;
-                                          return (
-                                            <button
-                                              key={item}
-                                              type="button"
-                                              aria-pressed={selected}
-                                              className={`min-h-8 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                                                selected
-                                                  ? 'bg-white text-ds-brand-primary-hover shadow-sm'
-                                                  : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-                                              }`}
-                                              onClick={() =>
-                                                updateWorkbenchSupportSetting(supportId, (setting) => ({
-                                                  ...setting,
-                                                  partPosition: item,
-                                                }))
-                                              }
-                                            >
-                                              {item}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
                                   </div>
                                   <div className="mt-ds-150 ds-parameter-subfield-stack">
                                     <div className="text-xs text-slate-400">软限位轴</div>
@@ -19011,34 +19024,6 @@ export function BeimeiAssemblyLinePage() {
                                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">编号 {clampId}</span>
                                   </div>
                                   <div className="grid gap-ds-150 md:grid-cols-2">
-                                    <div className="ds-parameter-field">
-                                      <div className="ds-parameter-label">压紧类型</div>
-                                      <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
-                                        {['翻转', '定位焊'].map((item) => {
-                                          const selected = clampSetting.type === item;
-                                          return (
-                                            <button
-                                              key={item}
-                                              type="button"
-                                              aria-pressed={selected}
-                                              className={`min-h-8 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                                                selected
-                                                  ? 'bg-white text-ds-brand-primary-hover shadow-sm'
-                                                  : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-                                              }`}
-                                              onClick={() =>
-                                                updateWorkbenchClampSetting(clampId, (setting) => ({
-                                                  ...setting,
-                                                  type: item,
-                                                }))
-                                              }
-                                            >
-                                              {item}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
                                     <div className="ds-parameter-field">
                                       <div className="ds-parameter-label">零位位置</div>
                                       <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
@@ -19246,24 +19231,12 @@ export function BeimeiAssemblyLinePage() {
                         <ProcessNumberField defaultValue="15" unit="°" inputClassName="pr-10" />
                       </div>
                       <div className="ds-parameter-card ds-parameter-field">
-                        <div className="text-sm font-medium text-slate-800">摆动幅度</div>
-                        <ProcessNumberField defaultValue="60" unit="mm" />
-                      </div>
-                      <div className="ds-parameter-card ds-parameter-field">
                         <div className="text-sm font-medium text-slate-800">预压高度</div>
                         <ProcessNumberField defaultValue="30" unit="mm" />
                       </div>
                       <div className="ds-parameter-card ds-parameter-field">
-                        <div className="text-sm font-medium text-slate-800">递进预压高度</div>
-                        <ProcessNumberField defaultValue="20" unit="mm" />
-                      </div>
-                      <div className="ds-parameter-card ds-parameter-field">
                         <div className="text-sm font-medium text-slate-800">安全点高度</div>
                         <ProcessNumberField defaultValue="100" unit="mm" />
-                      </div>
-                      <div className="ds-parameter-card ds-parameter-field">
-                        <div className="text-sm font-medium text-slate-800">采样密度</div>
-                        <ProcessNumberField defaultValue="10" unit="mm" />
                       </div>
 
                       <div className="ds-parameter-card xl:col-span-2">
@@ -19344,168 +19317,6 @@ export function BeimeiAssemblyLinePage() {
                   </div>
                 ) : activeProcessParameterTab === 'assemble' ? (
                   <div className="space-y-4">
-                    <div className="grid gap-4 xl:grid-cols-2">
-                      <div className="ds-parameter-card ds-parameter-field">
-                        <div className="text-sm font-medium text-slate-800">扫描距离</div>
-                        <ProcessNumberField defaultValue="250" unit="mm" />
-                      </div>
-
-                      <div className="ds-parameter-card ds-parameter-field">
-                        <div className="text-sm font-medium text-slate-800">扫描方向</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {['逆时针', '顺时针'].map((item) => {
-                            const selected = assemblyScanDirection === item;
-                            return (
-                              <button
-                                key={item}
-                                type="button"
-                                aria-pressed={selected}
-                                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                                  selected
-                                    ? 'border-orange-200 bg-orange-50 text-ds-brand-primary-hover'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                                onClick={() => {
-                                  if (assemblyScanDirection !== item) markProcessParameterDirty();
-                                  setAssemblyScanDirection(item);
-                                }}
-                              >
-                                {item}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="ds-parameter-card xl:col-span-2">
-                        <div className="text-sm font-medium text-slate-800">扫描偏移</div>
-                        <div className="mt-3 grid gap-4 md:grid-cols-3">
-                          {[
-                            ['ΔX', '0'],
-                            ['ΔY', '0'],
-                            ['ΔZ', '120'],
-                          ].map(([label, value]) => (
-                            <div key={label} className="ds-parameter-field">
-                              <div className="ds-parameter-label">{label}</div>
-                              <ProcessNumberField defaultValue={value} unit="mm" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="ds-parameter-card xl:col-span-2">
-                        <div className="text-sm font-medium text-slate-800">扫描姿态</div>
-                        <div className="mt-3 grid gap-4 md:grid-cols-3">
-                          {[
-                            ['Rx', '0'],
-                            ['Ry', '0'],
-                            ['Rz', '90'],
-                          ].map(([label, value]) => (
-                            <div key={label} className="ds-parameter-field">
-                              <div className="ds-parameter-label">{label}</div>
-                              <ProcessNumberField defaultValue={value} unit="°" inputClassName="pr-10" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="ds-parameter-card xl:col-span-2">
-                        <div className="text-sm font-medium text-slate-800">采样设置</div>
-                        <div className="mt-3 grid gap-4 md:grid-cols-3">
-                          <div className="ds-parameter-field">
-                            <div className="ds-parameter-label">特征类型</div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {(['直线', '圆弧'] as const).map((item) => {
-                                const selected = assemblySampleShape === item;
-                                return (
-                                  <button
-                                    key={item}
-                                    type="button"
-                                    aria-pressed={selected}
-                                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                                      selected
-                                        ? 'border-orange-200 bg-orange-50 text-ds-brand-primary-hover'
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                    }`}
-                                    onClick={() => {
-                                      if (assemblySampleShape !== item) markProcessParameterDirty();
-                                      setAssemblySampleShape(item);
-                                    }}
-                                  >
-                                    {item}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="ds-parameter-field">
-                            <div className="ds-parameter-label">
-                              {assemblySampleShape === '直线' ? '直线采样方式' : '圆弧采样方式'}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {(assemblySampleShape === '直线' ? ['距离', '数量'] : ['弦长', '数量']).map((item) => {
-                                const selected =
-                                  assemblySampleShape === '直线'
-                                    ? assemblyLineSampleMode === item
-                                    : assemblyArcSampleMode === item;
-                                return (
-                                  <button
-                                    key={item}
-                                    type="button"
-                                    aria-pressed={selected}
-                                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                                      selected
-                                        ? 'border-orange-200 bg-orange-50 text-ds-brand-primary-hover'
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                    }`}
-                                    onClick={() => {
-                                      if (assemblySampleShape === '直线') {
-                                        if (assemblyLineSampleMode !== item) markProcessParameterDirty();
-                                        setAssemblyLineSampleMode(item as '距离' | '数量');
-                                      } else {
-                                        if (assemblyArcSampleMode !== item) markProcessParameterDirty();
-                                        setAssemblyArcSampleMode(item as '弦长' | '数量');
-                                      }
-                                    }}
-                                  >
-                                    {item}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="ds-parameter-field">
-                            <div className="ds-parameter-label">采样数值</div>
-                            <ProcessNumberField
-                              defaultValue={
-                                assemblySampleShape === '直线'
-                                  ? assemblyLineSampleMode === '距离'
-                                    ? '50'
-                                    : '12'
-                                  : assemblyArcSampleMode === '弦长'
-                                    ? '30'
-                                    : '16'
-                              }
-                              unit={
-                                assemblySampleShape === '直线'
-                                  ? assemblyLineSampleMode === '距离'
-                                    ? 'mm'
-                                    : undefined
-                                  : assemblyArcSampleMode === '弦长'
-                                    ? 'mm'
-                                    : undefined
-                              }
-                              inputClassName={
-                                (assemblySampleShape === '直线' && assemblyLineSampleMode === '数量') ||
-                                (assemblySampleShape === '圆弧' && assemblyArcSampleMode === '数量')
-                                  ? 'pr-3'
-                                  : 'pr-12'
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-
                       <div className="ds-parameter-card">
                         <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
                           <span>粗装配偏移距离</span>
@@ -19532,7 +19343,6 @@ export function BeimeiAssemblyLinePage() {
                           <ProcessNumberField defaultValue="80" unit="mm" />
                         </div>
                       </div>
-                    </div>
                   </div>
                 ) : activeProcessParameterTab === 'weld' ? (
                   <div className="space-y-4">
