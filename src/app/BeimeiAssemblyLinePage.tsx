@@ -14802,81 +14802,6 @@ export function BeimeiAssemblyLinePage() {
                       <div className="h-9 w-px shrink-0 bg-ds-bg-process-planning-separator" />
                     </>
                   )}
-                  {[
-                    {
-                      type: 'weld' as const,
-                      label: '焊缝特征',
-                      icon: WeldFeatureIcon,
-                      onAutoExtract: handleExtractWeldFeatures,
-                      onManualExtract: () => openManualFeatureExtraction('weld'),
-                      active: openManualFeaturePanels.includes('weld'),
-                    },
-                    {
-                      type: 'grind' as const,
-                      label: '打磨特征',
-                      icon: GrindFeatureIcon,
-                      onAutoExtract: handleExtractGrindFeatures,
-                      onManualExtract: () => openManualFeatureExtraction('grind'),
-                      active: openManualFeaturePanels.includes('grind'),
-                    },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    const menuOpen = featureExtractMenuOpen === item.type;
-                    const itemDisabled = item.type !== 'weld' && !hasCreatedWeldFeatures();
-                    const toneClassName =
-                        itemDisabled
-                            ? 'cursor-not-allowed border-transparent text-ds-text-control-disabled focus:outline-none focus-visible:outline-none'
-                        : item.active || menuOpen
-                        ? 'border-white/75 bg-white/86 text-ds-text-control-strong shadow-sm backdrop-blur-md hover:bg-white/92'
-                        : 'border-transparent text-ds-text-control hover:bg-white/80 hover:text-ds-text-control-strong';
-                    return (
-                      <div key={item.label} className="flex shrink-0 items-center gap-2">
-	                        <div className="relative shrink-0">
-                          <button
-                            type="button"
-                            aria-disabled={itemDisabled}
-                            data-active={item.active || menuOpen}
-                            className={`group flex ${immersiveProjectLayout ? 'h-16 min-w-[82px]' : 'h-14 min-w-[78px]'} shrink-0 flex-col items-center justify-center gap-2 rounded-lg border px-2.5 ds-process-toolbar-action transition-colors ${toneClassName}`}
-                            onClick={() => {
-                              if (itemDisabled) {
-                                showToast('请先生成焊接特征', 'error');
-                                return;
-                              }
-                              setFeatureExtractMenuOpen((open) => open === item.type ? null : item.type);
-                            }}
-	                          >
-	                            <Icon className={immersiveProjectLayout ? 'size-6' : 'size-5'} />
-	                            <span className="relative block w-16 text-center">
-	                              <span className={`block transition-transform duration-150 ${menuOpen ? '-translate-x-2' : 'group-hover:-translate-x-2'}`}>
-	                                {item.label}
-	                              </span>
-	                              <ChevronDown className={`absolute right-0 top-1/2 size-3 -translate-y-1/2 transition-[opacity,transform] duration-150 ${menuOpen ? 'rotate-180 opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
-	                            </span>
-	                          </button>
-                          {menuOpen && (
-                            <div className="absolute left-1/2 top-[calc(100%+6px)] z-[80] w-32 -translate-x-1/2 overflow-hidden rounded-xl border border-white/80 bg-white/96 py-1 shadow-lg shadow-black/5 backdrop-blur-md">
-                              {[
-                                { label: '自动提取', onClick: item.onAutoExtract },
-                                { label: '手动提取', onClick: item.onManualExtract },
-                              ].map((menuItem) => (
-                                <button
-                                  key={menuItem.label}
-                                  type="button"
-                                  className="flex h-8 w-full items-center justify-center px-3 text-center text-xs text-ds-text-control transition-colors hover:bg-orange-50 hover:text-ds-brand-primary-text"
-                                  onClick={() => {
-                                    menuItem.onClick();
-                                    setFeatureExtractMenuOpen(null);
-                                  }}
-                                >
-                                  {menuItem.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
                   <button
                     type="button"
                     aria-disabled={!hasCreatedWeldFeatures()}
@@ -14898,7 +14823,7 @@ export function BeimeiAssemblyLinePage() {
                     }}
                   >
                     <AssemblyFeatureIcon className={immersiveProjectLayout ? 'size-6' : 'size-5'} />
-                    <span>装配特征</span>
+                    <span>特征提取</span>
                   </button>
                   {(styleCProcessPlanningLayout || styleDProcessPlanningLayout) && (
                     <>
@@ -14909,8 +14834,24 @@ export function BeimeiAssemblyLinePage() {
                         onClick={() => requestGenerateProcessSequence(styleCProcessPlanningLayout)}
                         title={currentProjectStyleCNeedsRegeneration ? '工序列表需要重新生成' : undefined}
                       >
-                        <SlidersHorizontal className="size-6" />
-                        <span>{styleCProcessPlanningLayout && currentProjectStyleCTasksGenerated ? '重新生成' : '一键生成'}</span>
+                        <RefreshCw className="size-6" />
+                        <span>全局重算</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex h-16 min-w-[82px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-transparent px-2.5 ds-process-toolbar-action text-ds-text-control transition-colors hover:bg-white/80 hover:text-ds-text-control-strong"
+                        onClick={() => {
+                          if (!activeSimulationWorkspaceId && simulationWorkspaces.length > 0) {
+                            setActiveSimulationWorkspaceId(simulationWorkspaces[simulationWorkspaces.length - 1].id);
+                          }
+                          setActiveMainNav('virtual-simulation');
+                          updateMainNavRoute('virtual-simulation');
+                          setProcessPlanningMenuOpen(false);
+                          setVirtualSimulationMenuOpen(false);
+                        }}
+                      >
+                        <MonitorPlay className="size-6" />
+                        <span>虚拟仿真</span>
                       </button>
                       {styleDProcessPlanningLayout && (
                         <button

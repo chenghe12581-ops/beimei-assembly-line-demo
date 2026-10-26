@@ -29,7 +29,7 @@ export function AssemblyDatumExtractionPanel({
       <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <Target className="size-4 text-orange-500" />
-          <span className="text-xs font-medium">装配特征提取</span>
+          <span className="text-xs font-medium">特征提取</span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -40,7 +40,7 @@ export function AssemblyDatumExtractionPanel({
           >
             {modal.minimized ? <ChevronDown className="size-3.5" /> : <Minus className="size-3.5" />}
           </button>
-          <button type="button" className="rounded-sm p-0.5 text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="关闭装配特征提取">
+          <button type="button" className="rounded-sm p-0.5 text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="关闭特征提取">
             <X className="size-3.5" />
           </button>
         </div>
