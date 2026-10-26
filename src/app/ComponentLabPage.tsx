@@ -108,7 +108,7 @@ type LabTab = 'interaction' | 'business' | 'tokens';
 type ComponentViewMode = 'split' | 'grid';
 type PickGripperType = 'gantry' | 'robot';
 type PickMagnetKey = 'left' | 'center' | 'right';
-type PickMagnetForceLevel = '大' | '中' | '小';
+type PickMagnetForceLevel = '强' | '弱';
 type TrayAgvDemoState = 'pending' | 'running' | 'done';
 const compactProcessParameterNameDemoClassName = 'text-xs font-normal text-ds-text-parameter-label';
 const compactProcessSubParameterNameDemoClassName = 'text-[11px] font-normal text-ds-text-parameter-label';
@@ -330,7 +330,7 @@ type WorkbenchClampSetting = {
   zeroPosition: string;
   softLimits: Record<WorkbenchSupportAxis, { min: string; max: string }>;
 };
-const pickMagnetForceLevelOptions: PickMagnetForceLevel[] = ['大', '中', '小'];
+const pickMagnetForceLevelOptions: PickMagnetForceLevel[] = ['强', '弱'];
 type ComponentSection =
   | 'button'
   | 'main-nav-menu'
@@ -7380,11 +7380,11 @@ export function ComponentLabPage() {
     right: { enabled: false, z: '96.0' },
   });
   const [pickMagnetForceLevels, setPickMagnetForceLevels] = useState<Record<PickMagnetKey, PickMagnetForceLevel>>({
-    left: '大',
-    center: '中',
-    right: '小',
+    left: '强',
+    center: '弱',
+    right: '弱',
   });
-  const [pickMagnetPanelForceLevel, setPickMagnetPanelForceLevel] = useState<PickMagnetForceLevel>('中');
+  const [pickMagnetPanelForceLevel, setPickMagnetPanelForceLevel] = useState<PickMagnetForceLevel>('强');
   const [previewWeldSegmentIndex, setPreviewWeldSegmentIndex] = useState<number | null>(0);
   const [previewPointRowIndex, setPreviewPointRowIndex] = useState(0);
   const [previewJointIndex, setPreviewJointIndex] = useState(0);

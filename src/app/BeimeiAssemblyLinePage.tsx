@@ -248,8 +248,8 @@ const pickMagnetDefinitions = [
 ] as const;
 type PickGripperType = typeof pickGripperTypeOptions[number];
 type PickMagnetName = typeof pickMagnetDefinitions[number]['name'];
-type PickMagnetForceLevel = '大' | '中' | '小';
-const pickMagnetForceLevelOptions: PickMagnetForceLevel[] = ['大', '中', '小'];
+type PickMagnetForceLevel = '强' | '弱';
+const pickMagnetForceLevelOptions: PickMagnetForceLevel[] = ['强', '弱'];
 const processParameterGripperPresets: Record<PickGripperType, Record<PickMagnetName, { length: string; width: string; load: string; travel: string }>> = {
   桁架抓具: {
     左: { length: '220', width: '150', load: '120', travel: '240' },
@@ -320,7 +320,7 @@ function createWorkbenchClampSettings(ids: string[]) {
 }
 
 function createDefaultPickMagnetSettings(gripperType: PickGripperType = '桁架抓具'): PickMagnetSettings {
-  const forceLevel: PickMagnetForceLevel = '中';
+  const forceLevel: PickMagnetForceLevel = '强';
   return {
     左: { enabled: true, z: '96.0', length: '180', width: '120', forceLevel, load: '100', travel: '200' },
     中: { enabled: true, z: '88.0', length: '180', width: '120', forceLevel, load: '200', travel: '' },
@@ -329,13 +329,16 @@ function createDefaultPickMagnetSettings(gripperType: PickGripperType = '桁架�
 }
 
 function normalizePickMagnetForceLevel(value?: string): PickMagnetForceLevel {
-  if (value === '大' || value === '中' || value === '小') return value;
+  if (value === '强' || value === '弱') return value;
+  // 兼容旧数据：大→强，中/小→弱
+  if (value === '大') return '强';
+  if (value === '中' || value === '小') return '弱';
   const numericValue = Number(value);
   if (Number.isFinite(numericValue)) {
-    if (numericValue >= 85) return '大';
-    if (numericValue <= 55) return '小';
+    if (numericValue >= 70) return '强';
+    return '弱';
   }
-  return '中';
+  return '强';
 }
 
 function calculatePickActualMetrics(gripperType: PickGripperType, magnetSettings: PickMagnetSettings, magnetPosition?: ProcessPosePoint) {
@@ -348,7 +351,7 @@ function calculatePickActualMetrics(gripperType: PickGripperType, magnetSettings
   const positionZ = Number(magnetPosition?.z);
   const positionOffset = Math.max(-4, Math.min(4, ((Number.isFinite(positionZ) ? positionZ : 96) - 96) / 8));
   const eccentricOffset = Math.max(-8, Math.min(8, ((Number.isFinite(positionY) ? positionY : 240) - 240) / 3));
-  const forceScoreMap: Record<PickMagnetForceLevel, number> = { 小: -1, 中: 0, 大: 1 };
+  const forceScoreMap: Record<PickMagnetForceLevel, number> = { 强: 1, 弱: -1 };
   const forceScore = enabledMagnets.reduce((total, magnet) => {
     const level = normalizePickMagnetForceLevel(magnetSettings[magnet.name]?.forceLevel);
     return total + forceScoreMap[level];
@@ -374,7 +377,7 @@ function calculatePickMagnetPosition(gripperType: PickGripperType, magnetSetting
   const enabledMagnets = pickMagnetDefinitions.filter((magnet) => magnetSettings[magnet.name]?.enabled);
   const zValues = enabledMagnets.map((magnet) => Number(magnetSettings[magnet.name]?.z)).filter(Number.isFinite);
   const averageZ = zValues.length > 0 ? zValues.reduce((total, value) => total + value, 0) / zValues.length : 88;
-  const forceScoreMap: Record<PickMagnetForceLevel, number> = { 小: -1, 中: 0, 大: 1 };
+  const forceScoreMap: Record<PickMagnetForceLevel, number> = { 强: 1, 弱: -1 };
   const forceScore = enabledMagnets.reduce((total, magnet) => {
     const level = normalizePickMagnetForceLevel(magnetSettings[magnet.name]?.forceLevel);
     return total + forceScoreMap[level];

@@ -69,7 +69,7 @@ export function MagnetParameterPanel({
                 </div>
                 <div>
                   <div className="mb-1 flex items-center gap-1 text-[10px] text-slate-400"><span>磁力档位配置</span><Tooltip title="用户调整磁力以避免抓取粘连"><CircleAlert className="size-3 text-slate-300" /></Tooltip></div>
-                  <ProcessSingleSelect items={['大', '中', '小'].map((value) => ({ id: value, name: value }))} selectedId={setting.forceLevel} disabled={disabled} size="sm" elevation="none" onChange={(value) => value && onSettingChange((current) => ({ ...current, forceLevel: value }))} />
+                  <ProcessSingleSelect items={['强', '弱'].map((value) => ({ id: value, name: value }))} selectedId={setting.forceLevel === '强' || setting.forceLevel === '弱' ? setting.forceLevel : '强'} disabled={disabled} size="sm" elevation="none" onChange={(value) => value && onSettingChange((current) => ({ ...current, forceLevel: value }))} />
                 </div>
                 <div className={`grid gap-2 ${magnetName === '中' ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   <div><div className="mb-1 text-[10px] text-slate-400">额定负载</div><ProcessNumberField value={setting.load} unit="kg" disabled={disabled} inputClassName="h-8 px-2 pr-8 text-right text-xs" onChange={(value) => onSettingChange((current) => ({ ...current, load: value }))} /></div>
