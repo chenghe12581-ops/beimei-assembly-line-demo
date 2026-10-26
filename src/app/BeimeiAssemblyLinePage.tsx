@@ -10109,6 +10109,8 @@ export function BeimeiAssemblyLinePage() {
       const grindRootStepId = getRootProcessStepId(step.id) || step.id;
       const grindDirty = processPointDirtyStepIds.has(grindRootStepId) || grindParameterDirtyStepIds.has(grindRootStepId);
       const grindParams = cloneGrindProcessParams(grindConfig.grindParams);
+      // 打磨工具由工步类型决定，不可切换：侧面打磨为 tohand，其余（主筋板打磨 / 正面打磨 / 反面打磨）为 inhand
+      const grindStepToolMode: 'inhand' | 'tohand' = (step.name ?? '').includes('侧面') ? 'tohand' : 'inhand';
       const selectedGrindPathPointIndex =
         pickPathPosePreview?.stepId === step.id && pickPathPosePreview.source === 'safe' ? pickPathPosePreview.pointIndex : null;
       const selectedGrindResultPointIndex =
@@ -10208,33 +10210,10 @@ export function BeimeiAssemblyLinePage() {
 
       const paramCards = [
         {
-          title: '打磨工具配置',
+          title: '打磨工具',
           body: (
-            <div className="grid h-8 grid-cols-2 gap-1 rounded-lg bg-ds-bg-segmented p-0.5">
-              {(['inhand', 'tohand'] as const).map((item) => {
-                const selected = grindParams.toolMode === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    aria-pressed={selected}
-                    className={`h-7 rounded-md px-3 text-xs font-medium transition-colors ${
-                      selected ? 'bg-white text-ds-brand-primary-text shadow-sm' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-                    }`}
-                    onClick={() =>
-                      updateCompactGrindConfig(
-                        (currentConfig) => ({
-                          ...currentConfig,
-                          grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), toolMode: item },
-                        }),
-                        { markParameter: true }
-                      )
-                    }
-                  >
-                    {item}
-                  </button>
-                );
-              })}
+            <div className="flex h-8 w-full max-w-[240px] items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+              <span>{grindStepToolMode}</span>
             </div>
           ),
         },
@@ -10243,11 +10222,8 @@ export function BeimeiAssemblyLinePage() {
         { title: '打磨力', body: <ProcessNumberField value={grindParams.force} unit="N" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), force: nextValue } }), { markParameter: true })} /> },
         { title: '打磨转速', body: <ProcessNumberField value={grindParams.rpm} unit="/rpm" inputClassName={processParameterInputSmWideUnitClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), rpm: nextValue } }), { markParameter: true })} /> },
         { title: '轴角', body: <ProcessNumberField value={grindParams.axisAngle} unit="°" inputClassName={processParameterInputSmUnitClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), axisAngle: nextValue } }), { markParameter: true })} /> },
-        { title: '摆动幅度', body: <ProcessNumberField value={grindParams.swingAmplitude} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), swingAmplitude: nextValue } }), { markParameter: true })} /> },
         { title: '预压高度', body: <ProcessNumberField value={grindParams.prePressureHeight} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), prePressureHeight: nextValue } }), { markParameter: true })} /> },
-        { title: '递进预压高度', body: <ProcessNumberField value={grindParams.progressivePrePressureHeight} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), progressivePrePressureHeight: nextValue } }), { markParameter: true })} /> },
         { title: '安全点高度', body: <ProcessNumberField value={grindParams.safePointHeight} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), safePointHeight: nextValue } }), { markParameter: true })} /> },
-        { title: '采样密度', body: <ProcessNumberField value={grindParams.samplingDensity} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), samplingDensity: nextValue } }), { markParameter: true })} /> },
       ];
 
       return (
@@ -10261,86 +10237,6 @@ export function BeimeiAssemblyLinePage() {
                 {card.body}
               </div>
             ))}
-          </div>
-
-          <div className="py-ds-300">
-            <div className="border-t border-slate-300/80" />
-          </div>
-
-          <div>
-            <div className="mb-2 flex min-h-6 items-center justify-between gap-3">
-              <div className={`flex items-center gap-1.5 ${compactProcessParameterNameClassName}`}>
-                <span>路径自动合并使能</span>
-                <Tooltip title="当打磨路径可以合并时，开启后自动合并，合并条件：直线与直线夹角范围、直线与圆弧切线夹角范围、圆弧与圆弧切线夹角范围。">
-                  <CircleAlert className="size-3.5 text-slate-300" />
-                </Tooltip>
-              </div>
-              <ParameterSwitch
-                checked={grindParams.pathMergeEnabled}
-                ariaLabel="打磨路径自动合并使能"
-                enabledLabel="启用"
-                disabledLabel="关闭"
-                size="sm"
-                onChange={(checked) =>
-                  updateCompactGrindConfig(
-                    (currentConfig) => ({
-                      ...currentConfig,
-                      grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), pathMergeEnabled: checked },
-                    }),
-                    { markParameter: true }
-                  )
-                }
-              />
-            </div>
-            <div className={`grid gap-ds-150 ${grindParams.pathMergeEnabled ? '' : 'opacity-60'}`}>
-              {[
-                ['直线与直线夹角范围', 'mergeLinearLinearAngleMin', 'mergeLinearLinearAngleMax'],
-                ['直线与圆弧切线夹角范围', 'mergeLinearArcAngleMin', 'mergeLinearArcAngleMax'],
-                ['圆弧与圆弧切线夹角范围', 'mergeArcArcAngleMin', 'mergeArcArcAngleMax'],
-              ].map(([label, minKey, maxKey]) => {
-                const minValue = grindParams[minKey as keyof GrindProcessParams] as string;
-                const maxValue = grindParams[maxKey as keyof GrindProcessParams] as string;
-                const warningText = grindParams.pathMergeEnabled ? getProcessNumberRangeWarning(minValue, maxValue) : '';
-                const rangeInvalid = Boolean(warningText);
-                return (
-                  <div key={label} className="ds-label-input-compact">
-                    <div className="flex min-h-6 items-center justify-between gap-2">
-                      <div className={`min-w-0 truncate ${compactProcessParameterNameClassName}`}>{label}</div>
-                      {warningText && (
-                        <div className="shrink-0 whitespace-nowrap text-xs leading-4">
-                          <ProcessRangeWarning>{warningText}</ProcessRangeWarning>
-                        </div>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        ['最小值', minKey, minValue],
-                        ['最大值', maxKey, maxValue],
-                      ].map(([placeholder, key, currentValue]) => (
-                        <ProcessNumberField
-                          key={key}
-                          value={currentValue}
-                          unit="°"
-                          inputClassName={processParameterInputSmUnitClassName}
-                          placeholder={placeholder}
-                          invalid={rangeInvalid}
-                          disabled={!grindParams.pathMergeEnabled}
-                          onChange={(nextValue) =>
-                            updateCompactGrindConfig(
-                              (currentConfig) => ({
-                                ...currentConfig,
-                                grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), [key]: nextValue } as GrindProcessParams,
-                              }),
-                              { markParameter: true }
-                            )
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
 
           <div className="py-ds-300">
