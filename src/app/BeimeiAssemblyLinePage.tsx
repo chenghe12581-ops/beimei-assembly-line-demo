@@ -79,7 +79,7 @@ import { ProcessJointAngleRow } from './components/process/ProcessJointAngleRow'
 import { ProcessNumberField } from './components/process/ProcessNumberField';
 import { ProcessPathPointGroupHeader } from './components/process/ProcessPathPointGroupHeader';
 import { ProcessPathPointModeToolbar } from './components/process/ProcessPathPointModeToolbar';
-import { ClampPointConfigPanel, createDefaultClampPointSegments, getWeldSegmentPartitionName, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
+import { ClampPointConfigPanel, createDefaultClampPointSegments, DEFAULT_CLAMP_POINT_JOINTS, getWeldSegmentPartitionName, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
 import { PoseAxisFieldGroup } from './components/process/PoseAxisFieldGroup';
 import { ProcessResultPointPanel } from './components/process/ProcessResultPointPanel';
 import { ProcessSelectionPanel } from './components/process/ProcessSelectionPanel';
@@ -7054,8 +7054,19 @@ export function BeimeiAssemblyLinePage() {
     setSelectedResultPointPreview((prev) => (prev?.stepId === stepId ? null : prev));
   };
 
-  const getClampPointSegments = (stepId: string, segmentCount: number) =>
-    clampPointSegmentsByStepId[stepId] ?? createDefaultClampPointSegments(segmentCount);
+  const getClampPointSegments = (stepId: string, segmentCount: number, jointCount = 6) => {
+    const segments = clampPointSegmentsByStepId[stepId] ?? createDefaultClampPointSegments(segmentCount, jointCount);
+    // 轴数不匹配时（如下贴板装配 18 轴）补齐到目标轴数，保留已有数值
+    return segments.every((segment) => segment.joints.length === jointCount)
+      ? segments
+      : segments.map((segment) => ({
+          ...segment,
+          joints: Array.from(
+            { length: jointCount },
+            (_, index) => segment.joints[index] ?? DEFAULT_CLAMP_POINT_JOINTS[index % DEFAULT_CLAMP_POINT_JOINTS.length]
+          ),
+        }));
+  };
 
   const updateClampPointSegments = (
     stepId: string,
@@ -7854,9 +7865,12 @@ export function BeimeiAssemblyLinePage() {
         }
         if (slot.type === 'place') {
           const placeConfig = createGeneratedPlaceConfig(slot.workpieceIds);
-          // 06 上料的放置在翻面平台进行；12 下料的放置在下料台进行
+          // 06 上料的放置在翻面平台进行；08 上料的放置在背面装配平台进行；12 下料的放置在下料台进行
           if (process.id === 'proc-06-feed') {
             return { ...baseStep, placeConfig: { ...placeConfig, workbenchType: '主筋板翻面平台' } };
+          }
+          if (process.id === 'proc-08-feed') {
+            return { ...baseStep, placeConfig: { ...placeConfig, workbenchType: '主筋板背面装配平台' } };
           }
           if (process.id === 'proc-12-unload') {
             return { ...baseStep, placeConfig: { ...placeConfig, workbenchType: '下料台' } };
@@ -9621,7 +9635,12 @@ export function BeimeiAssemblyLinePage() {
         : false;
     const weldPathReady = isCombined ? weldResultsReady : step.type === 'weld' ? weldResultsReady : false;
     const stepDirty = processPointDirtyStepIds.has(getRootProcessStepId(step.id));
-    const clampSegments = getClampPointSegments(step.id, segmentCount);
+    // 下贴板装配（反面拼焊台）焊接的压紧配置使用 18 个轴，其余焊缝段为 6 个轴
+    const weldOwningProcess = step.processId
+      ? fixedPlanningProcesses.find((process) => process.id === step.processId)
+      : undefined;
+    const clampJointCount = weldOwningProcess?.simulationSide === 'back' ? 18 : 6;
+    const clampSegments = getClampPointSegments(step.id, segmentCount, clampJointCount);
     const allPathPointsCollapsed = compactPathPointCollapseSignal % 2 === 1;
 
     const getSegmentResultPoints = (view: 'scan' | 'weld') => {

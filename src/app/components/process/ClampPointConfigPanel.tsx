@@ -18,10 +18,10 @@ export function getWeldSegmentPartitionName(segmentIndex: number): string {
 /** 与翻面压紧任务“生成压紧位置”的 demo 结果点位同源，仅取 J1-J6 */
 export const DEFAULT_CLAMP_POINT_JOINTS: readonly string[] = ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30'];
 
-export function createDefaultClampPointSegments(segmentCount = 6): ClampPointSegmentConfig[] {
+export function createDefaultClampPointSegments(segmentCount = 6, jointCount = 6): ClampPointSegmentConfig[] {
   return Array.from({ length: segmentCount }, () => ({
     enabled: true,
-    joints: [...DEFAULT_CLAMP_POINT_JOINTS],
+    joints: Array.from({ length: jointCount }, (_, index) => DEFAULT_CLAMP_POINT_JOINTS[index % DEFAULT_CLAMP_POINT_JOINTS.length]),
   }));
 }
 
@@ -56,7 +56,7 @@ export function ClampPointConfigPanel({
           <ProcessJointAngleRow
             key={`clamp-joint-${jointIndex}`}
             index={jointIndex}
-            label={CLAMP_POINT_JOINT_LABELS[jointIndex]}
+            label={CLAMP_POINT_JOINT_LABELS[jointIndex] ?? `J${jointIndex + 1}`}
             value={jointValue}
             disabled={!segment?.enabled}
             onChange={(nextValue) => onJointChange(jointIndex, nextValue)}
