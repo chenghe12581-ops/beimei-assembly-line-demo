@@ -416,7 +416,7 @@ type PlaceProcessConfig = {
   points: { x: string; y: string; z: string }[];
   pathPoints: PickPathPoint[];
   joints?: string[];
-  placePosition?: { x: string; y: string; z: string };
+  placePosition?: { x: string; y: string; z: string; a?: string; b?: string; c?: string };
   datumEdgeOffset?: string;
 };
 
@@ -549,7 +549,7 @@ type AddProcessTaskDialogState = {
 };
 
 type ProcessPointLayoutKind = 'xyz' | 'pose' | 'joint' | 'weld-segment-pose';
-type CompactProcessDetailTab = 'parameter-results' | 'path-points';
+type CompactProcessDetailTab = 'parameter-results' | 'path-points' | 'place-position';
 type CompactPathCoordinateFrame = '世界' | '父系坐标系' | '物体';
 type CombinedWeldPathMode = 'scan' | 'weld';
 type CompactProcessFilterKind = 'part' | 'type' | 'weld-feature' | 'grind-feature' | 'datum-feature';
@@ -2072,7 +2072,14 @@ function getCompactProcessDetailTabs(type?: string): { key: CompactProcessDetail
   if (type === 'assemble') {
     return [{ key: 'path-points', label: '路径点位' }];
   }
-  if (type === 'pick' || type === 'place' || type === 'turnover-clamp') {
+  // 放置工序：工艺参数 + 放置位置（XYZABC 六轴结果）两个平级分页
+  if (type === 'place') {
+    return [
+      { key: 'parameter-results', label: '工艺参数' },
+      { key: 'place-position', label: '放置位置' },
+    ];
+  }
+  if (type === 'pick' || type === 'turnover-clamp') {
     return [{ key: 'parameter-results', label: '工艺参数' }];
   }
   // 支撑调整 / 粗定位 / 精定位 / 调整 / 检验：无路径点位，仅保留工艺参数
@@ -9880,9 +9887,15 @@ export function BeimeiAssemblyLinePage() {
       }
 
       const placePartNode = objectTree && placeConfig.workpieceIds[0] ? findNodeById(objectTree, placeConfig.workpieceIds[0]) : null;
+      const placeProcessId = step.processId ?? getPlanningProcessIdForTask(step);
+      const placeOwningProcess = fixedPlanningProcesses.find((process) => process.id === placeProcessId);
+      // 贴板装配工序（生产单元为装配）的放置才有基准边偏移；主筋板放置没有该参数
+      const isPlatePlaceStep = placeOwningProcess
+        ? isPlateAssemblyProcess(placeOwningProcess)
+        : !(placeConfig.workpieceIds[0] ?? '').endsWith('-01');
       const placePosition = placeConfig.placePosition ?? { x: '80.0', y: '40.0', z: '0.0' };
       const datumEdgeOffset = placeConfig.datumEdgeOffset ?? '2.0';
-      const updatePlacePositionAxis = (axis: 'x' | 'y' | 'z', nextValue: string) => {
+      const updatePlacePositionAxis = (axis: 'x' | 'y' | 'z' | 'a' | 'b' | 'c', nextValue: string) => {
         markProcessPointDirty(step.id!);
         updateProcessStepById(step.id!, (currentStep) => {
           const currentConfig = currentStep.placeConfig ?? createEmptyPlaceProcessConfig();
@@ -9890,7 +9903,7 @@ export function BeimeiAssemblyLinePage() {
             ...currentStep,
             placeConfig: {
               ...currentConfig,
-              placePosition: { x: '0.0', y: '0.0', z: '0.0', ...(currentConfig.placePosition ?? {}), [axis]: nextValue },
+              placePosition: { x: '0.0', y: '0.0', z: '0.0', a: '0.0', b: '0.0', c: '0.0', ...(currentConfig.placePosition ?? {}), [axis]: nextValue },
             },
           };
         });
@@ -9906,6 +9919,44 @@ export function BeimeiAssemblyLinePage() {
         }));
       };
 
+      // 放置位置分页：工作台 + 零件名称 + XYZABC 六轴放置位置结果
+      if (activeDetailTab === 'place-position') {
+        return (
+          <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
+            <div className="ds-label-input-compact">
+              <div className="ds-label-input-compact-label">工作台</div>
+              <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                <span className="truncate">{placeConfig.workbenchType}</span>
+              </div>
+            </div>
+            <div className="ds-label-input-compact">
+              <div className="ds-label-input-compact-label">零件名称</div>
+              <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
+                <span className="truncate">{placePartNode?.name ?? placeConfig.workpieceIds[0] ?? '--'}</span>
+              </div>
+            </div>
+            <div className="ds-label-input-compact">
+              <div className="ds-label-input-compact-label">放置位置</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['x', 'y', 'z', 'a', 'b', 'c'] as const).map((axis) => (
+                  <div key={`compact-place-position-${axis}`} className="flex min-w-0 items-center gap-1">
+                    <span className="w-3 shrink-0 text-center text-xs font-medium text-slate-500">{axis.toUpperCase()}</span>
+                    <div className="min-w-0 flex-1">
+                      <ProcessNumberField
+                        value={placePosition[axis] ?? '0.0'}
+                        unit={axis === 'x' || axis === 'y' || axis === 'z' ? 'mm' : '°'}
+                        inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                        onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
           <div className="ds-label-input-compact">
@@ -9920,25 +9971,7 @@ export function BeimeiAssemblyLinePage() {
               <span className="truncate">{placePartNode?.name ?? placeConfig.workpieceIds[0] ?? '--'}</span>
             </div>
           </div>
-          <div className="grid gap-ds-150 md:grid-cols-2">
-            <div className="ds-label-input-compact md:col-span-2">
-              <div className="ds-label-input-compact-label">放置位置</div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(['x', 'y', 'z'] as const).map((axis) => (
-                  <div key={`compact-place-position-${axis}`} className="flex min-w-0 items-center gap-1">
-                    <span className="w-3 shrink-0 text-center text-xs font-medium text-slate-500">{axis.toUpperCase()}</span>
-                    <div className="min-w-0 flex-1">
-                      <ProcessNumberField
-                        value={placePosition[axis]}
-                        unit="mm"
-                        inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
-                        onChange={(nextValue) => updatePlacePositionAxis(axis, nextValue)}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {isPlatePlaceStep && (
             <div className="ds-label-input-compact">
               <div className="ds-label-input-compact-label">基准边偏移</div>
               <ProcessNumberField
@@ -9948,7 +9981,7 @@ export function BeimeiAssemblyLinePage() {
                 onChange={updateDatumEdgeOffset}
               />
             </div>
-          </div>
+          )}
         </div>
       );
     }
