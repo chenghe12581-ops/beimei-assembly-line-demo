@@ -10288,46 +10288,46 @@ export function BeimeiAssemblyLinePage() {
         { title: '轴角', body: <ProcessNumberField value={grindParams.axisAngle} unit="°" inputClassName={processParameterInputSmUnitClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), axisAngle: nextValue } }), { markParameter: true })} /> },
         { title: '预压高度', body: <ProcessNumberField value={grindParams.prePressureHeight} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), prePressureHeight: nextValue } }), { markParameter: true })} /> },
         { title: '安全点高度', body: <ProcessNumberField value={grindParams.safePointHeight} unit="mm" inputClassName={processParameterInputSmClassName} onChange={(nextValue) => updateCompactGrindConfig((currentConfig) => ({ ...currentConfig, grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), safePointHeight: nextValue } }), { markParameter: true })} /> },
+        {
+          title: '打磨偏移',
+          wide: true,
+          body: (
+            <div className="grid grid-cols-2 gap-1.5">
+              {(['offsetX', 'offsetY', 'offsetZ'] as const).map((key, index) => (
+                <div key={`compact-grind-offset-${key}`}>
+                  <div className="ds-label-input-compact-label">{['ΔX', 'ΔY', 'ΔZ'][index]}</div>
+                  <ProcessNumberField
+                    value={grindParams[key]}
+                    unit="mm"
+                    inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
+                    onChange={(nextValue) =>
+                      updateCompactGrindConfig(
+                        (currentConfig) => ({
+                          ...currentConfig,
+                          grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), [key]: nextValue },
+                        }),
+                        { markParameter: true }
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          ),
+        },
       ];
 
       return (
         <div className="ds-task-parameter-detail-top px-ds-150 pb-2">
           <div className="grid gap-ds-150 sm:grid-cols-2">
             {paramCards.map((card) => (
-              <div key={card.title} className="ds-label-input-compact">
+              <div key={card.title} className={`ds-label-input-compact ${'wide' in card && card.wide ? 'sm:col-span-2' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className={compactProcessParameterNameClassName}>{card.title}</div>
                 </div>
                 {card.body}
               </div>
             ))}
-          </div>
-
-          <div className="ds-label-input-compact">
-            <div className="ds-label-input-compact-label">打磨偏移</div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['offsetX', 'offsetY', 'offsetZ'] as const).map((key, index) => (
-                <div key={`compact-grind-offset-${key}`} className="flex min-w-0 items-center gap-1">
-                  <span className="w-5 shrink-0 text-center text-xs font-medium text-slate-500">{['ΔX', 'ΔY', 'ΔZ'][index]}</span>
-                  <div className="min-w-0 flex-1">
-                    <ProcessNumberField
-                      value={grindParams[key]}
-                      unit="mm"
-                      inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs"
-                      onChange={(nextValue) =>
-                        updateCompactGrindConfig(
-                          (currentConfig) => ({
-                            ...currentConfig,
-                            grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), [key]: nextValue },
-                          }),
-                          { markParameter: true }
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="py-ds-300">
@@ -19317,6 +19317,7 @@ export function BeimeiAssemblyLinePage() {
                   </div>
                 ) : activeProcessParameterTab === 'assemble' ? (
                   <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="ds-parameter-card">
                         <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
                           <span>粗装配偏移距离</span>
@@ -19343,6 +19344,7 @@ export function BeimeiAssemblyLinePage() {
                           <ProcessNumberField defaultValue="80" unit="mm" />
                         </div>
                       </div>
+                    </div>
                   </div>
                 ) : activeProcessParameterTab === 'weld' ? (
                   <div className="space-y-4">
