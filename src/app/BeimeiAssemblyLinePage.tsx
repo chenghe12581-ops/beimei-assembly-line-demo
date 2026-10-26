@@ -10243,6 +10243,35 @@ export function BeimeiAssemblyLinePage() {
             <div className="border-t border-slate-300/80" />
           </div>
 
+          <div className="mb-2 flex min-h-6 items-center justify-between gap-3">
+            <div className={`flex items-center gap-1.5 ${compactProcessParameterNameClassName}`}>
+              <span>路径自动合并使能</span>
+              <Tooltip title="当打磨路径可以合并时，开启后自动合并，合并条件：直线与直线夹角范围、直线与圆弧切线夹角范围、圆弧与圆弧切线夹角范围。">
+                <CircleAlert className="size-3.5 text-slate-300" />
+              </Tooltip>
+            </div>
+            <ParameterSwitch
+              checked={grindParams.pathMergeEnabled}
+              ariaLabel="打磨路径自动合并使能"
+              enabledLabel="启用"
+              disabledLabel="关闭"
+              size="sm"
+              onChange={(checked) =>
+                updateCompactGrindConfig(
+                  (currentConfig) => ({
+                    ...currentConfig,
+                    grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), pathMergeEnabled: checked },
+                  }),
+                  { markParameter: true }
+                )
+              }
+            />
+          </div>
+
+          <div className="py-ds-300">
+            <div className="border-t border-slate-300/80" />
+          </div>
+
           <div className="ds-label-input-compact">
             <div className={compactProcessParameterNameClassName}>双机协作安全距离</div>
             <div className="max-w-[240px]">
