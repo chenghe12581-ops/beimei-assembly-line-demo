@@ -223,7 +223,7 @@ const toProcessPosePoint = (point: ProcessPointCoordinates | Partial<ProcessPose
   ry: point.ry ?? '0.0',
   rz: point.rz ?? '0.0',
 });
-const WORKBENCH_TYPES = ['主筋板打磨翻面平台', '主筋板正面装配平台', '主筋板翻面平台', '主筋板背面装配平台'] as const;
+const WORKBENCH_TYPES = ['主筋板打磨翻面平台', '主筋板正面装配平台', '主筋板翻面平台', '主筋板背面装配平台', '下料台'] as const;
 type WorkbenchType = typeof WORKBENCH_TYPES[number];
 type WorkbenchSupportAxis = 'X' | 'Y' | 'Z';
 type WorkbenchSupportSetting = {
@@ -980,7 +980,8 @@ const getSupportAdjustWorkbenchType = (process: { station: string; locationId?: 
   if (process.simulationSide === 'back' || process.locationId === 'area-main-assembly-2' || process.station === '反装拼焊台') {
     return '主筋板背面装配平台';
   }
-  if (process.station === '翻面平台') return '主筋板翻面平台';
+  // 翻面区域的上料（06 上料）支撑调整在翻面平台上进行，7 个轴
+  if (process.station === '翻面平台' || process.locationId === 'area-turnover') return '主筋板翻面平台';
   if (process.station === '主筋板打磨平台') return '主筋板打磨翻面平台';
   return '主筋板正面装配平台';
 };
@@ -6288,12 +6289,14 @@ export function BeimeiAssemblyLinePage() {
     主筋板正面装配平台: ['1', '2'],
     主筋板翻面平台: ['1', '2'],
     主筋板背面装配平台: ['1', '2', '3', '4', '5'],
+    下料台: ['1', '2'],
   };
   const workbenchClampIdOptions: Record<WorkbenchType, string[]> = {
     主筋板打磨翻面平台: ['1', '2'],
     主筋板正面装配平台: ['1', '2'],
     主筋板翻面平台: ['1', '2'],
     主筋板背面装配平台: ['1', '2'],
+    下料台: ['1', '2'],
   };
   const workbenchSupportAxisOptions: Record<WorkbenchType, Record<string, WorkbenchSupportAxis[]>> = {
     主筋板打磨翻面平台: {
@@ -6315,6 +6318,10 @@ export function BeimeiAssemblyLinePage() {
       '4': ['Y', 'Z'],
       '5': ['Y', 'Z'],
     },
+    下料台: {
+      '1': ['Y', 'Z'],
+      '2': ['Y', 'Z'],
+    },
   };
   const workbenchClampAxisOptions: Record<WorkbenchType, Record<string, WorkbenchSupportAxis[]>> = {
     主筋板打磨翻面平台: {
@@ -6332,6 +6339,10 @@ export function BeimeiAssemblyLinePage() {
     主筋板背面装配平台: {
       '1': ['X', 'Y', 'Z'],
       '2': ['X', 'Y', 'Z'],
+    },
+    下料台: {
+      '1': ['Y', 'Z'],
+      '2': ['Y', 'Z'],
     },
   };
   const grindToolModes = ['inhand', 'tohand'] as const;
@@ -6402,6 +6413,14 @@ export function BeimeiAssemblyLinePage() {
       clampIds: ['1', '2'],
       clampSettings: createWorkbenchClampSettings(['1', '2']),
       clampCoverage: '72',
+    },
+    下料台: {
+      supportIds: ['1', '2'],
+      supportSettings: createWorkbenchSupportSettings(['1', '2']),
+      supportCoverage: '70',
+      clampIds: ['1', '2'],
+      clampSettings: createWorkbenchClampSettings(['1', '2']),
+      clampCoverage: '70',
     },
   });
   const [grindToolMode, setGrindToolMode] = useState<(typeof grindToolModes)[number]>('inhand');
@@ -7834,13 +7853,24 @@ export function BeimeiAssemblyLinePage() {
           return { ...baseStep, pickConfig: createGeneratedPickConfig(slot.workpieceIds) };
         }
         if (slot.type === 'place') {
-          return { ...baseStep, placeConfig: createGeneratedPlaceConfig(slot.workpieceIds) };
+          const placeConfig = createGeneratedPlaceConfig(slot.workpieceIds);
+          // 06 上料的放置在翻面平台进行；12 下料的放置在下料台进行
+          if (process.id === 'proc-06-feed') {
+            return { ...baseStep, placeConfig: { ...placeConfig, workbenchType: '主筋板翻面平台' } };
+          }
+          if (process.id === 'proc-12-unload') {
+            return { ...baseStep, placeConfig: { ...placeConfig, workbenchType: '下料台' } };
+          }
+          return { ...baseStep, placeConfig };
         }
         if (slot.type === 'turnover-clamp') {
           const clampConfig = createGeneratedClampConfig(slot.workpieceIds);
-          // 主筋板打磨工序的翻面使用打磨翻面平台工作台
+          // 主筋板打磨工序的翻面使用打磨翻面平台工作台；07 翻面工序的翻面使用翻面平台
           if (process.station === '主筋板打磨平台') {
             return { ...baseStep, turnoverClampConfig: { ...clampConfig, workbenchType: '主筋板打磨翻面平台' } };
+          }
+          if (process.station === '翻面平台') {
+            return { ...baseStep, turnoverClampConfig: { ...clampConfig, workbenchType: '主筋板翻面平台' } };
           }
           return { ...baseStep, turnoverClampConfig: clampConfig };
         }
@@ -10000,21 +10030,22 @@ export function BeimeiAssemblyLinePage() {
         );
       }
 
-      // 主筋板打磨工序的翻面：工作台 + 翻转角度（首次 180°，再翻 0°）+ 七个轴值
+      // 主筋板打磨 / 07 翻面工序的翻面：工作台 + 翻转角度（首次 180°，再翻 0°）+ 七个轴值
       const clampProcessId = step.processId ?? getPlanningProcessIdForTask(step);
-      if (clampProcessId === 'proc-02-rib-grind') {
+      if (clampProcessId === 'proc-02-rib-grind' || clampProcessId === 'proc-07-turnover') {
         const turnoverStepsInProcess = allProcessSteps.filter(
           (item) => item.processId === clampProcessId && item.type === 'turnover-clamp'
         );
         const turnoverIndex = Math.max(0, turnoverStepsInProcess.findIndex((item) => item.id === step.id));
         const flipAngle = turnoverIndex % 2 === 0 ? '180°' : '0°';
+        const turnoverWorkbenchLabel = clampProcessId === 'proc-07-turnover' ? '主筋板翻面平台' : '主筋板打磨翻面平台';
         return (
           <div className="flex flex-col gap-ds-300">
             <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
               <div className="ds-label-input-compact">
                 <div className="ds-label-input-compact-label">工作台</div>
                 <div className="flex h-8 w-[240px] max-w-full items-center whitespace-nowrap rounded-lg bg-white px-2.5 text-xs font-medium text-slate-700 ring-1 ring-slate-100">
-                  <span className="truncate">主筋板打磨翻面平台</span>
+                  <span className="truncate">{turnoverWorkbenchLabel}</span>
                 </div>
               </div>
               <div className="ds-label-input-compact">
@@ -11028,7 +11059,10 @@ export function BeimeiAssemblyLinePage() {
             updateFineDatums(kind, (items) => [...items, createFinePositionDatumItem(fineBaseId, a, b, Date.now())]);
             setFineDatumPicker(null);
           };
-          const renderDatumTable = (title: string, kind: 'parent' | 'child', items: FinePositionDatumItem[]) => (
+          const renderDatumTable = (title: string, kind: 'parent' | 'child', items: FinePositionDatumItem[]) => {
+            // 检验步骤中称为特征名称，精定位仍为基准名称
+            const datumColumnLabel = step.type === 'inspect' ? '特征名称' : '基准名称';
+            return (
             <div className="ds-label-input-compact">
               <div className="mb-1 flex items-center justify-between">
                 <div className="ds-label-input-compact-label">{title}</div>
@@ -11066,7 +11100,7 @@ export function BeimeiAssemblyLinePage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50/80 text-slate-400">
-                      <th className="px-2 py-1.5 text-left font-normal">基准名称</th>
+                      <th className="px-2 py-1.5 text-left font-normal">{step.type === 'inspect' ? '特征名称' : '基准名称'}</th>
                       <th className="w-9 px-1 py-1.5 text-center font-normal">操作</th>
                     </tr>
                   </thead>
@@ -11114,7 +11148,8 @@ export function BeimeiAssemblyLinePage() {
                 </table>
               </div>
             </div>
-          );
+            );
+          };
           const parentPartId = owningRoughProcess
             ? (owningRoughProcess.workpieceIds.find((id) => getPartSuffix(id) === '01')
               ?? owningRoughProcess.workpieceIds[owningRoughProcess.workpieceIds.length - 1])
@@ -11130,7 +11165,8 @@ export function BeimeiAssemblyLinePage() {
                   <span className="truncate">{finePartNode?.name ?? finePositionConfig.partId}</span>
                 </div>
               </div>
-              {renderDatumTable(parentTitle, 'parent', finePositionConfig.parentDatums)}
+              {/* 检验步骤的父板只保留一个特征 */}
+              {renderDatumTable(parentTitle, 'parent', step.type === 'inspect' ? finePositionConfig.parentDatums.slice(0, 1) : finePositionConfig.parentDatums)}
               {renderDatumTable(childTitle, 'child', finePositionConfig.childDatums)}
               {step.type === 'inspect' && (
                 <div className="grid gap-ds-150 sm:grid-cols-2">
