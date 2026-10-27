@@ -10330,58 +10330,6 @@ export function BeimeiAssemblyLinePage() {
             ))}
           </div>
 
-          <div className="py-ds-300">
-            <div className="border-t border-slate-300/80" />
-          </div>
-
-          <div className="mb-2 flex min-h-6 items-center justify-between gap-3">
-            <div className={`flex items-center gap-1.5 ${compactProcessParameterNameClassName}`}>
-              <span>路径自动合并使能</span>
-              <Tooltip title="当打磨路径可以合并时，开启后自动合并，合并条件：直线与直线夹角范围、直线与圆弧切线夹角范围、圆弧与圆弧切线夹角范围。">
-                <CircleAlert className="size-3.5 text-slate-300" />
-              </Tooltip>
-            </div>
-            <ParameterSwitch
-              checked={grindParams.pathMergeEnabled}
-              ariaLabel="打磨路径自动合并使能"
-              enabledLabel="启用"
-              disabledLabel="关闭"
-              size="sm"
-              onChange={(checked) =>
-                updateCompactGrindConfig(
-                  (currentConfig) => ({
-                    ...currentConfig,
-                    grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), pathMergeEnabled: checked },
-                  }),
-                  { markParameter: true }
-                )
-              }
-            />
-          </div>
-
-          <div className="py-ds-300">
-            <div className="border-t border-slate-300/80" />
-          </div>
-
-          <div className="ds-label-input-compact">
-            <div className={compactProcessParameterNameClassName}>双机协作安全距离</div>
-            <div className="max-w-[240px]">
-              <ProcessNumberField
-                value={grindParams.dualMachineSafetyDistance}
-                unit="mm"
-                inputClassName={processParameterInputSmClassName}
-                onChange={(nextValue) =>
-                  updateCompactGrindConfig(
-                    (currentConfig) => ({
-                      ...currentConfig,
-                      grindParams: { ...cloneGrindProcessParams(currentConfig.grindParams), dualMachineSafetyDistance: nextValue },
-                    }),
-                    { markParameter: true }
-                  )
-                }
-              />
-            </div>
-          </div>
 
         </div>
       );
@@ -19194,64 +19142,6 @@ export function BeimeiAssemblyLinePage() {
                         </div>
                       </div>
 
-                      <div className="ds-parameter-card xl:col-span-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
-                            <span>路径自动合并使能</span>
-                            <Tooltip title="当打磨路径可以合并时，开启后自动合并，合并条件：直线与直线夹角范围、直线与圆弧切线夹角范围、圆弧与圆弧切线夹角范围。">
-                              <CircleAlert className="size-3.5 text-slate-300" />
-                            </Tooltip>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs ${activeGrindToolConfig.pathMergeEnabled ? 'text-ds-brand-primary-text' : 'text-slate-400'}`}>
-                              {activeGrindToolConfig.pathMergeEnabled ? '已开启' : '已关闭'}
-                            </span>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={activeGrindToolConfig.pathMergeEnabled}
-                              className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors ${
-                                activeGrindToolConfig.pathMergeEnabled ? 'bg-ds-brand-primary' : 'bg-slate-300'
-                              }`}
-                              onClick={() => updateGrindToolConfig((config) => ({ ...config, pathMergeEnabled: !config.pathMergeEnabled }))}
-                            >
-                              <span
-                                className={`inline-block size-4 rounded-full bg-white shadow-sm transition-transform ${
-                                  activeGrindToolConfig.pathMergeEnabled ? 'translate-x-5' : 'translate-x-1'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                        <div className={`mt-3 grid gap-4 ${activeGrindToolConfig.pathMergeEnabled ? '' : 'opacity-60'}`}>
-                          {[
-                            ['直线与直线夹角范围', '0', '15'],
-                            ['直线与圆弧切线夹角范围', '0', '10'],
-                            ['圆弧与圆弧切线夹角范围', '0', '10'],
-                          ].map(([label, minValue, maxValue]) => {
-                            const warningText = activeGrindToolConfig.pathMergeEnabled ? getProcessNumberRangeWarning(minValue, maxValue) : '';
-                            const rangeInvalid = Boolean(warningText);
-                            return (
-                            <div key={label} className="ds-parameter-field">
-                              <div className="flex items-center justify-between gap-2 text-xs">
-                                <div className="ds-parameter-label">{label}</div>
-                                {warningText && <ProcessRangeWarning>{warningText}</ProcessRangeWarning>}
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <ProcessNumberField defaultValue={minValue} unit="°" inputClassName="pr-10" placeholder="最小值" invalid={rangeInvalid} disabled={!activeGrindToolConfig.pathMergeEnabled} />
-                                <ProcessNumberField defaultValue={maxValue} unit="°" inputClassName="pr-10" placeholder="最大值" invalid={rangeInvalid} disabled={!activeGrindToolConfig.pathMergeEnabled} />
-                              </div>
-                            </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div className="ds-parameter-card ds-parameter-field xl:col-span-2">
-                        <div className="text-sm font-medium text-slate-800">双机协作安全距离</div>
-                        <div className="max-w-[240px]">
-                          <ProcessNumberField defaultValue="500" unit="mm" />
-                        </div>
-                      </div>
                     </div>
                   </div>
                 ) : activeProcessParameterTab === 'assemble' ? (
@@ -19281,6 +19171,19 @@ export function BeimeiAssemblyLinePage() {
                         <div className="mt-3 ds-parameter-field">
                           <div className="ds-parameter-label invisible">阈值</div>
                           <ProcessNumberField defaultValue="80" unit="mm" />
+                        </div>
+                      </div>
+
+                      <div className="ds-parameter-card">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                          <span>失败重拍次数</span>
+                          <Tooltip title="视觉定位报错时允许的最多重拍次数，重拍后仍失败则直接报错终止。">
+                            <CircleAlert className="size-3.5 text-slate-300" />
+                          </Tooltip>
+                        </div>
+                        <div className="mt-3 ds-parameter-field">
+                          <div className="ds-parameter-label invisible">次数</div>
+                          <ProcessNumberField defaultValue="3" inputClassName="pr-3" />
                         </div>
                       </div>
                     </div>
