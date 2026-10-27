@@ -11120,8 +11120,6 @@ export function BeimeiAssemblyLinePage() {
             setFineDatumPicker(null);
           };
           const renderDatumTable = (title: string, kind: 'parent' | 'child', items: FinePositionDatumItem[]) => {
-            // 检验步骤中称为特征名称，精定位仍为基准名称
-            const datumColumnLabel = step.type === 'inspect' ? '特征名称' : '基准名称';
             return (
             <div className="ds-label-input-compact">
               <div className="mb-1 flex items-center justify-between">
@@ -11160,7 +11158,7 @@ export function BeimeiAssemblyLinePage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50/80 text-slate-400">
-                      <th className="px-2 py-1.5 text-left font-normal">{step.type === 'inspect' ? '特征名称' : '基准名称'}</th>
+                      <th className="px-2 py-1.5 text-left font-normal">特征名称</th>
                       <th className="w-9 px-1 py-1.5 text-center font-normal">操作</th>
                     </tr>
                   </thead>
