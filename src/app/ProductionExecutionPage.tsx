@@ -2107,6 +2107,8 @@ function FloatingWorkspaceControls({
   trayManagementOpen,
   selectedTask,
   canRun,
+  canInitialize,
+  locked,
   onTabChange,
   onOpenTrayManagement,
   onInitialize,
@@ -2117,6 +2119,9 @@ function FloatingWorkspaceControls({
   trayManagementOpen: boolean;
   selectedTask: ProductionTask | null;
   canRun: boolean;
+  canInitialize: boolean;
+  /** 单站执行会话中整线组互锁置灰（停止按钮豁免）。 */
+  locked: boolean;
   onTabChange: (tab: WorkspaceTab) => void;
   onOpenTrayManagement: () => void;
   onInitialize: () => void;
@@ -2154,8 +2159,9 @@ function FloatingWorkspaceControls({
       <div className="pointer-events-auto flex h-10 items-center gap-1 rounded-xl border border-white/70 bg-ds-bg-production-execution-toolbar p-1 shadow-lg shadow-slate-900/8 backdrop-blur-md">
         <button
           type="button"
+          title={locked ? '单站正在执行，请停止后再操作' : undefined}
           className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 transition-colors hover:bg-white/70 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!selectedTask || selectedTask.state === 'running' || selectedTask.state === 'paused'}
+          disabled={locked || !canInitialize}
           onClick={onInitialize}
         >
           <RefreshCw className="size-3.5" />
@@ -2163,17 +2169,18 @@ function FloatingWorkspaceControls({
         </button>
         <button
           type="button"
+          title={locked ? '单站正在执行，请停止后再操作' : undefined}
           className="flex h-8 items-center gap-1.5 rounded-lg bg-white px-2.5 text-xs font-medium text-slate-900 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!canRun}
+          disabled={locked || !canRun}
           onClick={onRunOrPause}
         >
           {selectedTask?.state === 'running' ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-          {selectedTask?.state === 'running' ? '暂停' : '执行'}
+          {selectedTask?.state === 'running' ? '暂停' : selectedTask?.state === 'paused' ? '继续' : '执行'}
         </button>
         <button
           type="button"
           className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-50/80 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!selectedTask || selectedTask.state === 'running'}
+          disabled={!selectedTask || (selectedTask.state !== 'running' && selectedTask.state !== 'paused')}
           onClick={onRequestStop}
         >
           <Square className="size-3.5" />
@@ -3661,8 +3668,12 @@ export function ProductionExecutionPage({
   const [executionMode, setExecutionMode] = useState<ProductionDebugExecutionMode>('auto');
   /** 单步调试面板当前选中的工位工步索引：驱动模型视图焊接时序等联动视图。 */
   const [singleStepSelectedWorkstepIndex, setSingleStepSelectedWorkstepIndex] = useState<number | null>(null);
-  const [activeExecutionMode, setActiveExecutionMode] = useState<ProductionDebugExecutionMode | null>(null);
-  const [activeExecutionStationId, setActiveExecutionStationId] = useState<string | null>(null);
+  /** 执行会话：side=line 整线（顶栏发起）；side=station 单站/单步（右侧面板发起）。任务成功进入 running 时建立，停止或任务终态释放；暂停保留。 */
+  const [executionSession, setExecutionSession] = useState<{
+    side: 'line' | 'station';
+    mode: 'auto' | 'single-step';
+    stationId: string | null;
+  } | null>(null);
   const [detailTarget, setDetailTarget] = useState<ProductionDetailTarget>(() => ({
     kind: 'station',
     stationId: productionWorkbenchAreas[0]?.id ?? '',
@@ -3675,7 +3686,7 @@ export function ProductionExecutionPage({
   const [trayManagementOpen, setTrayManagementOpen] = useState(() => (
     decodeURI(window.location.pathname) === '/生产执行/理料区视图'
   ));
-  const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
+  const [stopConfirmSource, setStopConfirmSource] = useState<'line' | 'station' | null>(null);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [workOrderDeleteTargetId, setWorkOrderDeleteTargetId] = useState<string | null>(null);
   const [workpieceDeleteTarget, setWorkpieceDeleteTarget] = useState<{ taskId: string; workpieceId: string } | null>(null);
@@ -4644,6 +4655,7 @@ export function ProductionExecutionPage({
         };
       });
       addLog(`${selectedTask.drawingNo} 已进入单步调试并执行：${selectedStepName}`);
+      beginSession('station', 'single-step', selectedSnapshot.stationId);
       return;
     }
     if (!selectedSnapshot?.process) {
@@ -4664,6 +4676,7 @@ export function ProductionExecutionPage({
       if (startedTask.state !== 'running' && startedTask.state !== 'paused') return task;
       return advanceProductionTask(startedTask, selectedIndex);
     });
+    beginSession('station', 'single-step', selectedSnapshot.stationId);
     addLog(`${selectedTask.drawingNo} 已执行工步：${selectedStepName}`);
   };
 
@@ -4874,14 +4887,15 @@ export function ProductionExecutionPage({
     };
   };
 
-  const startSelectedProductionTask = (startStationId?: string) => {
+  const startSelectedProductionTask = (startStationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => {
     if (!selectedTask) return;
     updateSelectedTask((task) => buildStartedTask(task, startStationId));
+    beginSession(side, mode, startStationId ?? null);
     addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
     addLog('机器人调度与视觉识别进入监测状态');
   };
 
-  const handleRunOrPause = (startStationId?: string) => {
+  const handleRunOrPause = (startStationId?: string, side: 'line' | 'station' = 'line', mode: 'auto' | 'single-step' = 'auto') => {
     if (!selectedTask) return;
     if (selectedTask.state === 'running') {
       updateSelectedTask((task) => ({
@@ -4949,7 +4963,7 @@ export function ProductionExecutionPage({
               slot.id === '1' ? { ...slot, material: '空', quantity: 0, state: 'empty-frame' } : slot
             )));
             addLog('工位已接料：01 号托盘零件已上工作台，现场保留空料框');
-            startSelectedProductionTask(startStationId);
+            startSelectedProductionTask(startStationId, side, mode);
             const emptyTrayTask = trayTasks.find((task) => (
               task.type === '空托任务' && task.pickup === '01' && task.dropoff === '00' && task.state === 'pending'
             ));
@@ -5064,6 +5078,7 @@ export function ProductionExecutionPage({
         };
       })(),
     }));
+    beginSession(side, mode, startStationId ?? null);
     addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
     addLog('机器人调度与视觉识别进入监测状态');
   };
@@ -5091,17 +5106,17 @@ export function ProductionExecutionPage({
 
         return {
           ...task,
-          state: 'paused',
+          state: 'stopped',
           currentProcess: executableWorkpiece
             ? getTaskProcessLabel(executableWorkpiece, executableProcessName, '异常已解除')
-            : '异常已解除，等待继续执行',
+            : '异常已解除，任务已停止，需初始化后重新执行',
           currentProcessId: executableWorkpiece?.currentProcessId ?? processId,
           progress: calculateOverallTaskProgress(clearedWorkpieces),
           workpieces: clearedWorkpieces,
         };
       })(),
     }));
-    addLog(`${selectedTask.drawingNo} ${processId} 异常已临时解除，等待继续执行`, 'warning');
+    addLog(`${selectedTask.drawingNo} ${processId} 异常已临时解除，任务保持停止，需初始化后重新执行`, 'warning');
   };
 
   const handleResolveVisionAbnormal = (resolution: 'skipped' | 'confirmed') => {
@@ -5117,8 +5132,8 @@ export function ProductionExecutionPage({
             ...item,
             state: 'paused' as const,
             visionSummary: resolution === 'confirmed'
-              ? '视觉结果已人工确认，等待继续执行'
-              : '本次视觉结果已跳过，等待继续执行',
+              ? '视觉结果已人工确认，任务已停止，需初始化后重新执行'
+              : '本次视觉结果已跳过，任务已停止，需初始化后重新执行',
             currentProcessId: processId,
             currentStepIndex: item.currentStepIndex ?? 0,
             abnormalProcessId: undefined,
@@ -5130,7 +5145,7 @@ export function ProductionExecutionPage({
 
         return {
           ...task,
-          state: 'paused' as const,
+          state: 'stopped' as const,
           currentProcess: executableWorkpiece
             ? getTaskProcessLabel(
                 executableWorkpiece,
@@ -5138,8 +5153,8 @@ export function ProductionExecutionPage({
                 resolution === 'confirmed' ? '视觉结果已确认' : '视觉结果已跳过',
               )
             : resolution === 'confirmed'
-              ? '视觉结果已确认，等待继续执行'
-              : '视觉结果已跳过，等待继续执行',
+              ? '视觉结果已确认，任务已停止，需初始化后重新执行'
+              : '视觉结果已跳过，任务已停止，需初始化后重新执行',
           currentProcessId: executableWorkpiece?.currentProcessId ?? processId,
           progress: calculateOverallTaskProgress(clearedWorkpieces),
           workpieces: clearedWorkpieces,
@@ -5150,10 +5165,10 @@ export function ProductionExecutionPage({
 
     if (resolution === 'confirmed') {
       const activeFeed = visionFeedOptions.find((feed) => feed.id === activeVisionFeedId);
-      addLog(`${visionAbnormalWorkpiece.serial} 已确认${activeFeed?.label ?? '视觉'}结果，任务保持暂停`);
+      addLog(`${visionAbnormalWorkpiece.serial} 已确认${activeFeed?.label ?? '视觉'}结果，任务保持停止，需初始化后重新执行`);
       return;
     }
-    addLog(`${visionAbnormalWorkpiece.serial} 已跳过本次视觉结果，任务保持暂停`, 'warning');
+    addLog(`${visionAbnormalWorkpiece.serial} 已跳过本次视觉结果，任务保持停止，需初始化后重新执行`, 'warning');
   };
 
   const handleVisionDemoProcessDoubleClick = ({
@@ -5212,13 +5227,24 @@ export function ProductionExecutionPage({
     if (visionAbnormalWorkpiece) setVisionCalibrationOpen(true);
   };
 
-  const handleStop = () => {
+  // 建立执行会话：仅在任务成功进入 running 的启动分支调用（避免托盘未就绪等失败路径泄漏锁）。
+  const beginSession = (side: 'line' | 'station', mode: 'auto' | 'single-step', stationId?: string | null) => {
+    setExecutionSession({ side, mode, stationId: side === 'line' ? null : stationId ?? null });
+  };
+
+  // 停止统一入口：任一侧的「停止 / 停止执行」都作用于整个执行动作，停止后需初始化才能再次执行。
+  const stopTask = (source: 'line' | 'station') => {
     if (!selectedTask) return;
-    updateSelectedTask((task) => ({ ...task, state: 'stopped', currentProcess: '已停止，需初始化后重新执行', currentProcessId: null, workpieces: task.workpieces.map((item) => ({ ...item, currentStepIndex: 0 })) }));
-    setActiveExecutionMode(null);
-    setActiveExecutionStationId(null);
-    setStopConfirmOpen(false);
-    addLog(`${selectedTask.drawingNo} 已停止，任务需初始化后才能重新执行`, 'warning');
+    updateSelectedTask((task) => ({
+      ...task,
+      state: 'stopped',
+      currentProcess: '已停止，需初始化后重新执行',
+      currentProcessId: null,
+      workpieces: task.workpieces.map((item) => ({ ...item, currentStepIndex: 0 })),
+    }));
+    setExecutionSession(null);
+    setStopConfirmSource(null);
+    addLog(`${selectedTask.drawingNo} 已停止（${source === 'line' ? '整线停止' : '单站停止'}），任务需初始化后才能重新执行`, 'warning');
   };
 
   const handleToggleTaskSelection = (processKey: string) => {
@@ -5691,13 +5717,12 @@ export function ProductionExecutionPage({
     return resolveStationStartProcessId(selectedDebugStationSnapshot.stationId, enabledProcessIds, taskProcesses);
   })();
   const stationStartUnavailable = Boolean(selectedTask && selectedDebugStationSnapshot && !viewedStationStartProcessId);
-  const canRun = Boolean(selectedTask && selectedTask.state !== 'stopped' && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal') && !stationStartUnavailable;
+  // 整线执行不再依赖当前查看工位（stationStartUnavailable 仅用于单站起点提示）。
+  const canRun = Boolean(selectedTask && selectedTask.state !== 'stopped' && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal');
+  // 初始化统一：ready / stopped / draft 均可；执行会话存在期间（running / paused）始终禁点，停止后它是恢复执行的唯一入口。
   const canInitialize = Boolean(
     selectedTask
-    && selectedTask.state !== 'running'
-    && selectedTask.state !== 'paused'
-    && selectedTask.state !== 'done'
-    && selectedTask.state !== 'abnormal',
+    && (selectedTask.state === 'ready' || selectedTask.state === 'stopped' || selectedTask.state === 'draft'),
   );
   const canExecuteStep = Boolean(
     selectedTask
@@ -5705,48 +5730,44 @@ export function ProductionExecutionPage({
     && !selectedTask.workpieces.some((workpiece) => workpiece.state === 'abnormal')
     && (executionMode !== 'manual' || Boolean(selectedDebugStationSnapshot?.process)),
   );
-  const handleExecutionStart = (mode: ProductionDebugExecutionMode, stationId: string) => {
-    setActiveExecutionMode(mode);
-    setActiveExecutionStationId(stationId || (detailTarget.kind === 'station' ? detailTarget.stationId : null));
-  };
   const handleExecutionPause = () => {
-    // 仅暂停任务，不释放执行会话（mode + stationId 保持），这样暂停期间其他工位仍被锁定。
+    // 仅暂停任务，不释放执行会话（会话保持），这样暂停期间互锁仍然生效。
     if (selectedTask?.state === 'running') {
       handleRunOrPause();
     }
-  };
-  const handleExecutionStop = () => {
-    // 停止当前自动/单步执行会话：任务置为 stopped，释放 mode + stationId，之后可初始化。
-    if (!selectedTask) return;
-    updateSelectedTask((task) => ({
-      ...task,
-      state: 'stopped',
-      currentProcess: '已停止，需初始化后重新执行',
-    }));
-    setActiveExecutionMode(null);
-    setActiveExecutionStationId(null);
-    addLog(`${selectedTask.drawingNo} 单步/自动执行已停止，需初始化后重新执行`, 'warning');
   };
   const handleMainRunOrPause = () => {
     if (selectedTask?.state === 'running') {
       handleRunOrPause();
       return;
     }
-    handleExecutionStart('auto', detailTarget.kind === 'station' ? detailTarget.stationId : '');
-    handleRunOrPause();
+    handleRunOrPause(undefined, 'line', 'auto');
   };
   useEffect(() => {
     // 只在任务进入终态或非活跃态时释放执行会话，running/paused/ready 保持锁定。
-    if (activeExecutionMode && ['stopped', 'done', 'abnormal', 'draft'].includes(selectedTask?.state ?? '')) {
-      setActiveExecutionMode(null);
-      setActiveExecutionStationId(null);
+    if (executionSession && ['stopped', 'done', 'abnormal', 'draft'].includes(selectedTask?.state ?? '')) {
+      setExecutionSession(null);
     }
-  }, [activeExecutionMode, selectedTask?.state]);
-  const activeExecutionStationIdForPanel = activeExecutionMode === 'auto'
-    ? (getActiveWorkbenchProcessId(selectedTask)
-      ? productionWorkbenchProcessPlacements[getActiveWorkbenchProcessId(selectedTask) ?? '']?.areaId ?? null
-      : null)
-    : activeExecutionStationId;
+  }, [executionSession, selectedTask?.state]);
+  // 互锁派生：单站会话中整线组置灰；整线会话中右侧面板控制条置灰（停止按钮豁免）。
+  const lineLocked = Boolean(executionSession && executionSession.side === 'station');
+  const stationSessionMode = executionSession?.side === 'station' ? executionSession.mode : null;
+  const stationSessionStationId = executionSession?.side === 'station' ? executionSession.stationId : null;
+  // 视觉异常自动停止：执行中出现视觉异常（弹窗提示后续补充，本期先落逻辑）→ 任务自动停止、释放会话；
+  // 初始化在停止前始终禁点，处理完视觉数据后点初始化复位，再重新执行。
+  const hasAbnormalWorkpiece = Boolean(selectedTask?.workpieces.some((workpiece) => workpiece.state === 'abnormal'));
+  useEffect(() => {
+    if (!selectedTask) return;
+    if (selectedTask.state !== 'running' && selectedTask.state !== 'paused') return;
+    if (!hasAbnormalWorkpiece) return;
+    updateSelectedTask((task) => ({
+      ...task,
+      state: 'stopped',
+      currentProcess: '视觉异常，任务已自动停止，需初始化后重新执行',
+    }));
+    setExecutionSession(null);
+    addLog(`${selectedTask.drawingNo} 检测到视觉异常（${executionSession?.side === 'line' ? '整线执行' : '单站执行'}中），任务已自动停止，请处理视觉数据后初始化重新执行`, 'error');
+  }, [selectedTask?.state, hasAbnormalWorkpiece]);
   const handleSelectTask = (taskId: string) => {
     const activeExecutionTask = tasks.find((task) => ['running', 'paused', 'abnormal'].includes(task.state));
     if (activeExecutionTask && activeExecutionTask.id !== taskId) return;
@@ -5785,11 +5806,13 @@ export function ProductionExecutionPage({
       trayManagementOpen={trayManagementOpen}
       selectedTask={selectedTask}
       canRun={canRun}
+      canInitialize={canInitialize}
+      locked={lineLocked}
       onTabChange={setActiveTab}
       onOpenTrayManagement={() => setTrayManagementOpen(true)}
       onInitialize={handleInitialize}
     onRunOrPause={handleMainRunOrPause}
-      onRequestStop={() => setStopConfirmOpen(true)}
+      onRequestStop={() => setStopConfirmSource('line')}
     />
   );
 
@@ -5954,8 +5977,9 @@ export function ProductionExecutionPage({
                 snapshot={selectedDebugStationSnapshot}
                 traySnapshot={selectedTrayStationSnapshot}
                 executionMode={executionMode}
-                activeExecutionMode={activeExecutionMode}
-                activeExecutionStationId={activeExecutionStationIdForPanel}
+                lineLocked={lineLocked}
+                stationSessionMode={stationSessionMode}
+                stationSessionStationId={stationSessionStationId}
                 taskState={selectedTask?.state ?? null}
                 canInitialize={canInitialize}
                 canStart={canRun}
@@ -5964,11 +5988,10 @@ export function ProductionExecutionPage({
                 positioningResultKeysByWorkstep={positioningResultKeysByWorkstep}
                 onViewPositioningResult={handleViewPositioningResult}
                 onExecutionModeChange={setExecutionMode}
-                onExecutionStart={handleExecutionStart}
                 onExecutionPause={handleExecutionPause}
-                onExecutionStop={handleExecutionStop}
+                onExecutionStop={() => setStopConfirmSource('station')}
                 onInitialize={handleInitialize}
-                onRunOrPause={() => handleRunOrPause(selectedDebugStationSnapshot?.stationId)}
+                onRunOrPause={(stationId, side, mode) => handleRunOrPause(stationId, side, mode)}
                 onExecuteStep={handleExecuteStep}
                 onSelectedWorkstepChange={setSingleStepSelectedWorkstepIndex}
                 onEditTrayMaterial={handleStartTrayCardEdit}
@@ -6009,7 +6032,7 @@ export function ProductionExecutionPage({
         />
       )}
 
-      {stopConfirmOpen && selectedTask && (
+      {stopConfirmSource && selectedTask && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 px-4">
           <div className="w-[420px] rounded-lg border border-white/50 bg-ds-bg-glass-modal shadow-lg shadow-black/5 backdrop-blur-md">
             <div className="flex items-center gap-2 border-b border-white/50 px-5 py-3">
@@ -6017,11 +6040,11 @@ export function ProductionExecutionPage({
               <span className="text-sm font-medium">确认停止任务</span>
             </div>
             <div className="px-5 py-4 text-sm leading-6 text-slate-600">
-              停止后当前任务需要重新初始化才能执行。是否停止 {selectedTask.drawingNo}？
+              停止后任务进入已停止态，所有执行按钮将置灰，需先初始化才能再次执行。是否停止 {selectedTask.drawingNo}？
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
-              <Button size="sm" variant="outline" onClick={() => setStopConfirmOpen(false)}>取消</Button>
-              <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={handleStop}>确认停止</Button>
+              <Button size="sm" variant="outline" onClick={() => setStopConfirmSource(null)}>取消</Button>
+              <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={() => stopTask(stopConfirmSource)}>确认停止</Button>
             </div>
           </div>
         </div>

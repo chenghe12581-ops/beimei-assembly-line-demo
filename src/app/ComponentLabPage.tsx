@@ -9208,8 +9208,9 @@ export function ComponentLabPage() {
                   stations={productionDebugStationsDemo}
                   snapshot={productionDebugStationDemoSnapshot}
                   executionMode={productionDebugModeDemo}
-                  activeExecutionMode={productionDebugModeDemo}
-                  activeExecutionStationId={productionDebugStationDemoSnapshot?.stationId ?? null}
+                  lineLocked={true}
+                  stationSessionMode={null}
+                  stationSessionStationId={null}
                   taskState="paused"
                   canInitialize={false}
                   canStart={true}
@@ -9726,8 +9727,9 @@ export function ComponentLabPage() {
                 stations={productionDebugStationsDemo}
                 snapshot={productionDebugStationDemoSnapshot}
                 executionMode={productionDebugModeDemo}
-                activeExecutionMode={productionDebugModeDemo}
-                activeExecutionStationId={productionDebugStationDemoSnapshot?.stationId ?? null}
+                lineLocked={true}
+                stationSessionMode={null}
+                stationSessionStationId={null}
                 taskState="paused"
                 canInitialize={false}
                 canStart={true}

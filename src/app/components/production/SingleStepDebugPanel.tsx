@@ -76,14 +76,18 @@ type SingleStepDebugPanelProps = {
   startDisabledReason?: string;
   canExecuteStep: boolean;
   taskState: ProductionTaskState | null;
-  activeExecutionMode?: ProductionDebugExecutionMode | null;
-  activeExecutionStationId?: string | null;
-  onExecutionStart?: (mode: ProductionDebugExecutionMode, stationId: string) => void;
+  /** 整线执行会话中：单站控制条互锁置灰（停止执行按钮豁免）。 */
+  lineLocked?: boolean;
+  /** 单站执行会话模式（无单站会话时为 null）。 */
+  stationSessionMode?: 'auto' | 'single-step' | null;
+  /** 单站执行会话占用工位（无单站会话时为 null）。 */
+  stationSessionStationId?: string | null;
   onExecutionPause?: () => void;
+  /** 打开停止确认弹窗（页面级统一 stopTask）。 */
   onExecutionStop?: () => void;
   onExecutionModeChange: (mode: ProductionDebugExecutionMode) => void;
   onInitialize: () => void;
-  onRunOrPause: () => void;
+  onRunOrPause: (stationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => void;
   onExecuteStep: (workstepIndex: number) => void;
   positioningResultKeysByWorkstep?: Record<number, string>;
   onViewPositioningResult?: (key: string) => void;
@@ -161,9 +165,9 @@ export function SingleStepDebugPanel({
   startDisabledReason,
   canExecuteStep,
   taskState,
-  activeExecutionMode = null,
-  activeExecutionStationId = null,
-  onExecutionStart,
+  lineLocked = false,
+  stationSessionMode = null,
+  stationSessionStationId = null,
   onExecutionPause,
   onExecutionStop,
   onExecutionModeChange,
@@ -193,20 +197,22 @@ export function SingleStepDebugPanel({
     (snapshot?.process && snapshot.workpieceState === 'running')
     || (!snapshot?.process && demoExecutingWorkstepIndex !== null),
   );
-  const viewingExecutionStation = !activeExecutionStationId || activeExecutionStationId === snapshot?.stationId;
-  // 互锁只按工位判断，不按模式判断：当前工位占用执行会话时，其他工位置灰；本工位始终可展示自身状态。
-  const isLockedOut = Boolean(activeExecutionStationId && activeExecutionStationId !== snapshot?.stationId);
-  const controlPhase = isLockedOut ? 'locked'
-    : taskState === 'stopped' ? 'stopped'
-    : taskState === 'paused' ? 'paused'
-    : taskState === 'running' ? 'running'
-    : 'idle';
-  const canInitControl = controlPhase === 'stopped';
-  const canRunControl = controlPhase === 'idle' && canStart;
-  const canPauseControl = controlPhase === 'running';
-  const canStopControl = controlPhase === 'paused';
-  const singleStepExecutionActive = activeExecutionMode === 'single-step'
-    && viewingExecutionStation
+  // 互锁派生：整线会话中整组置灰（停止豁免）；单站会话占用其他工位时整组置灰；本会话工位内模式互斥。
+  const sessionHere = Boolean(stationSessionStationId && stationSessionStationId === snapshot?.stationId);
+  const otherStationLocked = Boolean(stationSessionStationId) && !sessionHere;
+  const barLocked = lineLocked || otherStationLocked;
+  const crossModeLock = Boolean(sessionHere && stationSessionMode && stationSessionMode !== executionMode);
+  const sessionActive = lineLocked || Boolean(stationSessionStationId);
+  const isIdle = !taskState || taskState === 'ready' || taskState === 'draft';
+  // 初始化：会话存在期间（running / paused）始终禁点，停止后它是恢复执行的唯一入口。
+  const canInitControl = canInitialize && !sessionActive;
+  // 执行（自动/单步）：空闲或暂停后可启动/继续；会话模式与当前 tab 不一致时置灰（模式内互斥）。
+  const canRunControl = (isIdle || isPaused) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode);
+  const canPauseControl = isRunning && !barLocked && (!sessionHere || stationSessionMode === executionMode);
+  // 停止全局同步：running / paused 均可停止，作用于整个执行动作；仅其他工位占用会话时本面板不可用。
+  const canStopControl = (isRunning || isPaused) && !otherStationLocked;
+  const singleStepExecutionActive = stationSessionMode === 'single-step'
+    && sessionHere
     && stationHasRunningWorkstep;
   const workpieceDisplaySerial = snapshot?.workpieceSerial
     ? formatProductionWorkpieceSerial(snapshot.workpieceSerial)
@@ -255,18 +261,18 @@ export function SingleStepDebugPanel({
       <div className="flex shrink-0 items-center gap-1.5">
         {executionMode === 'single-step' ? (
           <>
-            <Tooltip title={isLockedOut ? '当前有工位正在执行，请先暂停或停止当前任务' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
-              <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={isLockedOut || !canInitControl} onClick={() => { setDemoExecutingWorkstepIndex(null); onInitialize(); }}>
+            <Tooltip title={sessionActive ? '存在执行中的会话，请先停止' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
+              <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={() => { setDemoExecutingWorkstepIndex(null); onInitialize(); }}>
                 <RotateCcw className="size-3.5" />
                 初始化
               </Button>
             </Tooltip>
-            <Tooltip title={isLockedOut ? '当前有工位正在执行，请先暂停或停止当前任务' : canPauseControl ? '点击暂停当前单步工步' : canRunControl ? '点击执行选中工步' : '当前不可执行工步'}>
+            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，请停止整线后操作' : '当前工位正在执行，请先停止') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，请停止后执行` : canPauseControl ? '点击暂停当前单步工步' : canRunControl ? (isPaused ? '点击继续单步执行' : '点击执行选中工步') : '当前不可执行工步'}>
               <Button
                 type="button"
                 size="sm"
                 className="h-8 gap-1 px-2 text-xs"
-                disabled={isLockedOut || (!canRunControl && !canPauseControl)}
+                disabled={!canRunControl && !canPauseControl}
                 onClick={() => {
                   if (canPauseControl) {
                     if (snapshot?.process) {
@@ -277,9 +283,8 @@ export function SingleStepDebugPanel({
                     return;
                   }
                   if (canRunControl) {
-                    onExecutionStart?.('single-step', snapshot?.stationId ?? '');
                     if (snapshot?.process) {
-                      onRunOrPause();
+                      onRunOrPause(snapshot?.stationId, 'station', 'single-step');
                     } else {
                       setDemoExecutingWorkstepIndex(selectedWorkstepIndex);
                     }
@@ -287,17 +292,17 @@ export function SingleStepDebugPanel({
                   }
                 }}
               >
-                {canPauseControl ? <Pause className="size-3.5" /> : <SkipForward className="size-3.5" />}
-                {canPauseControl ? '暂停' : '执行工步'}
+                {canPauseControl ? <Pause className="size-3.5" /> : isPaused ? <Play className="size-3.5" /> : <SkipForward className="size-3.5" />}
+                {canPauseControl ? '暂停' : isPaused ? '继续' : '执行工步'}
               </Button>
             </Tooltip>
-            <Tooltip title={isLockedOut ? '当前有工位正在执行，请先暂停或停止当前任务' : canStopControl ? '停止当前单步执行并释放工位控制' : '当前无执行中的任务'}>
+            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作，停止后需初始化才能再次执行' : '当前无执行中的任务'}>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                disabled={isLockedOut || !canStopControl}
+                disabled={!canStopControl}
                 onClick={() => { setDemoExecutingWorkstepIndex(null); onExecutionStop?.(); }}
               >
                 <Square className="size-3.5" />
@@ -307,32 +312,31 @@ export function SingleStepDebugPanel({
           </>
         ) : (
           <>
-            <Tooltip title={isLockedOut ? '当前有工位正在执行，请先暂停或停止当前任务' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
-              <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={isLockedOut || !canInitControl} onClick={onInitialize}>
+            <Tooltip title={sessionActive ? '存在执行中的会话，请先停止' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
+              <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={onInitialize}>
                 <RotateCcw className="size-3.5" />
                 初始化
               </Button>
             </Tooltip>
-            <Tooltip title={isLockedOut ? '当前有工位正在执行，请先暂停或停止当前任务' : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停自动执行' : canRunControl ? '点击开始自动执行' : '当前不可自动执行'}>
-              <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={isLockedOut || (!canRunControl && !canPauseControl)} onClick={() => {
+            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，请停止整线后操作' : '当前工位正在执行，请先停止') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，请停止后执行` : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停自动执行' : canRunControl ? (isPaused ? '点击继续自动执行' : '点击开始自动执行') : '当前不可自动执行'}>
+              <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={!canRunControl && !canPauseControl} onClick={() => {
                 if (canPauseControl) {
                   onExecutionPause?.();
                 } else if (canRunControl) {
-                  onExecutionStart?.('auto', snapshot?.stationId ?? '');
-                  onRunOrPause();
+                  onRunOrPause(snapshot?.stationId, 'station', 'auto');
                 }
               }}>
                 {canPauseControl ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                {canPauseControl ? '暂停' : '自动执行'}
+                {canPauseControl ? '暂停' : isPaused ? '继续' : '自动执行'}
               </Button>
             </Tooltip>
-            <Tooltip title={isLockedOut ? '当前有工位正在执行，请先暂停或停止当前任务' : canStopControl ? '停止当前自动执行并释放工位控制' : '当前无执行中的任务'}>
+            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作，停止后需初始化才能再次执行' : '当前无执行中的任务'}>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                disabled={isLockedOut || !canStopControl}
+                disabled={!canStopControl}
                 onClick={onExecutionStop}
               >
                 <Square className="size-3.5" />
