@@ -223,7 +223,7 @@ const toProcessPosePoint = (point: ProcessPointCoordinates | Partial<ProcessPose
   ry: point.ry ?? '0.0',
   rz: point.rz ?? '0.0',
 });
-const WORKBENCH_TYPES = ['主筋板打磨翻面平台', '主筋板正面装配平台', '主筋板翻面平台', '主筋板背面装配平台', '下料台'] as const;
+const WORKBENCH_TYPES = ['主筋板打磨翻面平台', '主筋板正面装配平台', '主筋板翻面平台', '主筋板背面装配平台'] as const;
 type WorkbenchType = typeof WORKBENCH_TYPES[number];
 type WorkbenchSupportAxis = 'X' | 'Y' | 'Z';
 type WorkbenchSupportSetting = {
@@ -6289,14 +6289,12 @@ export function BeimeiAssemblyLinePage() {
     主筋板正面装配平台: ['1', '2'],
     主筋板翻面平台: ['1', '2'],
     主筋板背面装配平台: ['1', '2', '3', '4', '5'],
-    下料台: ['1', '2'],
   };
   const workbenchClampIdOptions: Record<WorkbenchType, string[]> = {
     主筋板打磨翻面平台: ['1', '2'],
     主筋板正面装配平台: ['1', '2'],
     主筋板翻面平台: ['1', '2'],
     主筋板背面装配平台: ['1', '2'],
-    下料台: ['1', '2'],
   };
   const workbenchSupportAxisOptions: Record<WorkbenchType, Record<string, WorkbenchSupportAxis[]>> = {
     主筋板打磨翻面平台: {
@@ -6318,10 +6316,6 @@ export function BeimeiAssemblyLinePage() {
       '4': ['Y', 'Z'],
       '5': ['Y', 'Z'],
     },
-    下料台: {
-      '1': ['Y', 'Z'],
-      '2': ['Y', 'Z'],
-    },
   };
   const workbenchClampAxisOptions: Record<WorkbenchType, Record<string, WorkbenchSupportAxis[]>> = {
     主筋板打磨翻面平台: {
@@ -6339,10 +6333,6 @@ export function BeimeiAssemblyLinePage() {
     主筋板背面装配平台: {
       '1': ['X', 'Y', 'Z'],
       '2': ['X', 'Y', 'Z'],
-    },
-    下料台: {
-      '1': ['Y', 'Z'],
-      '2': ['Y', 'Z'],
     },
   };
   const grindToolModes = ['inhand', 'tohand'] as const;
@@ -6413,14 +6403,6 @@ export function BeimeiAssemblyLinePage() {
       clampIds: ['1', '2'],
       clampSettings: createWorkbenchClampSettings(['1', '2']),
       clampCoverage: '72',
-    },
-    下料台: {
-      supportIds: ['1', '2'],
-      supportSettings: createWorkbenchSupportSettings(['1', '2']),
-      supportCoverage: '70',
-      clampIds: ['1', '2'],
-      clampSettings: createWorkbenchClampSettings(['1', '2']),
-      clampCoverage: '70',
     },
   });
   const [grindToolMode, setGrindToolMode] = useState<(typeof grindToolModes)[number]>('inhand');
@@ -11174,6 +11156,12 @@ export function BeimeiAssemblyLinePage() {
               {/* 检验步骤的父板只保留一个特征 */}
               {renderDatumTable(parentTitle, 'parent', step.type === 'inspect' ? finePositionConfig.parentDatums.slice(0, 1) : finePositionConfig.parentDatums)}
               {renderDatumTable(childTitle, 'child', finePositionConfig.childDatums)}
+              {step.type === 'fine-position' && (
+                <div className="ds-label-input-compact">
+                  <div className="ds-label-input-compact-label">失败重拍次数</div>
+                  <ProcessNumberField defaultValue="3" unit="次" inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs" />
+                </div>
+              )}
               {step.type === 'inspect' && (
                 <div className="grid gap-ds-150 sm:grid-cols-2">
                   <div className="ds-label-input-compact">
@@ -11236,6 +11224,10 @@ export function BeimeiAssemblyLinePage() {
               <Crosshair className="size-3.5 shrink-0" />
               <span className="truncate">{roughDatumNode?.name ?? roughPositionConfig.datumName}</span>
             </button>
+          </div>
+          <div className="ds-label-input-compact">
+            <div className="ds-label-input-compact-label">失败重拍次数</div>
+            <ProcessNumberField defaultValue="3" unit="次" inputClassName="!h-8 !px-2 !py-1 !pr-8 text-left !text-xs" />
           </div>
         </div>
       );
