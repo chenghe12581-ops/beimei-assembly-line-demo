@@ -4,3 +4,4 @@ scripts-tmp
 *.local
 .DS_Store
 vite-smoke.log
+~$*

@@ -82,12 +82,18 @@ type SingleStepDebugPanelProps = {
   stationSessionMode?: 'auto' | 'single-step' | null;
   /** 单站执行会话占用工位（无单站会话时为 null）。 */
   stationSessionStationId?: string | null;
+  /** 断点所在工位（v2 断点续跑）：当前工单记住的 { 工位, 工步 }。 */
+  breakpointStationId?: string | null;
+  /** 断点工步被停止 / 异常停止标记为执行错误时的工步索引（用于工步列表红色徽标）。 */
+  breakpointErrorIndex?: number | null;
   onExecutionPause?: () => void;
   /** 打开停止确认弹窗（页面级统一 stopTask）。 */
   onExecutionStop?: () => void;
   onExecutionModeChange: (mode: ProductionDebugExecutionMode) => void;
   onInitialize: () => void;
   onRunOrPause: (stationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => void;
+  /** 请求单步执行选中工步（页面级先弹「单步执行确认弹窗」）。 */
+  onRequestExecuteStep?: (workstepIndex: number) => void;
   onExecuteStep: (workstepIndex: number) => void;
   positioningResultKeysByWorkstep?: Record<number, string>;
   onViewPositioningResult?: (key: string) => void;
@@ -168,11 +174,14 @@ export function SingleStepDebugPanel({
   lineLocked = false,
   stationSessionMode = null,
   stationSessionStationId = null,
+  breakpointStationId = null,
+  breakpointErrorIndex = null,
   onExecutionPause,
   onExecutionStop,
   onExecutionModeChange,
   onInitialize,
   onRunOrPause,
+  onRequestExecuteStep,
   onExecuteStep,
   positioningResultKeysByWorkstep = {},
   onViewPositioningResult,
@@ -214,6 +223,10 @@ export function SingleStepDebugPanel({
   const singleStepExecutionActive = stationSessionMode === 'single-step'
     && sessionHere
     && stationHasRunningWorkstep;
+  // v2：自动执行会话中不允许单步选择其他工步——单步 tab 仅可查看，工步列表禁选。
+  const workstepSelectionLocked = singleStepExecutionActive
+    || Boolean(sessionHere && stationSessionMode === 'auto')
+    || lineLocked;
   const workpieceDisplaySerial = snapshot?.workpieceSerial
     ? formatProductionWorkpieceSerial(snapshot.workpieceSerial)
     : null;
@@ -284,11 +297,12 @@ export function SingleStepDebugPanel({
                   }
                   if (canRunControl) {
                     if (snapshot?.process) {
-                      onRunOrPause(snapshot?.stationId, 'station', 'single-step');
+                      // v2：先弹「单步执行确认弹窗」，确认后由页面执行选中工步。
+                      onRequestExecuteStep?.(selectedWorkstepIndex);
                     } else {
                       setDemoExecutingWorkstepIndex(selectedWorkstepIndex);
+                      onExecuteStep(selectedWorkstepIndex);
                     }
-                    onExecuteStep(selectedWorkstepIndex);
                   }
                 }}
               >
@@ -296,7 +310,7 @@ export function SingleStepDebugPanel({
                 {canPauseControl ? '暂停' : isPaused ? '继续' : '执行工步'}
               </Button>
             </Tooltip>
-            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作，停止后需初始化才能再次执行' : '当前无执行中的任务'}>
+            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作；当前工步标记执行错误，断点保留，可直接重新执行' : '当前无执行中的任务'}>
               <Button
                 type="button"
                 size="sm"
@@ -330,7 +344,7 @@ export function SingleStepDebugPanel({
                 {canPauseControl ? '暂停' : isPaused ? '继续' : '自动执行'}
               </Button>
             </Tooltip>
-            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作，停止后需初始化才能再次执行' : '当前无执行中的任务'}>
+            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作；当前工步标记执行错误，断点保留，可直接重新执行' : '当前无执行中的任务'}>
               <Button
                 type="button"
                 size="sm"
@@ -479,29 +493,41 @@ export function SingleStepDebugPanel({
                   completedUntil={snapshot.process ? snapshot.currentWorkstepIndex : undefined}
                   selectedIndex={executionMode === 'single-step' ? selectedWorkstepIndex : undefined}
                   executingIndex={!snapshot.process ? demoExecutingWorkstepIndex : undefined}
-                  interactive={executionMode === 'single-step'}
-                  disabled={singleStepExecutionActive}
+                  interactive={executionMode === 'single-step' && !workstepSelectionLocked}
+                  disabled={workstepSelectionLocked}
                   onSelect={handleSelectWorkstep}
                   renderStepSuffix={(step) => {
+                    const showErrorBadge = snapshot.stationId === breakpointStationId
+                      && breakpointErrorIndex !== null
+                      && step.index === breakpointErrorIndex;
                     const positioningResultKey = positioningResultKeysByWorkstep[step.index];
-                    if (!positioningResultKey || !onViewPositioningResult) return null;
+                    if (!showErrorBadge && (!positioningResultKey || !onViewPositioningResult)) return null;
                     return (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        className="shrink-0 pt-0.5 text-[11px] font-medium text-ds-brand-primary-text hover:text-ds-brand-primary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onViewPositioningResult(positioningResultKey);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onViewPositioningResult(positioningResultKey);
-                          }
-                        }}
-                      >查看工件位置</span>
+                      <span className="flex shrink-0 items-center gap-2 pt-0.5">
+                        {showErrorBadge && (
+                          <span className="rounded bg-red-50 px-1 py-0.5 text-[10px] font-medium text-red-600 ring-1 ring-inset ring-red-200">
+                            执行错误
+                          </span>
+                        )}
+                        {positioningResultKey && onViewPositioningResult && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            className="text-[11px] font-medium text-ds-brand-primary-text hover:text-ds-brand-primary"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onViewPositioningResult(positioningResultKey);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onViewPositioningResult(positioningResultKey);
+                              }
+                            }}
+                          >查看工件位置</span>
+                        )}
+                      </span>
                     );
                   }}
                 />

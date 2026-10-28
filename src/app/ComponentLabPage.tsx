@@ -9211,6 +9211,8 @@ export function ComponentLabPage() {
                   lineLocked={true}
                   stationSessionMode={null}
                   stationSessionStationId={null}
+                  breakpointStationId={productionDebugStationDemoId}
+                  breakpointErrorIndex={1}
                   taskState="paused"
                   canInitialize={false}
                   canStart={true}
@@ -9218,6 +9220,7 @@ export function ComponentLabPage() {
                   onExecutionModeChange={setProductionDebugModeDemo}
                   onInitialize={() => undefined}
                   onRunOrPause={() => undefined}
+                  onRequestExecuteStep={() => undefined}
                   onExecuteStep={() => undefined}
                   onExecutionStop={() => undefined}
                 />

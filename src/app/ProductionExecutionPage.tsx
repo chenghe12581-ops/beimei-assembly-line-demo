@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Ban,
   Camera,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronsDown,
@@ -3650,6 +3651,10 @@ type PositioningTarget = {
   workstepIndex: number;
 };
 
+// v2：执行推进效果暂缓——12 秒自动推进定时器与 AGV 上料演示定时器链本期停用（保留代码，待推进效果设计后恢复）。
+const EXECUTION_AUTO_ADVANCE_ENABLED = false;
+const EXECUTION_DEMO_ANIMATION_ENABLED = false;
+
 export function ProductionExecutionPage({
   leftPanel = 'v2',
   rightPanel = 'single-step',
@@ -3687,6 +3692,32 @@ export function ProductionExecutionPage({
     decodeURI(window.location.pathname) === '/生产执行/理料区视图'
   ));
   const [stopConfirmSource, setStopConfirmSource] = useState<'line' | 'station' | null>(null);
+  // v2 断点模型：{ 工位, 工步 }，表示「下一次执行从这里开始」；自动与单步共用同一份断点。
+  // error = 断点工步被「停止 / 异常停止」标记为执行错误，续跑时重做该步。
+  const [executionBreakpoint, setExecutionBreakpoint] = useState<{
+    stationId: string | null;
+    workstepIndex: number | null;
+    stepName: string | null;
+    error: boolean;
+  } | null>(null);
+  // 单步执行确认弹窗目标（选中工步后、执行前）。
+  const [stepConfirmTarget, setStepConfirmTarget] = useState<{
+    workstepIndex: number;
+    stepName: string;
+    stationId: string;
+    stationName: string;
+  } | null>(null);
+  // 单步执行结束弹窗信息（执行完成一工步后弹出，断点已推进到下一工步）。
+  const [stepEndInfo, setStepEndInfo] = useState<{
+    stationId: string;
+    stationName: string;
+    completedName: string;
+    nextIndex: number | null;
+    nextName: string | null;
+  } | null>(null);
+  // 视觉异常弹窗（区分整线 / 单站），确认后自动停止；断点保留，处理完视觉数据后可直接续跑。
+  const [visionAlertSide, setVisionAlertSide] = useState<'line' | 'station' | null>(null);
+  const visionAlertWorkpieceRef = useRef<string | null>(null);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [workOrderDeleteTargetId, setWorkOrderDeleteTargetId] = useState<string | null>(null);
   const [workpieceDeleteTarget, setWorkpieceDeleteTarget] = useState<{ taskId: string; workpieceId: string } | null>(null);
@@ -3733,6 +3764,20 @@ export function ProductionExecutionPage({
   }, []);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  // 切换工单时重置断点与单步弹窗状态（断点是每个工单一份）。
+  useEffect(() => {
+    setExecutionBreakpoint(null);
+    setStepConfirmTarget(null);
+    setStepEndInfo(null);
+    setVisionAlertSide(null);
+    visionAlertWorkpieceRef.current = null;
+  }, [selectedTaskId]);
+  const formatBreakpointStation = (stationId: string | null) => {
+    if (!stationId) return '整线';
+    return getProductionCompositeStation(stationId)?.name
+      ?? productionWorkbenchAreas.find((area) => area.id === stationId)?.name
+      ?? stationId;
+  };
   const selectedTaskDisabledProcessIds = useMemo(() => {
     if (!selectedTask) return new Set<string>();
     return new Set(
@@ -4590,27 +4635,67 @@ export function ProductionExecutionPage({
     setActiveTab('vision');
   };
 
-  const handleExecuteStep = (requestedWorkstepIndex?: number) => {
+  // 单步执行请求入口：由右侧面板「执行工步」触发。定位类工步直接走定位方式弹窗；其余进入单步执行确认弹窗。
+  const handleRequestExecuteStep = (requestedWorkstepIndex?: number) => {
     const selectedSnapshot = selectedDebugStationSnapshot;
-    const selectedIndex = requestedWorkstepIndex ?? selectedSnapshot?.currentWorkstepIndex ?? 0;
-    const selectedStepName = selectedSnapshot?.workstepNames[selectedIndex] ?? '选中工步';
+    if (!selectedSnapshot) return;
+    const selectedIndex = requestedWorkstepIndex ?? selectedSnapshot.currentWorkstepIndex ?? 0;
+    const selectedStepName = selectedSnapshot.workstepNames[selectedIndex] ?? `工步 ${selectedIndex + 1}`;
     const positioningTarget = getPositioningTargetForIndex(selectedIndex);
     if (positioningTarget && executionMode === 'single-step') {
       handleOpenPositioningDialog(positioningTarget);
       return;
     }
-    if (selectedSnapshot?.compositeStation) {
+    if (!selectedSnapshot.process) {
+      // 无工序任务的工位：仅演示记录，不建会话、不推进断点。
+      if (selectedSnapshot.workstepNames.length) {
+        addLog(`${selectedSnapshot.stationName} 已演示执行：${selectedStepName}`);
+      }
+      return;
+    }
+    setStepConfirmTarget({
+      workstepIndex: selectedIndex,
+      stepName: selectedStepName,
+      stationId: selectedSnapshot.stationId,
+      stationName: selectedSnapshot.stationName,
+    });
+  };
+
+  // 单步执行确认弹窗：确认执行。
+  const handleConfirmStepExecution = () => {
+    const target = stepConfirmTarget;
+    if (!target) return;
+    setStepConfirmTarget(null);
+    runSingleStepWorkstep(target.workstepIndex);
+  };
+
+  // 单步执行结束弹窗：继续执行下一工步（不再弹确认，仍走定位弹窗等既有交互）。
+  const handleContinueNextStep = () => {
+    const info = stepEndInfo;
+    setStepEndInfo(null);
+    if (!info || info.nextIndex === null) return;
+    const snapshot = selectedDebugStationSnapshot;
+    if (!snapshot || snapshot.stationId !== info.stationId) return;
+    runSingleStepWorkstep(info.nextIndex);
+  };
+
+  // 执行单个工步（确认弹窗或结束弹窗「继续」之后调用）：推进任务、建立单步会话、断点推进到下一工步。
+  const runSingleStepWorkstep = (requestedWorkstepIndex: number) => {
+    const selectedSnapshot = selectedDebugStationSnapshot;
+    if (!selectedSnapshot?.process || !selectedTask) return;
+    const selectedIndex = requestedWorkstepIndex;
+    const selectedStepName = selectedSnapshot.workstepNames[selectedIndex] ?? `工步 ${selectedIndex + 1}`;
+    const positioningTarget = getPositioningTargetForIndex(selectedIndex);
+    if (positioningTarget) {
+      handleOpenPositioningDialog(positioningTarget);
+      return;
+    }
+    if (selectedTask.workpieces.some((workpiece) => workpiece.state === 'abnormal')) {
+      addLog(`${selectedTask.drawingNo} 存在视觉异常，请先完成异常处理`, 'error');
+      return;
+    }
+    if (selectedSnapshot.compositeStation) {
       // 复合工位单步调试：允许打断自动顺序，并把选中工步切为单步执行态。
-      if (!selectedSnapshot.process || !selectedTask) {
-        if (selectedSnapshot.workstepNames.length) {
-          addLog(`${selectedSnapshot.stationName} 已演示执行：${selectedStepName}`);
-        }
-        return;
-      }
-      if (selectedTask.workpieces.some((workpiece) => workpiece.state === 'abnormal')) {
-        addLog(`${selectedTask.drawingNo} 存在视觉异常，请先完成异常处理`, 'error');
-        return;
-      }
       const composite = getProductionCompositeStation(selectedSnapshot.stationId);
       const taskProcesses = selectedTask.processIds
         .map((processId) => getProcessFromOptions(processId, activeProcessOptions))
@@ -4619,9 +4704,7 @@ export function ProductionExecutionPage({
         ? resolveProductionCompositeWorkstepIndex(composite, taskProcesses, selectedIndex)
         : null;
       if (!jumpTarget || !selectedTask.processIds.includes(jumpTarget.processId)) {
-        if (selectedSnapshot.workstepNames.length) {
-          addLog(`${selectedSnapshot.stationName} 已演示执行：${selectedStepName}`);
-        }
+        addLog(`${selectedSnapshot.stationName} 已演示执行：${selectedStepName}`);
         return;
       }
       const jumpProcess = getProcessFromOptions(jumpTarget.processId, activeProcessOptions);
@@ -4656,32 +4739,38 @@ export function ProductionExecutionPage({
       });
       addLog(`${selectedTask.drawingNo} 已进入单步调试并执行：${selectedStepName}`);
       beginSession('station', 'single-step', selectedSnapshot.stationId);
-      return;
+    } else {
+      updateSelectedTask((task) => {
+        const startedTask = task.state === 'running' || task.state === 'paused'
+          ? task
+          : buildStartedTask(task, selectedSnapshot.stationId);
+        if (startedTask.state !== 'running' && startedTask.state !== 'paused') return task;
+        return advanceProductionTask(startedTask, selectedIndex);
+      });
+      beginSession('station', 'single-step', selectedSnapshot.stationId);
+      addLog(`${selectedTask.drawingNo} 已执行工步：${selectedStepName}`);
     }
-    if (!selectedSnapshot?.process) {
-      if (selectedSnapshot?.workstepNames.length) {
-        addLog(`${selectedSnapshot.stationName} 已演示执行：${selectedStepName}`);
-      }
-      return;
-    }
-    if (!selectedTask) return;
-    if (selectedTask.workpieces.some((workpiece) => workpiece.state === 'abnormal')) {
-      addLog(`${selectedTask.drawingNo} 存在视觉异常，请先完成异常处理`, 'error');
-      return;
-    }
-    updateSelectedTask((task) => {
-      const startedTask = task.state === 'running' || task.state === 'paused'
-        ? task
-        : buildStartedTask(task, selectedSnapshot?.stationId ?? '');
-      if (startedTask.state !== 'running' && startedTask.state !== 'paused') return task;
-      return advanceProductionTask(startedTask, selectedIndex);
+    // v2：单步完成一工步后，断点推进到下一工步（自动与单步共用）。
+    const nextIndex = selectedIndex + 1;
+    const nextName = selectedSnapshot.workstepNames[nextIndex] ?? null;
+    setExecutionBreakpoint({
+      stationId: selectedSnapshot.stationId,
+      workstepIndex: nextName === null ? null : nextIndex,
+      stepName: nextName,
+      error: false,
     });
-    beginSession('station', 'single-step', selectedSnapshot.stationId);
-    addLog(`${selectedTask.drawingNo} 已执行工步：${selectedStepName}`);
+    setStepEndInfo({
+      stationId: selectedSnapshot.stationId,
+      stationName: selectedSnapshot.stationName,
+      completedName: selectedStepName,
+      nextIndex: nextName === null ? null : nextIndex,
+      nextName,
+    });
   };
 
   useEffect(() => {
-    if (executionMode !== 'auto') return undefined;
+    // v2：执行推进动画暂缓，12 秒自动推进定时器本期停用（保留代码，待推进效果设计后恢复）。
+    if (!EXECUTION_AUTO_ADVANCE_ENABLED || executionMode !== 'auto') return undefined;
     const timer = window.setInterval(() => {
       setTasks((prev) => prev.map((task) => (
         task.state === 'running' ? advanceProductionTask(task, undefined, true) : task
@@ -4813,6 +4902,10 @@ export function ProductionExecutionPage({
 
   const handleInitialize = () => {
     if (!selectedTask) return;
+    // v2：初始化 = 设备状态 + 软件流程全部初始化，断点清零；不是执行的前置。
+    setExecutionBreakpoint(null);
+    setStepConfirmTarget(null);
+    setStepEndInfo(null);
     updateSelectedTask((task) => ({
       ...task,
       state: 'ready',
@@ -4821,7 +4914,7 @@ export function ProductionExecutionPage({
       progress: task.state === 'stopped' ? 0 : task.progress,
       workpieces: task.workpieces.map((item) => task.state === 'stopped' ? { ...item, progress: 0, state: 'pending', process: '未开始', currentProcessId: null, currentStepIndex: 0, abnormalProcessId: undefined, abnormalVisionFeedId: undefined } : item),
     }));
-    addLog(`${selectedTask.drawingNo} 初始化完成，PLC、机器人、视觉信号已复位`);
+    addLog(`${selectedTask.drawingNo} 初始化完成，设备与流程已复位，断点已清零`);
   };
 
   // 工位详情自动执行：起点对齐到当前查看工位（复合工位取首个启用段落），而不是整张工单首道工序。
@@ -4920,7 +5013,7 @@ export function ProductionExecutionPage({
     const isInitialWorkpieceStart = selectedTask.state !== 'paused'
       && selectedTask.workpieces.some((workpiece) => workpiece.state === 'pending');
     const inputTray = traySlots.find((slot) => slot.id === '1');
-    if (leftPanel === 'v2' && isInitialWorkpieceStart) {
+    if (EXECUTION_DEMO_ANIMATION_ENABLED && leftPanel === 'v2' && isInitialWorkpieceStart) {
       if (!inputTray || inputTray.state === 'empty' || inputTray.state === 'reserved' || inputTray.material === '空') {
         const loadingTask = trayTasks.find((task) => (
           task.type === '上料任务' && task.pickup === '00' && task.dropoff === '01' && task.state === 'pending'
@@ -5079,6 +5172,16 @@ export function ProductionExecutionPage({
       })(),
     }));
     beginSession(side, mode, startStationId ?? null);
+    if (executionBreakpoint) {
+      // v2 断点续跑：自动 / 单步共用一份断点，停止后再次执行从断点工步开始。
+      addLog(`${selectedTask.drawingNo} 从断点续跑：${formatBreakpointStation(executionBreakpoint.stationId)}${executionBreakpoint.stepName ? ` · ${executionBreakpoint.stepName}` : ''}${executionBreakpoint.error ? '（重做执行错误工步）' : ''}`);
+    }
+    setExecutionBreakpoint((prev) => prev ?? {
+      stationId: startStationId ?? null,
+      workstepIndex: 0,
+      stepName: null,
+      error: false,
+    });
     addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
     addLog('机器人调度与视觉识别进入监测状态');
   };
@@ -5109,14 +5212,14 @@ export function ProductionExecutionPage({
           state: 'stopped',
           currentProcess: executableWorkpiece
             ? getTaskProcessLabel(executableWorkpiece, executableProcessName, '异常已解除')
-            : '异常已解除，任务已停止，需初始化后重新执行',
+            : '异常已解除，断点保留，可直接重新执行',
           currentProcessId: executableWorkpiece?.currentProcessId ?? processId,
           progress: calculateOverallTaskProgress(clearedWorkpieces),
           workpieces: clearedWorkpieces,
         };
       })(),
     }));
-    addLog(`${selectedTask.drawingNo} ${processId} 异常已临时解除，任务保持停止，需初始化后重新执行`, 'warning');
+    addLog(`${selectedTask.drawingNo} ${processId} 异常已临时解除，断点保留，可直接重新执行`, 'warning');
   };
 
   const handleResolveVisionAbnormal = (resolution: 'skipped' | 'confirmed') => {
@@ -5132,8 +5235,8 @@ export function ProductionExecutionPage({
             ...item,
             state: 'paused' as const,
             visionSummary: resolution === 'confirmed'
-              ? '视觉结果已人工确认，任务已停止，需初始化后重新执行'
-              : '本次视觉结果已跳过，任务已停止，需初始化后重新执行',
+              ? '视觉结果已人工确认，断点保留，可直接重新执行'
+              : '本次视觉结果已跳过，断点保留，可直接重新执行',
             currentProcessId: processId,
             currentStepIndex: item.currentStepIndex ?? 0,
             abnormalProcessId: undefined,
@@ -5153,8 +5256,8 @@ export function ProductionExecutionPage({
                 resolution === 'confirmed' ? '视觉结果已确认' : '视觉结果已跳过',
               )
             : resolution === 'confirmed'
-              ? '视觉结果已确认，任务已停止，需初始化后重新执行'
-              : '视觉结果已跳过，任务已停止，需初始化后重新执行',
+              ? '视觉结果已确认，断点保留，可直接重新执行'
+              : '视觉结果已跳过，断点保留，可直接重新执行',
           currentProcessId: executableWorkpiece?.currentProcessId ?? processId,
           progress: calculateOverallTaskProgress(clearedWorkpieces),
           workpieces: clearedWorkpieces,
@@ -5165,10 +5268,10 @@ export function ProductionExecutionPage({
 
     if (resolution === 'confirmed') {
       const activeFeed = visionFeedOptions.find((feed) => feed.id === activeVisionFeedId);
-      addLog(`${visionAbnormalWorkpiece.serial} 已确认${activeFeed?.label ?? '视觉'}结果，任务保持停止，需初始化后重新执行`);
+      addLog(`${visionAbnormalWorkpiece.serial} 已确认${activeFeed?.label ?? '视觉'}结果，断点保留，可直接重新执行`);
       return;
     }
-    addLog(`${visionAbnormalWorkpiece.serial} 已跳过本次视觉结果，任务保持停止，需初始化后重新执行`, 'warning');
+    addLog(`${visionAbnormalWorkpiece.serial} 已跳过本次视觉结果，断点保留，可直接重新执行`, 'warning');
   };
 
   const handleVisionDemoProcessDoubleClick = ({
@@ -5232,19 +5335,24 @@ export function ProductionExecutionPage({
     setExecutionSession({ side, mode, stationId: side === 'line' ? null : stationId ?? null });
   };
 
-  // 停止统一入口：任一侧的「停止 / 停止执行」都作用于整个执行动作，停止后需初始化才能再次执行。
+  // 停止统一入口（v2）：任一侧「停止 / 停止执行」都作用于整个执行动作。
+  // 停止记住断点——当前工步标记为执行错误、已做部分作废；执行按钮恢复可点，无需初始化即可从断点续跑。
   const stopTask = (source: 'line' | 'station') => {
     if (!selectedTask) return;
+    setExecutionBreakpoint((prev) => (prev ? { ...prev, error: true } : prev));
+    setStepConfirmTarget(null);
+    setStepEndInfo(null);
     updateSelectedTask((task) => ({
       ...task,
       state: 'stopped',
-      currentProcess: '已停止，需初始化后重新执行',
-      currentProcessId: null,
-      workpieces: task.workpieces.map((item) => ({ ...item, currentStepIndex: 0 })),
+      currentProcess: '已停止，断点已保留，可直接重新执行',
+      workpieces: task.workpieces.map((item) => (item.state === 'running'
+        ? { ...item, state: 'paused' as const, visionSummary: '已停止，断点保留，续跑时重做当前工步' }
+        : item)),
     }));
     setExecutionSession(null);
     setStopConfirmSource(null);
-    addLog(`${selectedTask.drawingNo} 已停止（${source === 'line' ? '整线停止' : '单站停止'}），任务需初始化后才能重新执行`, 'warning');
+    addLog(`${selectedTask.drawingNo} 已停止（${source === 'line' ? '整线停止' : '单站停止'}），当前工步已标记执行错误，断点保留，可直接重新执行`, 'warning');
   };
 
   const handleToggleTaskSelection = (processKey: string) => {
@@ -5718,7 +5826,8 @@ export function ProductionExecutionPage({
   })();
   const stationStartUnavailable = Boolean(selectedTask && selectedDebugStationSnapshot && !viewedStationStartProcessId);
   // 整线执行不再依赖当前查看工位（stationStartUnavailable 仅用于单站起点提示）。
-  const canRun = Boolean(selectedTask && selectedTask.state !== 'stopped' && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal');
+  // v2：停止后执行按钮直接恢复可点（断点续跑），只有完成 / 异常态不可执行。
+  const canRun = Boolean(selectedTask && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal');
   // 初始化统一：ready / stopped / draft 均可；执行会话存在期间（running / paused）始终禁点，停止后它是恢复执行的唯一入口。
   const canInitialize = Boolean(
     selectedTask
@@ -5753,21 +5862,37 @@ export function ProductionExecutionPage({
   const lineLocked = Boolean(executionSession && executionSession.side === 'station');
   const stationSessionMode = executionSession?.side === 'station' ? executionSession.mode : null;
   const stationSessionStationId = executionSession?.side === 'station' ? executionSession.stationId : null;
-  // 视觉异常自动停止：执行中出现视觉异常（弹窗提示后续补充，本期先落逻辑）→ 任务自动停止、释放会话；
-  // 初始化在停止前始终禁点，处理完视觉数据后点初始化复位，再重新执行。
+  // 视觉异常自动停止（v2）：执行中（整线 / 单站）检测到视觉异常 → 弹窗（区分执行侧）→ 确认后自动停止；
+  // 断点保留、当前工步标记执行错误；处理完视觉数据后可直接从断点续跑，无需初始化。
   const hasAbnormalWorkpiece = Boolean(selectedTask?.workpieces.some((workpiece) => workpiece.state === 'abnormal'));
   useEffect(() => {
     if (!selectedTask) return;
     if (selectedTask.state !== 'running' && selectedTask.state !== 'paused') return;
     if (!hasAbnormalWorkpiece) return;
-    updateSelectedTask((task) => ({
-      ...task,
-      state: 'stopped',
-      currentProcess: '视觉异常，任务已自动停止，需初始化后重新执行',
-    }));
-    setExecutionSession(null);
-    addLog(`${selectedTask.drawingNo} 检测到视觉异常（${executionSession?.side === 'line' ? '整线执行' : '单站执行'}中），任务已自动停止，请处理视觉数据后初始化重新执行`, 'error');
-  }, [selectedTask?.state, hasAbnormalWorkpiece]);
+    if (!executionSession) {
+      // 非会话执行态出现异常：沿用旧逻辑直接停止。
+      updateSelectedTask((task) => ({
+        ...task,
+        state: 'stopped',
+        currentProcess: '视觉异常，任务已自动停止',
+      }));
+      setExecutionSession(null);
+      addLog(`${selectedTask.drawingNo} 检测到视觉异常，任务已自动停止`, 'error');
+      return;
+    }
+    const abnormalWorkpiece = selectedTask.workpieces.find((item) => item.state === 'abnormal');
+    if (!abnormalWorkpiece || visionAlertWorkpieceRef.current === abnormalWorkpiece.id) return;
+    visionAlertWorkpieceRef.current = abnormalWorkpiece.id;
+    setVisionAlertSide(executionSession.side === 'station' ? 'station' : 'line');
+  }, [selectedTask, hasAbnormalWorkpiece, executionSession]);
+
+  const handleConfirmVisionAlert = () => {
+    const side = visionAlertSide;
+    setVisionAlertSide(null);
+    if (!side) return;
+    stopTask(side);
+    addLog('视觉异常：任务已自动停止，断点保留；处理完视觉数据后可直接重新执行，无需初始化', 'error');
+  };
   const handleSelectTask = (taskId: string) => {
     const activeExecutionTask = tasks.find((task) => ['running', 'paused', 'abnormal'].includes(task.state));
     if (activeExecutionTask && activeExecutionTask.id !== taskId) return;
@@ -5980,6 +6105,8 @@ export function ProductionExecutionPage({
                 lineLocked={lineLocked}
                 stationSessionMode={stationSessionMode}
                 stationSessionStationId={stationSessionStationId}
+                breakpointStationId={executionBreakpoint?.stationId ?? null}
+                breakpointErrorIndex={executionBreakpoint?.error ? executionBreakpoint.workstepIndex : null}
                 taskState={selectedTask?.state ?? null}
                 canInitialize={canInitialize}
                 canStart={canRun}
@@ -5992,7 +6119,8 @@ export function ProductionExecutionPage({
                 onExecutionStop={() => setStopConfirmSource('station')}
                 onInitialize={handleInitialize}
                 onRunOrPause={(stationId, side, mode) => handleRunOrPause(stationId, side, mode)}
-                onExecuteStep={handleExecuteStep}
+                onRequestExecuteStep={handleRequestExecuteStep}
+                onExecuteStep={handleRequestExecuteStep}
                 onSelectedWorkstepChange={setSingleStepSelectedWorkstepIndex}
                 onEditTrayMaterial={handleStartTrayCardEdit}
                 onDispatchTrayAgv={handleDispatchTrayAgv}
@@ -6040,7 +6168,7 @@ export function ProductionExecutionPage({
               <span className="text-sm font-medium">确认停止任务</span>
             </div>
             <div className="px-5 py-4 text-sm leading-6 text-slate-600">
-              停止后任务进入已停止态，所有执行按钮将置灰，需先初始化才能再次执行。是否停止 {selectedTask.drawingNo}？
+              停止后当前工步已完成的进度将作废（该工步标记为执行错误），任务记住断点；可直接再次执行从断点重做，或初始化后从头开始。是否停止 {selectedTask.drawingNo}？
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
               <Button size="sm" variant="outline" onClick={() => setStopConfirmSource(null)}>取消</Button>
@@ -6049,6 +6177,73 @@ export function ProductionExecutionPage({
           </div>
         </div>
       )}
+
+      {stepConfirmTarget && selectedTask && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 px-4">
+          <div className="w-[420px] rounded-lg border border-white/50 bg-ds-bg-glass-modal shadow-lg shadow-black/5 backdrop-blur-md">
+            <div className="flex items-center gap-2 border-b border-white/50 px-5 py-3">
+              <Play className="size-5 text-ds-brand-primary" />
+              <span className="text-sm font-medium">单步执行确认</span>
+            </div>
+            <div className="px-5 py-4 text-sm leading-6 text-slate-600">
+              <p>工　　位：{stepConfirmTarget.stationName}</p>
+              <p>执行工步：{stepConfirmTarget.stepName}</p>
+              <p className="mt-1 text-xs text-slate-400">执行方式为单步执行；执行完成后断点将推进到下一工步。</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
+              <Button size="sm" variant="outline" onClick={() => setStepConfirmTarget(null)}>取消</Button>
+              <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={handleConfirmStepExecution}>确认执行</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {stepEndInfo && selectedTask && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 px-4">
+          <div className="w-[420px] rounded-lg border border-white/50 bg-ds-bg-glass-modal shadow-lg shadow-black/5 backdrop-blur-md">
+            <div className="flex items-center gap-2 border-b border-white/50 px-5 py-3">
+              <CheckCircle2 className="size-5 text-emerald-500" />
+              <span className="text-sm font-medium">单步执行结束</span>
+            </div>
+            <div className="px-5 py-4 text-sm leading-6 text-slate-600">
+              <p>工位「{stepEndInfo.stationName}」已完成工步：{stepEndInfo.completedName}</p>
+              {stepEndInfo.nextName !== null ? (
+                <p>断点已推进到下一工步：{stepEndInfo.nextName}</p>
+              ) : (
+                <p>当前工位工序已执行完</p>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
+              <Button size="sm" variant="outline" onClick={() => setStepEndInfo(null)}>关闭</Button>
+              {stepEndInfo.nextName !== null && (
+                <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={handleContinueNextStep}>继续执行下一工步</Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {visionAlertSide && selectedTask && (() => {
+        const abnormalWorkpiece = selectedTask.workpieces.find((item) => item.state === 'abnormal');
+        return (
+          <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4">
+            <div className="w-[440px] rounded-lg border border-white/50 bg-ds-bg-glass-modal shadow-lg shadow-black/5 backdrop-blur-md">
+              <div className="flex items-center gap-2 border-b border-white/50 px-5 py-3">
+                <AlertTriangle className="size-5 text-red-500" />
+                <span className="text-sm font-medium">{visionAlertSide === 'line' ? '整线执行中检测到视觉异常' : '单站执行中检测到视觉异常'}</span>
+              </div>
+              <div className="px-5 py-4 text-sm leading-6 text-slate-600">
+                <p>异常工件：{abnormalWorkpiece ? formatProductionWorkpieceSerial(abnormalWorkpiece.serial) : selectedTask.drawingNo}</p>
+                <p>异常工序：{abnormalWorkpiece?.abnormalProcessId ?? selectedTask.currentProcess}</p>
+                <p className="mt-1 text-xs text-slate-400">确认后任务将自动停止并记住当前断点；处理完视觉数据后可直接从断点继续执行，无需初始化。</p>
+              </div>
+              <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
+                <Button size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleConfirmVisionAlert}>确认并自动停止</Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {clearConfirmOpen && filteredTasks.length > 0 && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 px-4">
