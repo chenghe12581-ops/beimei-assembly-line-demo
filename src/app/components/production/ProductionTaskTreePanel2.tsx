@@ -87,7 +87,7 @@ function getWorkOrderStateLabel(task: ProductionTask) {
     ready: '待执行',
     running: '执行中',
     paused: '已暂停',
-    stopped: '异常中断',
+    stopped: '已中断',
     done: '已完成',
     abnormal: '异常',
   };

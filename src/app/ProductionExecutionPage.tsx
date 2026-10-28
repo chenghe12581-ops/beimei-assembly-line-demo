@@ -21,6 +21,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Square,
   Trash2,
   X,
 } from 'lucide-react';
@@ -2114,18 +2115,20 @@ function FloatingWorkspaceControls({
   onOpenTrayManagement,
   onInitialize,
   onRunOrPause,
+  onStop,
 }: {
   activeTab: WorkspaceTab;
   trayManagementOpen: boolean;
   selectedTask: ProductionTask | null;
   canRun: boolean;
   canInitialize: boolean;
-  /** 单站执行会话中整线组互锁置灰。 */
+  /** 单站执行会话中整线组互锁置灰（「停止」豁免，可随时跳出执行状态）。 */
   locked: boolean;
   onTabChange: (tab: WorkspaceTab) => void;
   onOpenTrayManagement: () => void;
   onInitialize: () => void;
   onRunOrPause: () => void;
+  onStop: () => void;
 }) {
   const workspaceTabs = [
     { id: 'execution' as const, label: '生产监控' },
@@ -2175,6 +2178,16 @@ function FloatingWorkspaceControls({
         >
           {selectedTask?.state === 'running' ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
           {selectedTask?.state === 'running' ? '暂停' : selectedTask?.state === 'paused' ? '继续' : '执行'}
+        </button>
+        <button
+          type="button"
+          title={selectedTask?.state === 'running' ? '停止：当前工步执行完后跳出执行状态' : selectedTask?.state === 'paused' ? '停止：直接跳出执行状态，可进行单站 / 单步调试' : undefined}
+          className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-50/80 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!selectedTask || (selectedTask.state !== 'running' && selectedTask.state !== 'paused')}
+          onClick={onStop}
+        >
+          <Square className="size-3.5" />
+          停止
         </button>
       </div>
 
@@ -5857,7 +5870,7 @@ export function ProductionExecutionPage({
       setExecutionSession(null);
     }
   }, [executionSession, selectedTask?.state]);
-  // 互锁派生：单站会话中整线组置灰；整线会话中右侧面板控制条置灰。
+  // 互锁派生：单站会话中顶栏整线组置灰；整线会话中右侧面板控制条置灰（顶栏「停止」豁免——用于跳出暂停状态进行单站/单步调试）。
   const lineLocked = Boolean(executionSession && executionSession.side === 'station');
   const stationSessionMode = executionSession?.side === 'station' ? executionSession.mode : null;
   const stationSessionStationId = executionSession?.side === 'station' ? executionSession.stationId : null;
@@ -5899,9 +5912,9 @@ export function ProductionExecutionPage({
   const isTaskStopped = selectedTask?.state === 'stopped';
   const isTaskIdle = Boolean(selectedTask && (selectedTask.state === 'ready' || selectedTask.state === 'draft'));
   const hasAbnormalWorkpieceV2 = Boolean(selectedTask?.workpieces.some((workpiece) => workpiece.state === 'abnormal'));
-  // 执行：非完成 / 异常且无异常工件即可点；stopped 为异常中断态（存在异常工步），同样可点——从异常工步重做。
+  // 执行：非完成 / 异常且无异常工件即可点；stopped 为已中断态，同样可点——从当前进度工步续跑（异常工步重做）。
   const canRun = Boolean(selectedTask && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal' && !hasAbnormalWorkpieceV2);
-  // 初始化：仅空闲 / 中断态可点；running / paused（暂停表示还在运行中）均禁点。
+  // 初始化：仅空闲 / 已中断态可点；running / paused（暂停表示还在运行中）均禁点。
   const canInitialize = Boolean(selectedTask && (isTaskIdle || isTaskStopped));
   const canExecuteStep = Boolean(
     selectedTask
@@ -5962,6 +5975,34 @@ export function ProductionExecutionPage({
     startExecutionV2(startStationId, side, mode);
   };
   const handleMainRunOrPauseV2 = () => handlePanelRunOrPauseV2(undefined, 'line', 'auto');
+  // v3 停止（仅顶栏全流程控制组）：用于从暂停 / 运行状态跳出执行状态，进行单站或单步调试。
+  // 暂停态点击 → 直接跳出；运行态点击 → 先把当前工步执行完（推进一道），再跳出。
+  // 跳出 = 会话释放、任务进入「已中断」态，执行进度保留，可直接再次执行续跑，无需初始化。
+  const stopExecutionV3 = () => {
+    if (!selectedTask || (selectedTask.state !== 'running' && selectedTask.state !== 'paused')) return;
+    if (selectedTask.state === 'running') {
+      updateSelectedTask((task) => {
+        const finishedCurrent = advanceProductionTask(task, undefined, true);
+        if (finishedCurrent.state === 'done') return finishedCurrent;
+        return {
+          ...finishedCurrent,
+          state: 'stopped',
+          currentProcess: `${finishedCurrent.currentProcess.replace(/ · 已停止（当前工步已执行完）$/, '')} · 已停止（当前工步已执行完）`,
+          workpieces: finishedCurrent.workpieces.map((item) => (item.state === 'running' ? { ...item, state: 'paused' as const, visionSummary: '任务已停止：当前工步已执行完，跳出执行状态' } : item)),
+        };
+      });
+      addLog(`${selectedTask.drawingNo} 已停止：当前工步已执行完，跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
+    } else {
+      updateSelectedTask((task) => ({
+        ...task,
+        state: 'stopped',
+        currentProcess: `${task.currentProcess.replace(/ · 已暂停（当前工步已执行完）$/, '').replace(/ · 已暂停$/, '')} · 已停止`,
+        workpieces: task.workpieces.map((item) => (item.state === 'running' || item.state === 'paused' ? { ...item, state: 'paused' as const, visionSummary: '任务已停止，跳出执行状态' } : item)),
+      }));
+      addLog(`${selectedTask.drawingNo} 已停止：跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
+    }
+    setExecutionSession(null);
+  };
   const initializeExecutionV2 = () => {
     // v3 初始化 = 设备状态 + 软件流程全部初始化，所有工步状态清零；仅空闲 / 中断态可点，不是执行的前置。
     if (!selectedTask || !canInitialize) return;
@@ -6025,6 +6066,7 @@ export function ProductionExecutionPage({
       onOpenTrayManagement={() => setTrayManagementOpen(true)}
       onInitialize={initializeExecutionV2}
     onRunOrPause={handleMainRunOrPauseV2}
+      onStop={stopExecutionV3}
     />
   );
 
@@ -6189,7 +6231,7 @@ export function ProductionExecutionPage({
                 snapshot={selectedDebugStationSnapshot}
                 traySnapshot={selectedTrayStationSnapshot}
                 executionMode={executionMode}
-                lineLocked={lineLocked}
+                lineLocked={Boolean(executionSession && executionSession.side === 'line')}
                 stationSessionMode={stationSessionMode}
                 stationSessionStationId={stationSessionStationId}
                 breakpointStationId={executionBreakpoint?.stationId ?? null}

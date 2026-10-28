@@ -153,7 +153,7 @@ function getTaskStateLabel(state: ProductionTaskState | null) {
   if (state === 'ready') return '就绪';
   if (state === 'running') return '加工中';
   if (state === 'paused') return '暂停';
-  if (state === 'stopped') return '异常中断';
+  if (state === 'stopped') return '已中断';
   if (state === 'done') return '已完成';
   if (state === 'abnormal') return '异常';
   return '暂无任务';
@@ -213,9 +213,9 @@ export function SingleStepDebugPanel({
   const isIdle = !taskState || taskState === 'ready' || taskState === 'draft';
   // 初始化（仅自动 tab）：会话存在期间（running / paused）始终禁点。
   const canInitControl = canInitialize && !sessionActive;
-  // 自动执行：空闲 / 异常中断态可启动；暂停（软暂停停住）后可恢复继续。
+  // 自动执行：空闲 / 已中断态可启动；暂停（软暂停停住）后可恢复继续。
   const canRunControl = (isIdle || isPaused || isStopped) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode);
-  // 单步执行（v3 单步 tab 唯一按钮）：仅空闲 / 异常中断态可点；暂停态（任务停住等待恢复）禁点，回自动 tab 恢复。
+  // 单步执行（v3 单步 tab 唯一按钮）：仅空闲 / 已中断态可点；暂停态（任务停住等待恢复）禁点，回自动 tab 恢复。
   const canStepRunControl = (isIdle || isStopped) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode) && demoExecutingWorkstepIndex === null;
   const canPauseControl = isRunning && !barLocked && (!sessionHere || stationSessionMode === executionMode);
   const singleStepExecutionActive = stationSessionMode === 'single-step'
