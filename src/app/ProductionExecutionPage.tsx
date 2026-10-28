@@ -288,7 +288,8 @@ const beimei010101ProcessOptions: ProcessOption[] = createFixedPlanningProcesses
 }));
 
 const processOptions: ProcessOption[] = beimei010101ProcessOptions;
-const mockedAbnormalProcessId: string | null = 'generated-assemble-02';
+// 视觉异常 mock：任务推进到上贴板1-1装配（贴板 02 装配焊接）时触发，与工艺规划工序（proc-*）对齐。
+const mockedAbnormalProcessId: string | null = 'proc-04-up-plate-1';
 const mockedAbnormalWorkpieceSerial = '0162-01-010101-01';
 
 function NewTaskTrayTree({
@@ -1116,8 +1117,9 @@ function getExecutableWorkpieceIndex(task: ProductionTask) {
   return task.workpieces.findIndex((item) => item.state === 'pending');
 }
 
+// 定位类工步（与工艺规划 taskSlots 命名对齐）：贴板工序「精定位」+ 主筋板上料「精定位/导入工件位置」。
 function isPositioningWorkstepName(name: string | undefined) {
-  return name === '二次定位/导入工件位置' || name?.includes('精定位/导入工件位置') === true;
+  return name === '精定位' || name?.includes('精定位/导入工件位置') === true;
 }
 
 function getTaskProcessLabel(workpiece: ProductionWorkpiece, processName: string, suffix?: string) {
@@ -1748,7 +1750,7 @@ function ProductionModelViewport({
   task: ProductionTask | null;
   selectedProcessId: string | null;
   relatedPartIds: Set<string>;
-  /** 单步模式选中的「贴板[xx]焊接」工步名：非空时模型视图切换为焊接任务时序视图态。 */
+  /** 单步模式选中的装配工序「焊接」工步名：非空时模型视图切换为焊接任务时序视图态。 */
   weldWorkstepName?: string | null;
   onDeselectProcess: () => void;
 }) {
@@ -3920,11 +3922,11 @@ export function ProductionExecutionPage({
     setSingleStepSelectedWorkstepIndex(null);
   }, [selectedDebugStationSnapshot?.stationId]);
 
-  // 单步模式选中「贴板[xx]焊接」工步时，模型视图进入焊接任务时序视图态
+  // 单步模式选中装配工序的「焊接」工步时，模型视图进入焊接任务时序视图态（工步名与工艺规划 taskSlots 对齐）。
   const weldTimelineWorkstepName = useMemo(() => {
     if (executionMode !== 'single-step' || !selectedDebugStationSnapshot || singleStepSelectedWorkstepIndex == null) return null;
     const name = selectedDebugStationSnapshot.workstepNames[singleStepSelectedWorkstepIndex];
-    return name && /^贴板\[.+\]焊接$/.test(name) ? name : null;
+    return name === '焊接' ? name : null;
   }, [executionMode, selectedDebugStationSnapshot, singleStepSelectedWorkstepIndex]);
 
   const getPositioningTargetForIndex = (workstepIndex: number): PositioningTarget | null => {
@@ -4708,7 +4710,11 @@ export function ProductionExecutionPage({
         return;
       }
       const jumpProcess = getProcessFromOptions(jumpTarget.processId, activeProcessOptions);
-      const jumpProcessStepNames = getProductionStationWorkstepNames(jumpProcess, taskProcesses);
+      // v2 方案 A：段内工步上限按段落自己的 taskSlots 计算（工位聚合列表会跨工序，不能用来取段内索引）。
+      const jumpSegmentNames = composite
+        ? findProductionCompositeWorkstepLocation(composite, taskProcesses, jumpTarget.processId)?.workstepNames
+        : null;
+      const jumpProcessStepNames = jumpSegmentNames ?? getProductionStationWorkstepNames(jumpProcess, taskProcesses);
       const localStepIndex = Math.min(jumpTarget.localWorkstepIndex, Math.max(0, jumpProcessStepNames.length - 1));
       updateSelectedTask((task) => {
         const startedTask = task.state === 'running' || task.state === 'paused'
@@ -5309,7 +5315,7 @@ export function ProductionExecutionPage({
       && task.id === selectedTask?.id
       && workpiece.serial === mockedAbnormalWorkpieceSerial
       && process.id === mockedAbnormalProcessId
-      && process.name === '装配';
+      && process.name.includes('装配');
     if (isAssemblyShortcut && mockedAbnormalProcessId) {
       const abnormalTask = createVisionAbnormalTask(task, mockedAbnormalProcessId, -1);
       if (!abnormalTask) return;

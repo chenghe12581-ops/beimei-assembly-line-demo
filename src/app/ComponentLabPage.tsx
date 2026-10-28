@@ -7256,47 +7256,47 @@ export function ComponentLabPage() {
     { id: 'area-side-grind-2', name: '贴板打磨工位2', status: 'idle' },
     { id: 'area-turnover', name: '翻面工位', status: 'abnormal', processName: '翻面', workpieceSerial: 'WP-02' },
     { id: 'area-side-grind-1', name: '贴板打磨工位1', status: 'idle' },
-    { id: 'area-main-assembly-1', name: '主筋板装配工位1', status: 'running', processName: '装配', workpieceSerial: 'WP-01' },
+    { id: 'area-main-assembly-1', name: '主筋板装配工位1', status: 'running', processName: '上贴板1-1装配', workpieceSerial: 'WP-01' },
     { id: 'area-main-grinding', name: '主筋板打磨工位1', status: 'idle' },
   ];
   const productionDebugStationDemoName = productionDebugStationsDemo.find((station) => station.id === productionDebugStationDemoId)?.name ?? '主筋板装配工位1';
   const productionDebugProcessByStation: Record<string, ProductionDebugStationSnapshot['process']> = {
     'area-main-grinding': {
-      id: 'generated-grind-01',
-      name: '打磨',
+      id: 'proc-01-rib-feed',
+      name: '主筋板上料',
       partObject: '0162-01-010101-01',
-      unit: '打磨',
+      unit: '上料',
     },
     'area-main-assembly-1': {
-      id: 'generated-assemble-02',
-      name: '装配',
+      id: 'proc-04-up-plate-1',
+      name: '上贴板1-1装配',
       partObject: '0162-01-010101-02 + 0162-01-010101-01',
       unit: '装配',
     },
     'area-side-grind-1': {
-      id: 'generated-grind-02',
-      name: '侧面打磨',
-      partObject: '0162-01-010101-02',
-      unit: '打磨',
+      id: 'proc-05-up-plate-2',
+      name: '上贴板2-1装配',
+      partObject: '0162-01-010101-03 + 0162-01-010101-01',
+      unit: '装配',
       batchGroup: 'side-plate-grind',
     },
     'area-turnover': {
-      id: 'generated-turnover-02-01',
+      id: 'proc-07-turnover',
       name: '翻面',
-      partObject: '0162-01-010101-02 + 0162-01-010101-01',
+      partObject: '0162-01-010101-01',
       unit: '翻面',
     },
     'area-side-grind-2': {
-      id: 'generated-grind-03',
-      name: '侧面打磨',
-      partObject: '0162-01-010101-03',
-      unit: '打磨',
+      id: 'proc-09-down-plate-1',
+      name: '下贴板1-1装配',
+      partObject: '0162-01-010101-04 + 0162-01-010101-01',
+      unit: '装配',
       batchGroup: 'side-plate-grind',
     },
     'area-main-assembly-2': {
-      id: 'generated-assemble-03',
-      name: '装配',
-      partObject: '0162-01-010101-03 + 0162-01-010101-02 + 0162-01-010101-01',
+      id: 'proc-10-down-plate-2-1',
+      name: '下贴板2-1装配',
+      partObject: '0162-01-010101-05A + 0162-01-010101-01',
       unit: '装配',
     },
   };
@@ -8507,13 +8507,13 @@ export function ComponentLabPage() {
             <div className="w-[292px] max-w-full rounded-lg bg-slate-100/85 p-2">
               <WeldSegmentListPanel
                 timeline={weldTimelineLab}
-                workstepName="贴板[0162-01-010101-02]焊接"
+                workstepName="焊接"
                 selectedSegmentIndex={weldTimelineLabSelected}
                 onSelectSegment={setWeldTimelineLabSelected}
               />
             </div>
             <div className="mt-3 text-[11px] leading-5 text-slate-400">
-              生产执行模型视图在单步模式选中「贴板[xx]焊接」工步时进入焊接任务视图态：原结构树自动缩回，属性参数下方新增可缩回的焊缝列表（机器人 chip 按分配着色、轮次标签标第几轮，列表内显示为焊缝 1-4；三维焊缝回显编号保持 W1-W4 不变），点击列表行与 3D 焊缝线联动选中，视角自动平滑切到正视工件。
+              生产执行模型视图在单步模式选中装配工序「焊接」工步时进入焊接任务视图态（工步名与工艺规划 taskSlots 对齐）：原结构树自动缩回，属性参数下方新增可缩回的焊缝列表（机器人 chip 按分配着色、轮次标签标第几轮，列表内显示为焊缝 1-4；三维焊缝回显编号保持 W1-W4 不变），点击列表行与 3D 焊缝线联动选中，视角自动平滑切到正视工件。
             </div>
           </DemoCard>
         );

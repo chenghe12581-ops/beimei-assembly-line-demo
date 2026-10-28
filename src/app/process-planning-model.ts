@@ -291,3 +291,8 @@ export function getPlanningProcessIdForTask(task: { id?: string; processId?: str
   if (task.processId) return task.processId;
   return task.id ? legacyTaskProcessIds[task.id] : undefined;
 }
+
+/** 工序默认工步（taskSlot）名称序列：生产执行等模块与工艺规划共用同一数据源。 */
+export function getFixedPlanningTaskSlotLabels(processId: string): string[] {
+  return (fixedPlanningTaskSlotTemplates[processId] ?? []).map((slot) => slot.label);
+}

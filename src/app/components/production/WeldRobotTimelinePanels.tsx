@@ -11,7 +11,7 @@ function getRobotColor(robotName: string) {
   return WELD_ROBOT_COLORS[robotName] ?? { chip: 'bg-zinc-100/90 text-zinc-600', bar: 'bg-zinc-400/85', dot: 'bg-zinc-400' };
 }
 
-/** 焊缝列表：单步模式选中「贴板[xx]焊接」工步时，模型视图左侧（属性参数下方）展示该工步的全部焊缝段。 */
+/** 焊缝列表：单步模式选中装配工序「焊接」工步时，模型视图左侧（属性参数下方）展示该工步的全部焊缝段。 */
 export function WeldSegmentListPanel({
   timeline,
   workstepName,
