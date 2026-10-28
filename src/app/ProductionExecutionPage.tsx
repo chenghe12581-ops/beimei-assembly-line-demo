@@ -2181,7 +2181,7 @@ function FloatingWorkspaceControls({
         </button>
         <button
           type="button"
-          title={selectedTask?.state === 'running' ? '停止：当前工步执行完后跳出执行状态' : selectedTask?.state === 'paused' ? '停止：直接跳出执行状态，可进行单站 / 单步调试' : undefined}
+          title={selectedTask?.state === 'running' ? '停止：当前工步执行完后跳出执行状态' : selectedTask?.state === 'paused' ? '停止：直接跳出执行状态，可进行单站 / 单步调试' : !selectedTask ? '请先选择工单' : '任务未在执行，无需停止'}
           className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-50/80 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!selectedTask || (selectedTask.state !== 'running' && selectedTask.state !== 'paused')}
           onClick={onStop}
