@@ -277,18 +277,22 @@ export function SingleStepDebugPanel({
         {executionMode === 'single-step' ? (
           <>
             <Tooltip title={sessionActive ? '存在执行中的会话，请先停止' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
-              <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={() => { setDemoExecutingWorkstepIndex(null); onInitialize(); }}>
-                <RotateCcw className="size-3.5" />
-                初始化
-              </Button>
+              {/* 外层 span：避免 Tooltip 直接包裹 antd Button 时触发节点被替换导致定位丢失（组件库同款写法） */}
+              <span>
+                <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={() => { setDemoExecutingWorkstepIndex(null); onInitialize(); }}>
+                  <RotateCcw className="size-3.5" />
+                  初始化
+                </Button>
+              </span>
             </Tooltip>
             <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，请停止整线后操作' : '当前工位正在执行，请先停止') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，请停止后执行` : canPauseControl ? '点击暂停当前单步工步' : canRunControl ? (isPaused ? '点击继续单步执行' : '点击执行选中工步') : '当前不可执行工步'}>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 gap-1 px-2 text-xs"
-                disabled={!canRunControl && !canPauseControl}
-                onClick={() => {
+              <span>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 gap-1 px-2 text-xs"
+                  disabled={!canRunControl && !canPauseControl}
+                  onClick={() => {
                   if (canPauseControl) {
                     if (snapshot?.process) {
                       onExecutionPause?.();
@@ -319,54 +323,63 @@ export function SingleStepDebugPanel({
               >
                 {canPauseControl ? <Pause className="size-3.5" /> : isPaused ? <Play className="size-3.5" /> : <SkipForward className="size-3.5" />}
                 {canPauseControl ? '暂停' : isPaused ? '继续' : '执行工步'}
-              </Button>
+                </Button>
+              </span>
             </Tooltip>
             <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作；当前工步标记执行错误，断点保留，可直接重新执行' : '当前无执行中的任务'}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                disabled={!canStopControl}
-                onClick={() => { setDemoExecutingWorkstepIndex(null); onExecutionStop?.(); }}
-              >
-                <Square className="size-3.5" />
-                停止执行
-              </Button>
+              <span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                  disabled={!canStopControl}
+                  onClick={() => { setDemoExecutingWorkstepIndex(null); onExecutionStop?.(); }}
+                >
+                  <Square className="size-3.5" />
+                  停止执行
+                </Button>
+              </span>
             </Tooltip>
           </>
         ) : (
           <>
             <Tooltip title={sessionActive ? '存在执行中的会话，请先停止' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
-              <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={onInitialize}>
-                <RotateCcw className="size-3.5" />
-                初始化
-              </Button>
+              <span>
+                <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={onInitialize}>
+                  <RotateCcw className="size-3.5" />
+                  初始化
+                </Button>
+              </span>
             </Tooltip>
             <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，请停止整线后操作' : '当前工位正在执行，请先停止') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，请停止后执行` : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停自动执行' : canRunControl ? (isPaused ? '点击继续自动执行' : '点击开始自动执行') : '当前不可自动执行'}>
-              <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={!canRunControl && !canPauseControl} onClick={() => {
-                if (canPauseControl) {
-                  onExecutionPause?.();
-                } else if (canRunControl) {
-                  onRunOrPause(snapshot?.stationId, 'station', 'auto');
-                }
-              }}>
-                {canPauseControl ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                {canPauseControl ? '暂停' : isPaused ? '继续' : '自动执行'}
-              </Button>
+              <span>
+                <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={!canRunControl && !canPauseControl} onClick={() => {
+                  if (canPauseControl) {
+                    onExecutionPause?.();
+                  } else if (canRunControl) {
+                    onRunOrPause(snapshot?.stationId, 'station', 'auto');
+                  }
+                }}>
+                  {canPauseControl ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                  {canPauseControl ? '暂停' : isPaused ? '继续' : '自动执行'}
+                </Button>
+              </span>
             </Tooltip>
             <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作；当前工步标记执行错误，断点保留，可直接重新执行' : '当前无执行中的任务'}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                disabled={!canStopControl}
-                onClick={onExecutionStop}
-              >
-                <Square className="size-3.5" />
-                停止执行
-              </Button>
+              <span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                  disabled={!canStopControl}
+                  onClick={onExecutionStop}
+                >
+                  <Square className="size-3.5" />
+                  停止执行
+                </Button>
+              </span>
             </Tooltip>
           </>
         )}
