@@ -199,6 +199,7 @@ export function SingleStepDebugPanel({
   const selectedMode = modeOptions.find((option) => option.id === executionMode) ?? modeOptions[0];
   const isRunning = taskState === 'running';
   const isPaused = taskState === 'paused';
+  const isStopped = taskState === 'stopped';
   const workstepNames = snapshot?.workstepNames ?? [];
   const workstepGroups = snapshot?.workstepGroups ?? [{ id: 'station-worksteps', label: '工位工步', steps: workstepNames.map((name, index) => ({ name, index })) }];
   const hasWorksteps = workstepNames.length > 0;
@@ -216,7 +217,8 @@ export function SingleStepDebugPanel({
   // 初始化：会话存在期间（running / paused）始终禁点，停止后它是恢复执行的唯一入口。
   const canInitControl = canInitialize && !sessionActive;
   // 执行（自动/单步）：空闲或暂停后可启动/继续；会话模式与当前 tab 不一致时置灰（模式内互斥）。
-  const canRunControl = (isIdle || isPaused) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode);
+  // v2：stopped 纳入可执行——停止保留断点，执行按钮直接恢复可点，无需初始化即可断点续跑。
+  const canRunControl = (isIdle || isPaused || isStopped) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode);
   const canPauseControl = isRunning && !barLocked && (!sessionHere || stationSessionMode === executionMode);
   // 停止全局同步：running / paused 均可停止，作用于整个执行动作；仅其他工位占用会话时本面板不可用。
   const canStopControl = (isRunning || isPaused) && !otherStationLocked;
@@ -290,6 +292,15 @@ export function SingleStepDebugPanel({
                   if (canPauseControl) {
                     if (snapshot?.process) {
                       onExecutionPause?.();
+                    } else {
+                      setDemoExecutingWorkstepIndex(null);
+                    }
+                    return;
+                  }
+                  if (isPaused && canRunControl) {
+                    // v2 修复：暂停态点「继续」直接恢复执行，不再误开单步确认弹窗。
+                    if (snapshot?.process) {
+                      onRunOrPause(snapshot?.stationId, 'station', 'single-step');
                     } else {
                       setDemoExecutingWorkstepIndex(null);
                     }

@@ -4768,8 +4768,11 @@ export function ProductionExecutionPage({
     });
   };
 
+  /* ===== v1 执行推进动画：12 秒自动推进定时器（本期停用，保留代码，待推进效果设计后恢复）=====
+   * 原效果：auto 模式下每 12s 对 running 任务调用 advanceProductionTask 推进一道工序。
+   */
+  /*
   useEffect(() => {
-    // v2：执行推进动画暂缓，12 秒自动推进定时器本期停用（保留代码，待推进效果设计后恢复）。
     if (!EXECUTION_AUTO_ADVANCE_ENABLED || executionMode !== 'auto') return undefined;
     const timer = window.setInterval(() => {
       setTasks((prev) => prev.map((task) => (
@@ -4779,6 +4782,7 @@ export function ProductionExecutionPage({
 
     return () => window.clearInterval(timer);
   }, [activeProcessOptions, disabledProcessKeys, executionMode]);
+  */
 
   useEffect(() => {
     if (executionMode !== 'auto' || !selectedTask || selectedTask.state !== 'running') return;
@@ -4900,12 +4904,13 @@ export function ProductionExecutionPage({
     return draftSequenceRef.current;
   };
 
+  /* ==================== v1 初始化逻辑（已注释保留） ====================
+   * 原逻辑：任务 → ready，stopped 时工件进度清零；日志「PLC、机器人、视觉信号已复位」。
+   * v2 由 initializeExecutionV2 取代：初始化 = 设备 + 流程全部初始化并清零断点，不是执行的前置。
+   * ================================================================== */
+  /*
   const handleInitialize = () => {
     if (!selectedTask) return;
-    // v2：初始化 = 设备状态 + 软件流程全部初始化，断点清零；不是执行的前置。
-    setExecutionBreakpoint(null);
-    setStepConfirmTarget(null);
-    setStepEndInfo(null);
     updateSelectedTask((task) => ({
       ...task,
       state: 'ready',
@@ -4914,8 +4919,9 @@ export function ProductionExecutionPage({
       progress: task.state === 'stopped' ? 0 : task.progress,
       workpieces: task.workpieces.map((item) => task.state === 'stopped' ? { ...item, progress: 0, state: 'pending', process: '未开始', currentProcessId: null, currentStepIndex: 0, abnormalProcessId: undefined, abnormalVisionFeedId: undefined } : item),
     }));
-    addLog(`${selectedTask.drawingNo} 初始化完成，设备与流程已复位，断点已清零`);
+    addLog(`${selectedTask.drawingNo} 初始化完成，PLC、机器人、视觉信号已复位`);
   };
+  */
 
   // 工位详情自动执行：起点对齐到当前查看工位（复合工位取首个启用段落），而不是整张工单首道工序。
   const resolveStationStartProcessId = (
@@ -4980,6 +4986,19 @@ export function ProductionExecutionPage({
     };
   };
 
+  /* ==================== v1 执行启动逻辑（已注释保留） ====================
+   * 原 handleRunOrPause：running→paused（保会话）；异常工件阻止启动；托盘动画分支（见下）；
+   * 之后复用内联 buildStartedTask 同款逻辑把任务置 running 并 beginSession。
+   * 原 AGV 物流演示动画（本期停用，保留在注释内，后续设计推进效果时恢复）：
+   *   首工件启动且 EXECUTION_DEMO_ANIMATION_ENABLED 时——
+   *   ① 01 托盘未就绪且无 00→01 上料任务 → 阻止启动并告警；有任务则预约托盘、AGV 4s 后到达 loaded；
+   *   ② 再等 4s 托盘置 empty-frame（工位接料）→ 调用 startSelectedProductionTask 真正开工；
+   *   ③ 链式 4s×2：01 空托回收 00、09 满托接收装配体并新建 AGV-MOCK-009 满托任务；
+   *   ④ 链式 4s×2：满托 09→10 下料，托盘恢复空闲。
+   * v1 停止语义：停止后必须初始化才能再执行（v2 stopExecutionV2 已取代：断点保留、直接续跑）。
+   * v2 由 handlePanelRunOrPauseV2 / handleMainRunOrPauseV2 取代。
+   * ================================================================== */
+  /*
   const startSelectedProductionTask = (startStationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => {
     if (!selectedTask) return;
     updateSelectedTask((task) => buildStartedTask(task, startStationId));
@@ -5185,6 +5204,7 @@ export function ProductionExecutionPage({
     addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
     addLog('机器人调度与视觉识别进入监测状态');
   };
+  */
 
   const handleClearWorkpieceAbnormal = ({ workpieceId, processId }: { workpieceId: string; processId: string }) => {
     if (!selectedTask) return;
@@ -5337,7 +5357,7 @@ export function ProductionExecutionPage({
 
   // 停止统一入口（v2）：任一侧「停止 / 停止执行」都作用于整个执行动作。
   // 停止记住断点——当前工步标记为执行错误、已做部分作废；执行按钮恢复可点，无需初始化即可从断点续跑。
-  const stopTask = (source: 'line' | 'station') => {
+  const stopExecutionV2 = (source: 'line' | 'station') => {
     if (!selectedTask) return;
     setExecutionBreakpoint((prev) => (prev ? { ...prev, error: true } : prev));
     setStepConfirmTarget(null);
@@ -5826,9 +5846,15 @@ export function ProductionExecutionPage({
   })();
   const stationStartUnavailable = Boolean(selectedTask && selectedDebugStationSnapshot && !viewedStationStartProcessId);
   // 整线执行不再依赖当前查看工位（stationStartUnavailable 仅用于单站起点提示）。
-  // v2：停止后执行按钮直接恢复可点（断点续跑），只有完成 / 异常态不可执行。
+  /* ==================== v1 执行控制派生与入口（已注释保留） ====================
+   * 原 canRun 不含 stopped：停止后执行按钮永久置灰，断点续跑走不通（v2 关键修正）；
+   * 原 canInitialize 允许 ready / stopped / draft 初始化；
+   * handleExecutionPause / handleMainRunOrPause 直接转发 v1 handleRunOrPause
+   * （running→paused、异常阻止启动、托盘动画分支，见上方 v1 注释块）。
+   * v2 同名派生与入口见 handleConfirmVisionAlert 之后的「v2 执行控制」块。
+   * ================================================================== */
+  /*
   const canRun = Boolean(selectedTask && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal');
-  // 初始化统一：ready / stopped / draft 均可；执行会话存在期间（running / paused）始终禁点，停止后它是恢复执行的唯一入口。
   const canInitialize = Boolean(
     selectedTask
     && (selectedTask.state === 'ready' || selectedTask.state === 'stopped' || selectedTask.state === 'draft'),
@@ -5840,7 +5866,6 @@ export function ProductionExecutionPage({
     && (executionMode !== 'manual' || Boolean(selectedDebugStationSnapshot?.process)),
   );
   const handleExecutionPause = () => {
-    // 仅暂停任务，不释放执行会话（会话保持），这样暂停期间互锁仍然生效。
     if (selectedTask?.state === 'running') {
       handleRunOrPause();
     }
@@ -5852,6 +5877,7 @@ export function ProductionExecutionPage({
     }
     handleRunOrPause(undefined, 'line', 'auto');
   };
+  */
   useEffect(() => {
     // 只在任务进入终态或非活跃态时释放执行会话，running/paused/ready 保持锁定。
     if (executionSession && ['stopped', 'done', 'abnormal', 'draft'].includes(selectedTask?.state ?? '')) {
@@ -5890,8 +5916,93 @@ export function ProductionExecutionPage({
     const side = visionAlertSide;
     setVisionAlertSide(null);
     if (!side) return;
-    stopTask(side);
+    stopExecutionV2(side);
     addLog('视觉异常：任务已自动停止，断点保留；处理完视觉数据后可直接重新执行，无需初始化', 'error');
+  };
+
+  // ==================== v2 执行控制（断点续跑模型，见 docs/product-specs/production-execution-control.md）====================
+  const isTaskRunning = selectedTask?.state === 'running';
+  const isTaskPaused = selectedTask?.state === 'paused';
+  const isTaskStopped = selectedTask?.state === 'stopped';
+  const isTaskIdle = Boolean(selectedTask && (selectedTask.state === 'ready' || selectedTask.state === 'draft'));
+  const hasAbnormalWorkpieceV2 = Boolean(selectedTask?.workpieces.some((workpiece) => workpiece.state === 'abnormal'));
+  // 执行：非完成 / 异常且无异常工件即可点；stopped 为断点续跑，同样可点（v2 关键修正）。
+  const canRun = Boolean(selectedTask && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal' && !hasAbnormalWorkpieceV2);
+  // 初始化：仅空闲 / 停止态可点；running / paused（暂停视为运行中）均禁点。
+  const canInitialize = Boolean(selectedTask && (isTaskIdle || isTaskStopped));
+  const canExecuteStep = Boolean(
+    selectedTask
+    && (isTaskRunning || isTaskPaused || isTaskStopped)
+    && !hasAbnormalWorkpieceV2
+    && (executionMode !== 'manual' || Boolean(selectedDebugStationSnapshot?.process)),
+  );
+  const startExecutionV2 = (startStationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => {
+    if (!selectedTask) return;
+    setSelectedProcessId(null);
+    setSelectedTaskIds(new Set());
+    updateSelectedTask((task) => buildStartedTask(task, startStationId));
+    beginSession(side, mode, startStationId ?? null);
+    if (executionBreakpoint) {
+      // 自动 / 单步共用一份断点：停止后再次执行从断点工步开始；执行错误工步重做。
+      addLog(`${selectedTask.drawingNo} 从断点续跑：${formatBreakpointStation(executionBreakpoint.stationId)}${executionBreakpoint.stepName ? ` · ${executionBreakpoint.stepName}` : ''}${executionBreakpoint.error ? '（重做执行错误工步）' : ''}`);
+    }
+    setExecutionBreakpoint((prev) => prev ?? {
+      stationId: startStationId ?? null,
+      workstepIndex: 0,
+      stepName: null,
+      error: false,
+    });
+    addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
+    addLog('机器人调度与视觉识别进入监测状态');
+  };
+  const pauseExecutionV2 = () => {
+    // 暂停：记住当前工步执行进度，继续后可执行完本工步；暂停视为运行中，会话保留、初始化与其余执行按钮禁点。
+    if (!selectedTask || selectedTask.state !== 'running') return;
+    updateSelectedTask((task) => ({
+      ...task,
+      state: 'paused',
+      currentProcess: `${task.currentProcess.replace(/ · 已暂停$/, '')} · 已暂停`,
+      workpieces: task.workpieces.map((item) => (item.state === 'running' ? { ...item, state: 'paused' as const, visionSummary: '任务暂停，等待继续执行' } : item)),
+    }));
+    addLog(`${selectedTask.drawingNo} 已暂停，暂停与 PLC / 机器人 / 视觉交互`, 'warning');
+  };
+  const resumeExecutionV2 = () => {
+    if (!selectedTask || selectedTask.state !== 'paused') return;
+    updateSelectedTask((task) => ({
+      ...task,
+      state: 'running',
+      currentProcess: task.currentProcess.replace(/ · 已暂停$/, ''),
+      workpieces: task.workpieces.map((item) => (item.state === 'paused' ? { ...item, state: 'running' as const, visionSummary: '工位执行中' } : item)),
+    }));
+    if (!executionSession) beginSession('line', 'auto', null);
+    addLog(`${selectedTask.drawingNo} 继续执行，从暂停工步进度恢复`);
+  };
+  const handlePanelRunOrPauseV2 = (startStationId?: string, side: 'line' | 'station' = 'line', mode: 'auto' | 'single-step' = 'auto') => {
+    if (!selectedTask) return;
+    if (isTaskRunning) { pauseExecutionV2(); return; }
+    if (isTaskPaused) { resumeExecutionV2(); return; }
+    startExecutionV2(startStationId, side, mode);
+  };
+  const handleMainRunOrPauseV2 = () => handlePanelRunOrPauseV2(undefined, 'line', 'auto');
+  const initializeExecutionV2 = () => {
+    // 初始化 = 设备状态 + 软件流程全部初始化，并清零断点；仅空闲 / 停止态可点，不是执行的前置。
+    if (!selectedTask || !canInitialize) return;
+    setExecutionBreakpoint(null);
+    setStepConfirmTarget(null);
+    setStepEndInfo(null);
+    setVisionAlertSide(null);
+    updateSelectedTask((task) => ({
+      ...task,
+      state: 'ready',
+      currentProcess: '初始化完成，等待执行',
+      currentProcessId: null,
+      progress: task.state === 'stopped' ? 0 : task.progress,
+      workpieces: task.workpieces.map((item) => (task.state === 'stopped'
+        ? { ...item, progress: 0, state: 'pending' as const, process: '未开始', currentProcessId: null, currentStepIndex: 0, abnormalProcessId: undefined, abnormalVisionFeedId: undefined }
+        : item)),
+    }));
+    setExecutionSession(null);
+    addLog(`${selectedTask.drawingNo} 初始化完成：设备状态与软件流程全部初始化，断点已清零`);
   };
   const handleSelectTask = (taskId: string) => {
     const activeExecutionTask = tasks.find((task) => ['running', 'paused', 'abnormal'].includes(task.state));
@@ -5935,8 +6046,8 @@ export function ProductionExecutionPage({
       locked={lineLocked}
       onTabChange={setActiveTab}
       onOpenTrayManagement={() => setTrayManagementOpen(true)}
-      onInitialize={handleInitialize}
-    onRunOrPause={handleMainRunOrPause}
+      onInitialize={initializeExecutionV2}
+    onRunOrPause={handleMainRunOrPauseV2}
       onRequestStop={() => setStopConfirmSource('line')}
     />
   );
@@ -6115,10 +6226,10 @@ export function ProductionExecutionPage({
                 positioningResultKeysByWorkstep={positioningResultKeysByWorkstep}
                 onViewPositioningResult={handleViewPositioningResult}
                 onExecutionModeChange={setExecutionMode}
-                onExecutionPause={handleExecutionPause}
+                onExecutionPause={pauseExecutionV2}
                 onExecutionStop={() => setStopConfirmSource('station')}
-                onInitialize={handleInitialize}
-                onRunOrPause={(stationId, side, mode) => handleRunOrPause(stationId, side, mode)}
+                onInitialize={initializeExecutionV2}
+                onRunOrPause={(stationId, side, mode) => handlePanelRunOrPauseV2(stationId, side, mode)}
                 onRequestExecuteStep={handleRequestExecuteStep}
                 onExecuteStep={handleRequestExecuteStep}
                 onSelectedWorkstepChange={setSingleStepSelectedWorkstepIndex}
@@ -6172,7 +6283,7 @@ export function ProductionExecutionPage({
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
               <Button size="sm" variant="outline" onClick={() => setStopConfirmSource(null)}>取消</Button>
-              <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={() => stopTask(stopConfirmSource)}>确认停止</Button>
+              <Button size="sm" className="bg-ds-brand-primary text-white hover:bg-ds-brand-primary-hover" onClick={() => stopExecutionV2(stopConfirmSource)}>确认停止</Button>
             </div>
           </div>
         </div>
