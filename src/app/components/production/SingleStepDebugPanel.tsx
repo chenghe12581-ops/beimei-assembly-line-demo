@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Circle, Pause, Play, RotateCcw, SkipForward, Square } from 'lucide-react';
+import { Circle, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
 import { Tooltip } from 'antd';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardTitle } from '../ui/card';
@@ -76,23 +76,21 @@ type SingleStepDebugPanelProps = {
   startDisabledReason?: string;
   canExecuteStep: boolean;
   taskState: ProductionTaskState | null;
-  /** 整线执行会话中：单站控制条互锁置灰（停止执行按钮豁免）。 */
+  /** 整线执行会话中：单站控制条互锁置灰。 */
   lineLocked?: boolean;
   /** 单站执行会话模式（无单站会话时为 null）。 */
   stationSessionMode?: 'auto' | 'single-step' | null;
   /** 单站执行会话占用工位（无单站会话时为 null）。 */
   stationSessionStationId?: string | null;
-  /** 断点所在工位（v2 断点续跑）：当前工单记住的 { 工位, 工步 }。 */
+  /** 进度所在工位（v3 进度续跑）：当前工单记住的 { 工位, 工步 }。 */
   breakpointStationId?: string | null;
-  /** 断点工步被停止 / 异常停止标记为执行错误时的工步索引（用于工步列表红色徽标）。 */
+  /** 进度工步被「异常中断」标记为异常时的工步索引（用于工步列表红色徽标）。 */
   breakpointErrorIndex?: number | null;
   onExecutionPause?: () => void;
-  /** 打开停止确认弹窗（页面级统一 stopTask）。 */
-  onExecutionStop?: () => void;
   onExecutionModeChange: (mode: ProductionDebugExecutionMode) => void;
   onInitialize: () => void;
   onRunOrPause: (stationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => void;
-  /** 请求单步执行选中工步（页面级先弹「单步执行确认弹窗」）。 */
+  /** 请求单步执行选中工步（页面级先做跳选前序校验，必要时弹前序非完成提示）。 */
   onRequestExecuteStep?: (workstepIndex: number) => void;
   onExecuteStep: (workstepIndex: number) => void;
   positioningResultKeysByWorkstep?: Record<number, string>;
@@ -155,7 +153,7 @@ function getTaskStateLabel(state: ProductionTaskState | null) {
   if (state === 'ready') return '就绪';
   if (state === 'running') return '加工中';
   if (state === 'paused') return '暂停';
-  if (state === 'stopped') return '已停止';
+  if (state === 'stopped') return '异常中断';
   if (state === 'done') return '已完成';
   if (state === 'abnormal') return '异常';
   return '暂无任务';
@@ -177,7 +175,6 @@ export function SingleStepDebugPanel({
   breakpointStationId = null,
   breakpointErrorIndex = null,
   onExecutionPause,
-  onExecutionStop,
   onExecutionModeChange,
   onInitialize,
   onRunOrPause,
@@ -207,25 +204,24 @@ export function SingleStepDebugPanel({
     (snapshot?.process && snapshot.workpieceState === 'running')
     || (!snapshot?.process && demoExecutingWorkstepIndex !== null),
   );
-  // 互锁派生：整线会话中整组置灰（停止豁免）；单站会话占用其他工位时整组置灰；本会话工位内模式互斥。
+  // 互锁派生：整线会话中整组置灰；单站会话占用其他工位时整组置灰；本会话工位内模式互斥。
   const sessionHere = Boolean(stationSessionStationId && stationSessionStationId === snapshot?.stationId);
   const otherStationLocked = Boolean(stationSessionStationId) && !sessionHere;
   const barLocked = lineLocked || otherStationLocked;
   const crossModeLock = Boolean(sessionHere && stationSessionMode && stationSessionMode !== executionMode);
   const sessionActive = lineLocked || Boolean(stationSessionStationId);
   const isIdle = !taskState || taskState === 'ready' || taskState === 'draft';
-  // 初始化：会话存在期间（running / paused）始终禁点，停止后它是恢复执行的唯一入口。
+  // 初始化（仅自动 tab）：会话存在期间（running / paused）始终禁点。
   const canInitControl = canInitialize && !sessionActive;
-  // 执行（自动/单步）：空闲或暂停后可启动/继续；会话模式与当前 tab 不一致时置灰（模式内互斥）。
-  // v2：stopped 纳入可执行——停止保留断点，执行按钮直接恢复可点，无需初始化即可断点续跑。
+  // 自动执行：空闲 / 异常中断态可启动；暂停（软暂停停住）后可恢复继续。
   const canRunControl = (isIdle || isPaused || isStopped) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode);
+  // 单步执行（v3 单步 tab 唯一按钮）：仅空闲 / 异常中断态可点；暂停态（任务停住等待恢复）禁点，回自动 tab 恢复。
+  const canStepRunControl = (isIdle || isStopped) && canStart && !barLocked && !crossModeLock && (!sessionHere || stationSessionMode === executionMode) && demoExecutingWorkstepIndex === null;
   const canPauseControl = isRunning && !barLocked && (!sessionHere || stationSessionMode === executionMode);
-  // 停止全局同步：running / paused 均可停止，作用于整个执行动作；仅其他工位占用会话时本面板不可用。
-  const canStopControl = (isRunning || isPaused) && !otherStationLocked;
   const singleStepExecutionActive = stationSessionMode === 'single-step'
     && sessionHere
     && stationHasRunningWorkstep;
-  // v2：自动执行会话中不允许单步选择其他工步——单步 tab 仅可查看，工步列表禁选。
+  // v3：自动执行会话中不允许单步选择其他工步——单步 tab 仅可查看，工步列表禁选。
   const workstepSelectionLocked = singleStepExecutionActive
     || Boolean(sessionHere && stationSessionMode === 'auto')
     || lineLocked;
@@ -275,76 +271,32 @@ export function SingleStepDebugPanel({
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {executionMode === 'single-step' ? (
-          <>
-            <Tooltip title={sessionActive ? '存在执行中的会话，请先停止' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
-              {/* 外层 span：避免 Tooltip 直接包裹 antd Button 时触发节点被替换导致定位丢失（组件库同款写法） */}
-              <span>
-                <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={() => { setDemoExecutingWorkstepIndex(null); onInitialize(); }}>
-                  <RotateCcw className="size-3.5" />
-                  初始化
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，请停止整线后操作' : '当前工位正在执行，请先停止') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，请停止后执行` : canPauseControl ? '点击暂停当前单步工步' : canRunControl ? (isPaused ? '点击继续单步执行' : '点击执行选中工步') : '当前不可执行工步'}>
-              <span>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8 gap-1 px-2 text-xs"
-                  disabled={!canRunControl && !canPauseControl}
-                  onClick={() => {
-                  if (canPauseControl) {
-                    if (snapshot?.process) {
-                      onExecutionPause?.();
-                    } else {
-                      setDemoExecutingWorkstepIndex(null);
-                    }
-                    return;
-                  }
-                  if (isPaused && canRunControl) {
-                    // v2 修复：暂停态点「继续」直接恢复执行，不再误开单步确认弹窗。
-                    if (snapshot?.process) {
-                      onRunOrPause(snapshot?.stationId, 'station', 'single-step');
-                    } else {
-                      setDemoExecutingWorkstepIndex(null);
-                    }
-                    return;
-                  }
-                  if (canRunControl) {
-                    if (snapshot?.process) {
-                      // v2：先弹「单步执行确认弹窗」，确认后由页面执行选中工步。
-                      onRequestExecuteStep?.(selectedWorkstepIndex);
-                    } else {
-                      setDemoExecutingWorkstepIndex(selectedWorkstepIndex);
-                      onExecuteStep(selectedWorkstepIndex);
-                    }
+          // v3：单步 tab 仅保留「执行工步」一个按钮——无初始化、无暂停；执行状态由工步列表回显。
+          <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，暂不可操作' : '当前工位正在执行，暂不可操作') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，暂不可操作` : isPaused ? '任务已暂停（当前工步已执行完）；请切换到自动模式恢复执行' : singleStepExecutionActive ? '工步执行中，请稍候' : canStepRunControl ? '执行选中工步' : '当前不可执行工步'}>
+            <span>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1 px-2 text-xs"
+                disabled={!canStepRunControl}
+                onClick={() => {
+                  if (snapshot?.process) {
+                    // v3：不再弹单步确认弹窗；页面先做跳选前序校验，必要时弹前序非完成提示。
+                    onRequestExecuteStep?.(selectedWorkstepIndex);
+                  } else {
+                    setDemoExecutingWorkstepIndex(selectedWorkstepIndex);
+                    onExecuteStep(selectedWorkstepIndex);
                   }
                 }}
               >
-                {canPauseControl ? <Pause className="size-3.5" /> : isPaused ? <Play className="size-3.5" /> : <SkipForward className="size-3.5" />}
-                {canPauseControl ? '暂停' : isPaused ? '继续' : '执行工步'}
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作；当前工步标记执行错误，断点保留，可直接重新执行' : '当前无执行中的任务'}>
-              <span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                  disabled={!canStopControl}
-                  onClick={() => { setDemoExecutingWorkstepIndex(null); onExecutionStop?.(); }}
-                >
-                  <Square className="size-3.5" />
-                  停止执行
-                </Button>
-              </span>
-            </Tooltip>
-          </>
+                <SkipForward className="size-3.5" />
+                执行工步
+              </Button>
+            </span>
+          </Tooltip>
         ) : (
           <>
-            <Tooltip title={sessionActive ? '存在执行中的会话，请先停止' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
+            <Tooltip title={sessionActive ? '执行中不可初始化' : canInitControl ? '初始化任务' : '当前任务不可初始化'}>
               <span>
                 <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" disabled={!canInitControl} onClick={onInitialize}>
                   <RotateCcw className="size-3.5" />
@@ -352,7 +304,7 @@ export function SingleStepDebugPanel({
                 </Button>
               </span>
             </Tooltip>
-            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，请停止整线后操作' : '当前工位正在执行，请先停止') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，请停止后执行` : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停自动执行' : canRunControl ? (isPaused ? '点击继续自动执行' : '点击开始自动执行') : '当前不可自动执行'}>
+            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，暂不可操作' : '当前工位正在执行，暂不可操作') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，暂不可操作` : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停：当前工步执行完后停住' : canRunControl ? (isPaused ? '点击继续自动执行' : '点击开始自动执行') : '当前不可自动执行'}>
               <span>
                 <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={!canRunControl && !canPauseControl} onClick={() => {
                   if (canPauseControl) {
@@ -363,21 +315,6 @@ export function SingleStepDebugPanel({
                 }}>
                   {canPauseControl ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
                   {canPauseControl ? '暂停' : isPaused ? '继续' : '自动执行'}
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title={otherStationLocked ? '当前工位正在执行，请先停止' : canStopControl ? '停止当前执行动作；当前工步标记执行错误，断点保留，可直接重新执行' : '当前无执行中的任务'}>
-              <span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                  disabled={!canStopControl}
-                  onClick={onExecutionStop}
-                >
-                  <Square className="size-3.5" />
-                  停止执行
                 </Button>
               </span>
             </Tooltip>
@@ -454,7 +391,7 @@ export function SingleStepDebugPanel({
               <ProductionManualControlPanel
                 target={manualControlTarget}
                 disabled={executionControlsDisabled || taskState === 'running'}
-                disabledReason="请先停止生产任务"
+                disabledReason="任务执行中不可用，请先暂停或等待执行完成"
                 onEditTrayMaterial={onEditTrayMaterial}
                 onDispatchAgv={onDispatchTrayAgv}
                 onCommand={onManualCommand}
@@ -530,7 +467,7 @@ export function SingleStepDebugPanel({
                       <span className="flex shrink-0 items-center gap-2 pt-0.5">
                         {showErrorBadge && (
                           <span className="rounded bg-red-50 px-1 py-0.5 text-[10px] font-medium text-red-600 ring-1 ring-inset ring-red-200">
-                            执行错误
+                            异常
                           </span>
                         )}
                         {positioningResultKey && onViewPositioningResult && (

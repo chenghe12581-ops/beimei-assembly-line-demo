@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ASSET_BASE } from '../asset-base';
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Box, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, CircleAlert, CircleCheck, Cog, Download, Eye, FileCog, FileQuestion, FileSpreadsheet, FileWarning, Filter, Flame, FolderOpen, FolderPlus, Forklift, GripVertical, Hammer, History, Import, Layers, Layers3, ListX, Minus, MonitorUp, Move3D, PanelLeft, Pin, Play, Plus, RefreshCw, Save, ScanFace, Search, SlidersHorizontal, Sparkles, Square, SquareArrowRight, Target, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Box, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, CircleAlert, CircleCheck, Cog, Download, Eye, FileCog, FileQuestion, FileSpreadsheet, FileWarning, Filter, Flame, FolderOpen, FolderPlus, Forklift, GripVertical, Hammer, History, Import, Layers, Layers3, ListX, Minus, MonitorUp, Move3D, PanelLeft, Pin, Play, Plus, RefreshCw, Save, ScanFace, Search, SlidersHorizontal, Sparkles, SquareArrowRight, Target, Trash2, X } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { WeldFeatureIcon, GrindFeatureIcon, AssemblyFeatureIcon } from './components/icons/FeatureToolIcons';
@@ -8971,9 +8971,6 @@ export function ComponentLabPage() {
                   <button type="button" className="flex h-8 items-center gap-1.5 rounded-lg bg-white px-2.5 text-xs font-medium text-slate-900 shadow-sm">
                     <Play className="size-3.5" />执行
                   </button>
-                  <button type="button" className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-500">
-                    <Square className="size-3.5" />停止
-                  </button>
                 </div>
                 <div className="flex h-10 items-center rounded-xl border border-white/70 bg-ds-bg-production-execution-toolbar p-1 shadow-lg shadow-slate-900/8 backdrop-blur-md">
                   <button type="button" className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-slate-600">
@@ -9222,7 +9219,6 @@ export function ComponentLabPage() {
                   onRunOrPause={() => undefined}
                   onRequestExecuteStep={() => undefined}
                   onExecuteStep={() => undefined}
-                  onExecutionStop={() => undefined}
                 />
               </div>
             </div>
@@ -9741,7 +9737,6 @@ export function ComponentLabPage() {
                 onInitialize={() => undefined}
                 onRunOrPause={() => undefined}
                 onExecuteStep={() => undefined}
-                onExecutionStop={() => undefined}
               />
             </div>
             <div className="mb-4 max-w-[760px] overflow-hidden rounded-xl border border-zinc-200/70 bg-white/72 shadow-ds-sm">
