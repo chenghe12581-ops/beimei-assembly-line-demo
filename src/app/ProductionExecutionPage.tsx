@@ -566,22 +566,21 @@ const initialLegacyTasks: ProductionTask[] = initialTasks.slice(0, 1).map((task)
   processIds: beimei010101LegacyProcessOptions.map((item) => item.id),
 }));
 
+// 托盘默认上料完成：前 8 个托盘满料，09（下料区）为空，整线启动无需等待托盘。
 const initialTraySlots: TraySlot[] = [
-  { id: '1', area: '上料区', trayType: '大托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '2', area: '装配区', trayType: '大托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '3', area: '装配区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '4', area: '装配区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '5', area: '装配区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '6', area: '装配区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '7', area: '装配区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
-  { id: '8', area: '装配区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
+  { id: '1', area: '上料区', trayType: '大托盘', material: '0162-01-010101-01', quantity: 6, state: 'full' },
+  { id: '2', area: '装配区', trayType: '大托盘', material: '0162-01-010101-02', quantity: 6, state: 'full' },
+  { id: '3', area: '装配区', trayType: '中托盘', material: '0162-01-010101-03', quantity: 6, state: 'full' },
+  { id: '4', area: '装配区', trayType: '中托盘', material: '0162-01-010101-04', quantity: 6, state: 'full' },
+  { id: '5', area: '装配区', trayType: '中托盘', material: '0162-01-010101-05A', quantity: 6, state: 'full' },
+  { id: '6', area: '装配区', trayType: '中托盘', material: '0162-01-010101-05B', quantity: 6, state: 'full' },
+  { id: '7', area: '装配区', trayType: '中托盘', material: '0162-01-010101-02', quantity: 6, state: 'full' },
+  { id: '8', area: '装配区', trayType: '中托盘', material: '0162-01-010101-03', quantity: 6, state: 'full' },
   { id: '9', area: '下料区', trayType: '中托盘', material: '空', quantity: 0, state: 'empty' },
 ];
 
-const initialTrayTasks: TrayTask[] = [
-  { id: 'AGV-001', workOrderNo: firstDemoWorkOrderNo, type: '上料任务', mode: '自动', material: '0162-01-010101-01', quantity: 6, pickup: '00', dropoff: '01', state: 'pending' },
-  { id: 'AGV-002', type: '空托任务', mode: '自动', material: '', quantity: 0, pickup: '01', dropoff: '00', state: 'pending' },
-];
+// 默认全部上料完成，无需 AGV 上料 / 空托任务。
+const initialTrayTasks: TrayTask[] = [];
 
 const productionTrayDemoStepInterval = 4000;
 
@@ -1114,6 +1113,9 @@ function calculateOverallTaskProgress(workpieces: ProductionWorkpiece[]) {
 function getExecutableWorkpieceIndex(task: ProductionTask) {
   const activeIndex = task.workpieces.findIndex((item) => item.state === 'paused' || item.state === 'running');
   if (activeIndex >= 0) return activeIndex;
+  // 异常工件优先于未执行工件：确认异常弹窗后再次执行，从异常工步重做（而非跳到下一工件）。
+  const abnormalIndex = task.workpieces.findIndex((item) => item.state === 'abnormal');
+  if (abnormalIndex >= 0) return abnormalIndex;
   return task.workpieces.findIndex((item) => item.state === 'pending');
 }
 
@@ -2112,7 +2114,7 @@ function FloatingWorkspaceControls({
   canRun,
   canInitialize,
   locked,
-  /** 运行中的忙碌标签（软暂停 / 停止请求 = 「等待完成」，整线托盘等待 = 「等待托盘」）；非空时执行按钮显示该标签并禁点。 */
+  /** 运行中的忙碌标签（软暂停 / 停止请求 = 「等待完成」）；非空时执行按钮显示该标签并禁点。 */
   runBusyLabel,
   onTabChange,
   onOpenTrayManagement,
@@ -2175,7 +2177,7 @@ function FloatingWorkspaceControls({
         </button>
         <button
           type="button"
-          title={locked ? '单站正在执行，暂不可操作' : runBusyLabel ? (runBusyLabel === '等待完成' ? '暂停请求已接受：等待当前工步执行完成后停住' : '整线启动准备：等待托盘就位') : undefined}
+          title={locked ? '单站正在执行，暂不可操作' : runBusyLabel ? '暂停请求已接受：等待当前工步执行完成后停住' : undefined}
           className="flex h-8 items-center gap-1.5 rounded-lg bg-white px-2.5 text-xs font-medium text-slate-900 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
           disabled={locked || !canRun || (selectedTask?.state === 'running' && Boolean(runBusyLabel))}
           onClick={onRunOrPause}
@@ -3662,8 +3664,8 @@ const EXECUTION_AUTO_ADVANCE_ENABLED = false;
 const EXECUTION_DEMO_ANIMATION_ENABLED = false;
 // ==================== v3.1 过程演示动画 ====================
 // 仅覆盖两个展示工位：主筋板打磨工位1、装配工位1 + 贴板打磨工位（复合）；其余工位保持瞬时推进。
+// v3.2：整线启动不再等待托盘——默认上料完成（前 8 个托盘满料），点击执行立即按序推进。
 const EXECUTION_ANIM_STEP_MS = 3000;
-const EXECUTION_TRAY_WAIT_MS = 5000;
 // 报错注入（上贴板1-1装配 · 粗定位）在工步执行中途触发。
 const EXECUTION_ERROR_STEP_MS = 1500;
 const EXECUTION_ANIM_AREA_IDS = ['area-main-grinding', 'area-side-grind-1', 'area-main-assembly-1'];
@@ -4687,10 +4689,6 @@ export function ProductionExecutionPage({
     const positioningTarget = getPositioningTargetForIndex(selectedIndex);
     if (positioningTarget) {
       handleOpenPositioningDialog(positioningTarget);
-      return;
-    }
-    if (selectedTask.workpieces.some((workpiece) => workpiece.state === 'abnormal')) {
-      addLog(`${selectedTask.drawingNo} 存在视觉异常，请先完成异常处理`, 'error');
       return;
     }
     if (selectedSnapshot.compositeStation) {
@@ -6084,20 +6082,20 @@ export function ProductionExecutionPage({
   const isTaskPaused = selectedTask?.state === 'paused';
   const isTaskStopped = selectedTask?.state === 'stopped';
   const isTaskIdle = Boolean(selectedTask && (selectedTask.state === 'ready' || selectedTask.state === 'draft'));
-  const hasAbnormalWorkpieceV2 = Boolean(selectedTask?.workpieces.some((workpiece) => workpiece.state === 'abnormal'));
-  // 执行：非完成 / 异常且无异常工件即可点；stopped 为已中断态，同样可点——从当前进度工步续跑（异常工步重做）。
-  const canRun = Boolean(selectedTask && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal' && !hasAbnormalWorkpieceV2);
+  // 执行：非完成 / 异常即可点；stopped 为已中断态，同样可点——从当前进度工步续跑（异常工步重做）。
+  // 存在异常工件不阻止执行：确认异常弹窗即退出加工流程，排除故障后可直接再次执行，无需先初始化或处理视觉面板。
+  const canRun = Boolean(selectedTask && selectedTask.state !== 'done' && selectedTask.state !== 'abnormal');
   // 初始化：仅空闲 / 已中断态可点；running / paused（暂停表示还在运行中）均禁点。
   const canInitialize = Boolean(selectedTask && (isTaskIdle || isTaskStopped));
+  // 单步：运行 / 暂停 / 已中断（含异常工步重做）均可点。
   const canExecuteStep = Boolean(
     selectedTask
     && (isTaskRunning || isTaskPaused || isTaskStopped)
-    && !hasAbnormalWorkpieceV2
     && (executionMode !== 'manual' || Boolean(selectedDebugStationSnapshot?.process)),
   );
   const startExecutionV2 = (startStationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => {
     if (!selectedTask) return;
-    // 防重入：托盘等待 / 瞬时推进阶段重复点击执行只生效一次。
+    // 防重入：启动调度未完成前重复点击执行只生效一次。
     if (executionTrayWaitingRef.current) return;
     clearExecutionAnimTimers();
     // 新一轮执行允许异常弹窗再次弹出（同一件工件上一次异常已确认过）。
@@ -6124,22 +6122,13 @@ export function ProductionExecutionPage({
     addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
     addLog('机器人调度与视觉识别进入监测状态');
     if (side === 'line' && freshStart) {
-      // 整线全新启动：先等待托盘就位（托盘功能未设计，默认已上料完成，5s 后就位）。
-      executionTrayWaitingRef.current = true;
-      setExecutionTrayWaiting(true);
-      updateSelectedTask((task) => ({ ...task, currentProcess: '等待托盘就位（整线启动准备）' }));
-      addLog(`${selectedTask.drawingNo} 整线执行启动：等待托盘就位（默认 ${EXECUTION_TRAY_WAIT_MS / 1000}s 后全部托盘就位、上料完成）`);
-      scheduleExecutionAnim(() => {
-        executionTrayWaitingRef.current = false;
-        setExecutionTrayWaiting(false);
-        const current = selectedTaskRef.current;
-        if (!current || current.state !== 'running') return;
-        addLog(`${current.drawingNo} 所有托盘已就位，默认上料完成，开始按序执行`);
-        scheduleExecutionCurrentStep(current);
-      }, EXECUTION_TRAY_WAIT_MS);
-      return;
+      // 整线全新启动：托盘默认已上料完成（前 8 个托盘满料），无需等待，直接按序执行。
+      addLog(`${selectedTask.drawingNo} 托盘已就绪（默认上料完成），开始按序执行`);
     }
+    // 防重入：启动调度未完成前重复点击执行只生效一次（0ms 定时器回调里复位）。
+    executionTrayWaitingRef.current = true;
     scheduleExecutionAnim(() => {
+      executionTrayWaitingRef.current = false;
       const current = selectedTaskRef.current;
       if (!current || current.state !== 'running') return;
       scheduleExecutionCurrentStep(current);
@@ -6150,21 +6139,6 @@ export function ProductionExecutionPage({
     // 等当前工步执行完（3s 到）后再停住；会话保留，初始化与其余执行按钮禁点。
     const task = selectedTaskRef.current;
     if (!task || task.state !== 'running') return;
-    if (executionTrayWaitingRef.current) {
-      // 托盘等待阶段暂停：无工步在执行，直接停住；恢复时重新等待托盘就位。
-      clearExecutionAnimTimers();
-      executionTrayWaitingRef.current = false;
-      executionTrayInterruptedRef.current = true;
-      setExecutionTrayWaiting(false);
-      updateSelectedTask((current) => ({
-        ...current,
-        state: 'paused',
-        currentProcess: '等待托盘就位 · 已暂停',
-        workpieces: current.workpieces.map((item) => (item.state === 'running' ? { ...item, state: 'paused' as const, visionSummary: '托盘等待阶段暂停，等待继续执行' } : item)),
-      }));
-      addLog(`${task.drawingNo} 已暂停：等待托盘就位阶段暂停，恢复后继续`, 'warning');
-      return;
-    }
     const areaId = getTaskActiveAreaId(task);
     if (areaId && EXECUTION_ANIM_AREA_IDS.includes(areaId)) {
       if (executionPausePendingRef.current) return;
@@ -6183,30 +6157,13 @@ export function ProductionExecutionPage({
       state: 'running',
       currentProcess: current.currentProcess
         .replace(/ · 已暂停（当前工步已执行完）$/, '')
-        .replace(/ · 已暂停$/, '')
-        .replace('等待托盘就位 · 已暂停', '等待托盘就位（整线启动准备）'),
+        .replace(/ · 已暂停$/, ''),
       workpieces: current.workpieces.map((item) => (item.state === 'paused' ? { ...item, state: 'running' as const, visionSummary: '工位执行中' } : item)),
     }));
     if (!executionSessionRef.current) beginSession('line', 'auto', null);
     executionPausePendingRef.current = false;
     executionStopPendingRef.current = false;
     setExecutionPausePending(false);
-    if (executionTrayInterruptedRef.current) {
-      // 托盘等待阶段被暂停过：恢复时重新等待托盘就位。
-      executionTrayInterruptedRef.current = false;
-      executionTrayWaitingRef.current = true;
-      setExecutionTrayWaiting(true);
-      addLog(`${task.drawingNo} 继续执行：重新等待托盘就位`);
-      scheduleExecutionAnim(() => {
-        executionTrayWaitingRef.current = false;
-        setExecutionTrayWaiting(false);
-        const current = selectedTaskRef.current;
-        if (!current || current.state !== 'running') return;
-        addLog(`${current.drawingNo} 所有托盘已就位，默认上料完成，开始按序执行`);
-        scheduleExecutionCurrentStep(current);
-      }, EXECUTION_TRAY_WAIT_MS);
-      return;
-    }
     addLog(`${task.drawingNo} 继续执行，从暂停处（下一工步）开始`);
     scheduleExecutionAnim(() => {
       const current = selectedTaskRef.current;
@@ -6325,7 +6282,7 @@ export function ProductionExecutionPage({
       canRun={canRun}
       canInitialize={canInitialize}
       locked={lineLocked}
-      runBusyLabel={executionPausePending ? '等待完成' : executionTrayWaiting ? '等待托盘' : null}
+      runBusyLabel={executionPausePending ? '等待完成' : null}
       onTabChange={setActiveTab}
       onOpenTrayManagement={() => setTrayManagementOpen(true)}
       onInitialize={initializeExecutionV2}
