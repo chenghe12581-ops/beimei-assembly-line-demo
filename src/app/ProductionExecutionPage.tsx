@@ -3676,7 +3676,7 @@ export function ProductionExecutionPage({
   leftPanel?: ProductionExecutionLeftPanel;
   rightPanel?: ProductionExecutionRightPanel;
 } = {}) {
-  const { contextHolder, notifyException } = useGlobalAlertHolder();
+  const { contextHolder } = useGlobalAlertHolder();
   const activeProcessOptions = leftPanel === 'v1' ? beimei010101LegacyProcessOptions : processOptions;
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('execution');
   const [tasks, setTasks] = useState<ProductionTask[]>(() => leftPanel === 'v1' ? initialLegacyTasks : initialTasks);
@@ -4074,14 +4074,6 @@ export function ProductionExecutionPage({
   const visionAbnormalTaskName = visionAbnormalProcess
     ? `${formatProductionWorkpieceSerial(mockedAbnormalWorkpieceSerial)} · ${visionAbnormalProcess.name}${formatCombinedPartObject(visionAbnormalProcess.partObject)}`
     : selectedTask?.name ?? '生产任务';
-  const visionNotificationWorkpiece = selectedTask?.workpieces.find((workpiece) => workpiece.state === 'running')
-    ?? selectedTask?.workpieces[0]
-    ?? null;
-  const visionNotificationSerial = formatProductionWorkpieceSerial(visionNotificationWorkpiece?.serial ?? mockedAbnormalWorkpieceSerial);
-  const visionAbnormalProcessIndex = selectedTask?.processIds.findIndex((processId) => processId === visionAbnormalWorkpiece?.abnormalProcessId) ?? -1;
-  const visionNotificationDescription = visionAbnormalProcess && visionAbnormalProcessIndex >= 0
-    ? `${visionNotificationSerial} 第 ${String(visionAbnormalProcessIndex + 1).padStart(2, '0')} 工序${visionAbnormalProcess.name}${visionExceptionDeviceLabel}异常，等待人工确认`
-    : `${visionNotificationSerial} ${(visionAbnormalWorkpiece?.visionSummary ?? '装配视觉异常，等待人工确认').replace(/^(?:WP|工件)-\d+\s+/, '')}`;
   useEffect(() => {
     if (!visionAbnormalWorkpiece) {
       setVisionCalibrationOpen(false);
@@ -4090,18 +4082,6 @@ export function ProductionExecutionPage({
       setVisionGrabWorkpieceCode('');
       return;
     }
-
-    notifyException({
-      key: `pe-vision-abnormal:${visionAbnormalWorkpiece.id}:${visionAbnormalWorkpiece.abnormalProcessId}`,
-      title: '生产执行异常',
-      description: visionNotificationDescription,
-      actionText: '查看详情',
-      duration: 0,
-      onAction: () => {
-        setActiveTab('vision');
-        setVisionCalibrationOpen(true);
-      },
-    });
 
     setActiveVisionFeedId(visionAbnormalWorkpiece.abnormalVisionFeedId ?? 'weld-1');
     setVisionDemoTarget('abnormal');
@@ -5450,10 +5430,12 @@ export function ProductionExecutionPage({
   // 用函数式 setTasks 取最新任务状态，避免定时器链中 ref 同步时序问题。
   const advanceExecutionAnimStep = (singleStepFinish: boolean) => {
     let finishedTask: ProductionTask | null = null;
+    let finishedFromProcessId: string | null | undefined = null;
     setTasks((prev) => prev.map((item) => {
       if (finishedTask || item.state !== 'running') return item;
       const advanced = advanceProductionTask(item, undefined, true);
       if (advanced === item) return item;
+      finishedFromProcessId = item.workpieces.find((workpiece) => workpiece.state === 'running' || workpiece.state === 'paused')?.currentProcessId ?? item.currentProcessId;
       finishedTask = singleStepFinish && advanced.state !== 'done'
         ? {
             ...advanced,
@@ -5476,6 +5458,15 @@ export function ProductionExecutionPage({
       addLog(`${finishedTask.drawingNo} 全部工步执行完成`);
       return;
     }
+    // 演示推进日志带上工位名称：proc-01 与 proc-03 同名「主筋板上料」，分别在不同工位，仅靠工序名易误以为重复执行。
+    const describeExecutionProcessAt = (processId: string | null | undefined) => {
+      if (!processId) return '—';
+      const processName = getProcessName(processId, processId);
+      const areaId = productionWorkbenchProcessPlacements[processId]?.areaId;
+      const areaName = areaId ? productionWorkbenchAreas.find((area) => area.id === areaId)?.name : undefined;
+      return areaName ? `${processName}（${areaName}）` : processName;
+    };
+    addLog(`演示推进：${describeExecutionProcessAt(finishedFromProcessId)} → ${describeExecutionProcessAt(finishedTask.currentProcessId)}`);
     if (singleStepFinish) {
       clearExecutionAnimTimers();
       executionPausePendingRef.current = false;
@@ -6595,8 +6586,8 @@ export function ProductionExecutionPage({
               </div>
               <div className="px-5 py-4 text-sm leading-6 text-slate-600">
                 <p>异常工件：{abnormalWorkpiece ? formatProductionWorkpieceSerial(abnormalWorkpiece.serial) : selectedTask.drawingNo}</p>
-                <p>异常工序：{abnormalWorkpiece?.abnormalProcessId ?? selectedTask.currentProcess}</p>
-                <p className="mt-1 text-xs text-slate-400">确认后当前工步将标记为异常，已做部分作废；排除故障后可直接再次执行从该工步重做，或选中该工步单步执行，无需初始化。</p>
+                <p>异常工序：{getProcessName(abnormalWorkpiece?.abnormalProcessId ?? selectedTask.currentProcessId)}</p>
+                <p className="mt-2">检测到定位偏差超限，视觉特征匹配失败（报错信息为占位文案，后续接入真实异常数据）。</p>
               </div>
               <div className="flex items-center justify-end gap-2 border-t border-white/50 px-5 py-3">
                 <Button size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleConfirmVisionAlert}>确认</Button>
