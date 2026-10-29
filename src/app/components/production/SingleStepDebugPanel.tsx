@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Circle, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
+import { Circle, Hourglass, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
 import { Tooltip } from 'antd';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardTitle } from '../ui/card';
@@ -76,6 +76,8 @@ type SingleStepDebugPanelProps = {
   startDisabledReason?: string;
   canExecuteStep: boolean;
   taskState: ProductionTaskState | null;
+  /** 软暂停 / 停止请求已接受：当前工步执行完成前自动执行按钮显示「等待完成」并禁点。 */
+  pausePending?: boolean;
   /** 整线执行会话中：单站控制条互锁置灰。 */
   lineLocked?: boolean;
   /** 单站执行会话模式（无单站会话时为 null）。 */
@@ -169,6 +171,7 @@ export function SingleStepDebugPanel({
   startDisabledReason,
   canExecuteStep,
   taskState,
+  pausePending = false,
   lineLocked = false,
   stationSessionMode = null,
   stationSessionStationId = null,
@@ -304,17 +307,17 @@ export function SingleStepDebugPanel({
                 </Button>
               </span>
             </Tooltip>
-            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，暂不可操作' : '当前工位正在执行，暂不可操作') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，暂不可操作` : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停：当前工步执行完后停住' : canRunControl ? (isPaused ? '点击继续自动执行' : '点击开始自动执行') : '当前不可自动执行'}>
+            <Tooltip title={barLocked ? (lineLocked ? '整线正在执行，暂不可操作' : '当前工位正在执行，暂不可操作') : crossModeLock ? `当前为${stationSessionMode === 'auto' ? '自动' : '单步'}执行会话，暂不可操作` : pausePending && canPauseControl ? '暂停请求已接受：等待当前工步执行完成后停住' : !canStart && startDisabledReason ? startDisabledReason : canPauseControl ? '点击暂停：当前工步执行完后停住' : canRunControl ? (isPaused ? '点击继续自动执行' : '点击开始自动执行') : '当前不可自动执行'}>
               <span>
-                <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={!canRunControl && !canPauseControl} onClick={() => {
+                <Button type="button" size="sm" className="h-8 gap-1 px-2 text-xs" disabled={(!canRunControl && !canPauseControl) || (pausePending && canPauseControl)} onClick={() => {
                   if (canPauseControl) {
                     onExecutionPause?.();
                   } else if (canRunControl) {
                     onRunOrPause(snapshot?.stationId, 'station', 'auto');
                   }
                 }}>
-                  {canPauseControl ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                  {canPauseControl ? '暂停' : isPaused ? '继续' : '自动执行'}
+                  {canPauseControl ? (pausePending ? <Hourglass className="size-3.5" /> : <Pause className="size-3.5" />) : <Play className="size-3.5" />}
+                  {canPauseControl ? (pausePending ? '等待完成' : '暂停') : isPaused ? '继续' : '自动执行'}
                 </Button>
               </span>
             </Tooltip>

@@ -9739,6 +9739,28 @@ export function ComponentLabPage() {
                 onExecuteStep={() => undefined}
               />
             </div>
+            <div className="mb-4 h-[360px] max-w-[420px] overflow-hidden rounded-lg border border-slate-200/70 bg-white/58">
+              <SingleStepDebugPanel
+                stations={productionDebugStationsDemo}
+                snapshot={productionDebugStationDemoSnapshot}
+                executionMode={productionDebugModeDemo}
+                lineLocked={false}
+                stationSessionMode={null}
+                stationSessionStationId={null}
+                taskState="running"
+                canInitialize={false}
+                canStart={true}
+                canExecuteStep={false}
+                pausePending={true}
+                onExecutionModeChange={setProductionDebugModeDemo}
+                onInitialize={() => undefined}
+                onRunOrPause={() => undefined}
+                onExecuteStep={() => undefined}
+              />
+            </div>
+            <div className="mb-2 -mt-2 max-w-[420px] text-[10px] leading-4 text-slate-400">
+              软暂停请求已接受（pausePending）：自动执行按钮变为「等待完成」并禁点，当前工步执行完成后任务才真正停住。
+            </div>
             <div className="mb-4 max-w-[760px] overflow-hidden rounded-xl border border-zinc-200/70 bg-white/72 shadow-ds-sm">
               <div className="relative h-[268px] overflow-hidden bg-ds-bg-viewport bg-[linear-gradient(90deg,rgba(148,163,184,0.15)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.15)_1px,transparent_1px)] [background-size:48px_48px] p-3">
                 <svg className="absolute inset-0 h-full w-full" viewBox="0 0 760 268" preserveAspectRatio="xMidYMid meet" aria-hidden="true">

@@ -15,6 +15,7 @@ import {
   ChevronsUp,
   ChevronUp,
   Forklift,
+  Hourglass,
   Minus,
   Pause,
   Play,
@@ -2111,6 +2112,8 @@ function FloatingWorkspaceControls({
   canRun,
   canInitialize,
   locked,
+  /** 运行中的忙碌标签（软暂停 / 停止请求 = 「等待完成」，整线托盘等待 = 「等待托盘」）；非空时执行按钮显示该标签并禁点。 */
+  runBusyLabel,
   onTabChange,
   onOpenTrayManagement,
   onInitialize,
@@ -2124,6 +2127,7 @@ function FloatingWorkspaceControls({
   canInitialize: boolean;
   /** 单站执行会话中整线组互锁置灰（「停止」豁免，可随时跳出执行状态）。 */
   locked: boolean;
+  runBusyLabel: string | null;
   onTabChange: (tab: WorkspaceTab) => void;
   onOpenTrayManagement: () => void;
   onInitialize: () => void;
@@ -2171,13 +2175,13 @@ function FloatingWorkspaceControls({
         </button>
         <button
           type="button"
-          title={locked ? '单站正在执行，暂不可操作' : undefined}
+          title={locked ? '单站正在执行，暂不可操作' : runBusyLabel ? (runBusyLabel === '等待完成' ? '暂停请求已接受：等待当前工步执行完成后停住' : '整线启动准备：等待托盘就位') : undefined}
           className="flex h-8 items-center gap-1.5 rounded-lg bg-white px-2.5 text-xs font-medium text-slate-900 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={locked || !canRun}
+          disabled={locked || !canRun || (selectedTask?.state === 'running' && Boolean(runBusyLabel))}
           onClick={onRunOrPause}
         >
-          {selectedTask?.state === 'running' ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-          {selectedTask?.state === 'running' ? '暂停' : selectedTask?.state === 'paused' ? '继续' : '执行'}
+          {selectedTask?.state === 'running' ? (runBusyLabel ? <Hourglass className="size-3.5" /> : <Pause className="size-3.5" />) : <Play className="size-3.5" />}
+          {selectedTask?.state === 'running' ? (runBusyLabel ?? '暂停') : selectedTask?.state === 'paused' ? '继续' : '执行'}
         </button>
         <button
           type="button"
@@ -3656,6 +3660,14 @@ type PositioningTarget = {
 // v2：执行推进效果暂缓——12 秒自动推进定时器与 AGV 上料演示定时器链本期停用（保留代码，待推进效果设计后恢复）。
 const EXECUTION_AUTO_ADVANCE_ENABLED = false;
 const EXECUTION_DEMO_ANIMATION_ENABLED = false;
+// ==================== v3.1 过程演示动画 ====================
+// 仅覆盖两个展示工位：主筋板打磨工位1、装配工位1 + 贴板打磨工位（复合）；其余工位保持瞬时推进。
+const EXECUTION_ANIM_STEP_MS = 3000;
+const EXECUTION_TRAY_WAIT_MS = 5000;
+// 报错注入（上贴板1-1装配 · 粗定位）在工步执行中途触发。
+const EXECUTION_ERROR_STEP_MS = 1500;
+const EXECUTION_ANIM_AREA_IDS = ['area-main-grinding', 'area-side-grind-1', 'area-main-assembly-1'];
+const EXECUTION_ERROR_PROCESS_ID = 'proc-04-up-plate-1';
 
 export function ProductionExecutionPage({
   leftPanel = 'v2',
@@ -3712,6 +3724,18 @@ export function ProductionExecutionPage({
   // 执行异常弹窗（区分整线 / 单站）：报错 / 急停 / 视觉异常确认后当前工步标记异常、会话释放；排除故障后可直接重新执行。
   const [visionAlertSide, setVisionAlertSide] = useState<'line' | 'station' | null>(null);
   const visionAlertWorkpieceRef = useRef<string | null>(null);
+  // ---------- v3.1 过程演示动画（定时器驱动，回调里读 ref 取最新状态） ----------
+  const executionTimersRef = useRef<number[]>([]);
+  // 软暂停 / 停止请求已接受：等待当前工步（3s）执行完成后再停住 / 跳出。
+  const executionPausePendingRef = useRef(false);
+  const executionStopPendingRef = useRef(false);
+  // 整线启动托盘等待阶段（5s）及其被暂停打断的标记。
+  const executionTrayWaitingRef = useRef(false);
+  const executionTrayInterruptedRef = useRef(false);
+  // 报错注入（上贴板1-1装配 · 粗定位）每次全新执行只触发一次；续跑重做不重复触发。
+  const executionErrorInjectedRef = useRef(false);
+  const [executionPausePending, setExecutionPausePending] = useState(false);
+  const [executionTrayWaiting, setExecutionTrayWaiting] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [workOrderDeleteTargetId, setWorkOrderDeleteTargetId] = useState<string | null>(null);
   const [workpieceDeleteTarget, setWorkpieceDeleteTarget] = useState<{ taskId: string; workpieceId: string } | null>(null);
@@ -3758,12 +3782,26 @@ export function ProductionExecutionPage({
   }, []);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  // 定时器回调晚于渲染执行，通过 ref 读取最新任务 / 会话（passive effect 在提交后同步）。
+  const selectedTaskRef = useRef(selectedTask);
+  const executionSessionRef = useRef(executionSession);
+  useEffect(() => {
+    selectedTaskRef.current = selectedTask;
+    executionSessionRef.current = executionSession;
+  });
   // 切换工单时重置执行进度与单步弹窗状态（进度是每个工单一份）。
   useEffect(() => {
     setExecutionBreakpoint(null);
     setStepJumpWarning(null);
     setVisionAlertSide(null);
     visionAlertWorkpieceRef.current = null;
+    clearExecutionAnimTimers();
+    executionPausePendingRef.current = false;
+    executionStopPendingRef.current = false;
+    executionTrayWaitingRef.current = false;
+    executionTrayInterruptedRef.current = false;
+    setExecutionPausePending(false);
+    setExecutionTrayWaiting(false);
   }, [selectedTaskId]);
   const formatBreakpointStation = (stationId: string | null) => {
     if (!stationId) return '整线';
@@ -4424,9 +4462,7 @@ export function ProductionExecutionPage({
         .slice(activeSegmentIndex + 1)
         .find((segment) => enabledProcessIds.includes(segment.processId));
       if (nextSegment) {
-        if (nextSegment.processId === mockedAbnormalProcessId && activeWorkpieceIndex === 0) {
-          return createVisionAbnormalTask(task, nextSegment.processId, activeWorkpieceIndex) ?? task;
-        }
+        // v3.1：进入上贴板1-1装配不再在工序切换瞬间触发视觉异常——改为过程动画中「粗定位」工步执行中途报错。
         const nextSegmentProcess = getProcessFromOptions(nextSegment.processId, activeProcessOptions);
         const runningWorkpieces = task.workpieces.map((item, index) => index === activeWorkpieceIndex ? {
           ...item,
@@ -4510,15 +4546,7 @@ export function ProductionExecutionPage({
     const nextProcess = getProcessFromOptions(nextProcessId, activeProcessOptions);
     const nextProcessName = nextProcess?.name ?? '下一工序';
     const nextProgress = getProcessProgress(enabledProcessIds, nextProcessId);
-    const mockedAbnormalWorkpieceIndex = task.workpieces.findIndex(
-      (workpiece) => workpiece.serial === mockedAbnormalWorkpieceSerial,
-    );
-    const shouldMockAbnormal = Boolean(mockedAbnormalProcessId)
-      && activeWorkpieceIndex === 0
-      && mockedAbnormalWorkpieceIndex >= 0
-      && nextProcessId === mockedAbnormalProcessId;
-
-    if (shouldMockAbnormal) return createVisionAbnormalTask(task, nextProcessId, activeWorkpieceIndex) ?? task;
+    // v3.1：过程动画接管异常注入——推进到上贴板1-1装配时正常进入，「粗定位」工步执行中途再报错。
 
     const runningWorkpieces = task.workpieces.map((item, index) => index === activeWorkpieceIndex ? {
       ...item,
@@ -4754,6 +4782,14 @@ export function ProductionExecutionPage({
       stepName: nextName,
       error: false,
     });
+    // v3.1 过程动画：单步执行同样按演示节奏执行——演示工位 3s 后完成并推进进度，其余工位瞬时推进；
+    // 完成后任务回到「已中断」态（进度保留），可直接执行下一工步。
+    clearExecutionAnimTimers();
+    scheduleExecutionAnim(() => {
+      const current = selectedTaskRef.current;
+      if (!current || current.state !== 'running') return;
+      scheduleExecutionCurrentStep(current);
+    }, 0);
   };
 
   /* ===== v1 执行推进动画：12 秒自动推进定时器（本期停用，保留代码，待推进效果设计后恢复）=====
@@ -5343,9 +5379,155 @@ export function ProductionExecutionPage({
     setExecutionSession({ side, mode, stationId: side === 'line' ? null : stationId ?? null });
   };
 
+  // ==================== v3.1 过程演示动画引擎 ====================
+  // 仅演示用途：覆盖主筋板打磨工位1、装配工位1 + 贴板打磨工位（复合）；每个工步执行 3s 后完成推进，
+  // 其余工位瞬时推进。整线全新启动先等待 5s（托盘就位，托盘功能未设计，默认上料完成）。
+  // 所有定时器回调通过 ref 读取最新任务 / 会话，避免闭包过期。
+  const clearExecutionAnimTimers = () => {
+    executionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    executionTimersRef.current = [];
+  };
+  const scheduleExecutionAnim = (callback: () => void, delay: number) => {
+    const timer = window.setTimeout(() => {
+      executionTimersRef.current = executionTimersRef.current.filter((item) => item !== timer);
+      callback();
+    }, delay);
+    executionTimersRef.current.push(timer);
+  };
+  // 当前执行工位 areaId（演示动画按工位覆盖范围决定节奏）。
+  const getTaskActiveAreaId = (task: ProductionTask): string | null => {
+    const activeWorkpiece = task.workpieces.find((item) => item.state === 'running' || item.state === 'paused');
+    const processId = activeWorkpiece?.currentProcessId ?? task.currentProcessId;
+    if (!processId) return null;
+    return productionWorkbenchProcessPlacements[processId]?.areaId ?? null;
+  };
+  const isTaskAtErrorStep = (task: ProductionTask): boolean => {
+    const activeWorkpiece = task.workpieces.find((item) => item.state === 'running' || item.state === 'paused');
+    return activeWorkpiece?.currentProcessId === EXECUTION_ERROR_PROCESS_ID && (activeWorkpiece.currentStepIndex ?? 0) === 0;
+  };
+  const resetExecutionAnimFlags = () => {
+    executionPausePendingRef.current = false;
+    executionStopPendingRef.current = false;
+    executionTrayWaitingRef.current = false;
+    executionTrayInterruptedRef.current = false;
+    setExecutionPausePending(false);
+    setExecutionTrayWaiting(false);
+  };
+  // 报错注入：上贴板1-1装配 · 粗定位 执行中途触发视觉异常（弹窗确认后走 haltOnAbnormalV3 中断）。
+  const triggerInjectedExecutionError = () => {
+    const task = selectedTaskRef.current;
+    if (!task || task.state !== 'running') return;
+    executionErrorInjectedRef.current = true;
+    const abnormalTask = createVisionAbnormalTask(task, EXECUTION_ERROR_PROCESS_ID);
+    if (!abnormalTask) return;
+    setTasks((prev) => prev.map((item) => (item.id === task.id ? abnormalTask : item)));
+    addLog(`${task.drawingNo} 上贴板1-1装配 · 粗定位 执行中检测到定位偏差超限，视觉异常，等待人工确认`, 'error');
+  };
+  // 当前工步执行完成（定时器回调）：处理软暂停 / 停止请求，然后推进一道并按节奏继续调度。
+  const completeExecutionAnimStep = () => {
+    const task = selectedTaskRef.current;
+    const session = executionSessionRef.current;
+    if (!task || task.state !== 'running') return;
+    // 兜底：单步跳入报错工步时在此触发注入。
+    if (!executionErrorInjectedRef.current && isTaskAtErrorStep(task)) {
+      triggerInjectedExecutionError();
+      return;
+    }
+    const areaId = getTaskActiveAreaId(task);
+    const animated = areaId !== null && EXECUTION_ANIM_AREA_IDS.includes(areaId);
+    if (animated && session?.mode !== 'single-step' && (executionPausePendingRef.current || executionStopPendingRef.current)) {
+      // 软暂停 / 停止请求：当前工步已执行完（3s 到），停住或跳出执行状态。
+      const stopRequested = executionStopPendingRef.current;
+      executionPausePendingRef.current = false;
+      executionStopPendingRef.current = false;
+      setExecutionPausePending(false);
+      pauseExecutionAfterCurrentStep(stopRequested);
+      return;
+    }
+    advanceExecutionAnimStep(session?.mode === 'single-step');
+  };
+  // 推进一道。singleStepFinish = 单步模式：推进后任务回到「已中断」态并释放会话（进度保留）。
+  // 用函数式 setTasks 取最新任务状态，避免定时器链中 ref 同步时序问题。
+  const advanceExecutionAnimStep = (singleStepFinish: boolean) => {
+    let finishedTask: ProductionTask | null = null;
+    setTasks((prev) => prev.map((item) => {
+      if (finishedTask || item.state !== 'running') return item;
+      const advanced = advanceProductionTask(item, undefined, true);
+      if (advanced === item) return item;
+      finishedTask = singleStepFinish && advanced.state !== 'done'
+        ? {
+            ...advanced,
+            state: 'stopped' as const,
+            workpieces: advanced.workpieces.map((workpiece) => (workpiece.state === 'running'
+              ? { ...workpiece, state: 'paused' as const, visionSummary: '单步执行完成，进度推进到下一工步' }
+              : workpiece)),
+          }
+        : advanced;
+      return finishedTask;
+    }));
+    if (!finishedTask) {
+      // 无进度可推进（任务已完成 / 状态已变），兜底停止定时器。
+      clearExecutionAnimTimers();
+      return;
+    }
+    if (finishedTask.state === 'done') {
+      clearExecutionAnimTimers();
+      setExecutionSession(null);
+      addLog(`${finishedTask.drawingNo} 全部工步执行完成`);
+      return;
+    }
+    if (singleStepFinish) {
+      clearExecutionAnimTimers();
+      executionPausePendingRef.current = false;
+      executionStopPendingRef.current = false;
+      setExecutionPausePending(false);
+      setExecutionSession(null);
+      addLog(`${finishedTask.drawingNo} 单步执行完成：工步状态显示完成，进度推进到下一工步`);
+      return;
+    }
+    scheduleExecutionCurrentStep(finishedTask);
+  };
+  // 为「当前工步」安排执行时长：演示工位 3s（报错工步 1.5s 中途注入），其余工位瞬时推进。
+  const scheduleExecutionCurrentStep = (task: ProductionTask) => {
+    if (!executionErrorInjectedRef.current && isTaskAtErrorStep(task)) {
+      scheduleExecutionAnim(triggerInjectedExecutionError, EXECUTION_ERROR_STEP_MS);
+      return;
+    }
+    const areaId = getTaskActiveAreaId(task);
+    const animated = areaId !== null && EXECUTION_ANIM_AREA_IDS.includes(areaId);
+    scheduleExecutionAnim(completeExecutionAnimStep, animated ? EXECUTION_ANIM_STEP_MS : 0);
+  };
+  // 当前工步执行完后停住（软暂停）或跳出执行状态（停止请求）：推进一道后任务进入 paused / stopped。
+  const pauseExecutionAfterCurrentStep = (jumpOut: boolean) => {
+    const task = selectedTaskRef.current;
+    if (!task || task.state !== 'running') return;
+    updateSelectedTask((current) => {
+      const finishedCurrent = advanceProductionTask(current, undefined, true);
+      if (finishedCurrent.state === 'done') return finishedCurrent;
+      return {
+        ...finishedCurrent,
+        state: jumpOut ? 'stopped' as const : 'paused' as const,
+        currentProcess: jumpOut
+          ? `${finishedCurrent.currentProcess.replace(/ · 已停止（当前工步已执行完）$/, '')} · 已停止（当前工步已执行完）`
+          : `${finishedCurrent.currentProcess.replace(/ · 已暂停$/, '')} · 已暂停（当前工步已执行完）`,
+        workpieces: finishedCurrent.workpieces.map((item) => (item.state === 'running'
+          ? { ...item, state: 'paused' as const, visionSummary: jumpOut ? '任务已停止：当前工步已执行完，跳出执行状态' : '任务暂停：当前工步已执行完，等待继续执行' }
+          : item)),
+      };
+    });
+    if (jumpOut) {
+      addLog(`${task.drawingNo} 已停止：当前工步已执行完，跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
+      setExecutionSession(null);
+      return;
+    }
+    addLog(`${task.drawingNo} 已暂停：当前工步已执行完，任务停住等待继续执行`, 'warning');
+  };
+
   // v3 异常中断唯一入口：报错 / 人工急停 / 视觉异常确认后调用——当前工步标记异常、已做部分作废、会话释放；
   // 任务进入中断态（stopped），排除故障后可直接重新执行从异常工步重做，无需初始化。
   const haltOnAbnormalV3 = () => {
+    clearExecutionAnimTimers();
+    resetExecutionAnimFlags();
     if (!selectedTask) return;
     setExecutionBreakpoint((prev) => (prev ? { ...prev, error: true } : prev));
     setStepJumpWarning(null);
@@ -5924,6 +6106,16 @@ export function ProductionExecutionPage({
   );
   const startExecutionV2 = (startStationId: string | undefined, side: 'line' | 'station', mode: 'auto' | 'single-step') => {
     if (!selectedTask) return;
+    // 防重入：托盘等待 / 瞬时推进阶段重复点击执行只生效一次。
+    if (executionTrayWaitingRef.current) return;
+    clearExecutionAnimTimers();
+    // 新一轮执行允许异常弹窗再次弹出（同一件工件上一次异常已确认过）。
+    visionAlertWorkpieceRef.current = null;
+    executionPausePendingRef.current = false;
+    executionStopPendingRef.current = false;
+    setExecutionPausePending(false);
+    const freshStart = selectedTask.state === 'ready' || selectedTask.state === 'draft';
+    if (freshStart) executionErrorInjectedRef.current = false;
     setSelectedProcessId(null);
     setSelectedTaskIds(new Set());
     updateSelectedTask((task) => buildStartedTask(task, startStationId));
@@ -5940,33 +6132,96 @@ export function ProductionExecutionPage({
     });
     addLog(`${selectedTask.drawingNo} 开始执行，已下发任务信息至 PLC`);
     addLog('机器人调度与视觉识别进入监测状态');
+    if (side === 'line' && freshStart) {
+      // 整线全新启动：先等待托盘就位（托盘功能未设计，默认已上料完成，5s 后就位）。
+      executionTrayWaitingRef.current = true;
+      setExecutionTrayWaiting(true);
+      updateSelectedTask((task) => ({ ...task, currentProcess: '等待托盘就位（整线启动准备）' }));
+      addLog(`${selectedTask.drawingNo} 整线执行启动：等待托盘就位（默认 ${EXECUTION_TRAY_WAIT_MS / 1000}s 后全部托盘就位、上料完成）`);
+      scheduleExecutionAnim(() => {
+        executionTrayWaitingRef.current = false;
+        setExecutionTrayWaiting(false);
+        const current = selectedTaskRef.current;
+        if (!current || current.state !== 'running') return;
+        addLog(`${current.drawingNo} 所有托盘已就位，默认上料完成，开始按序执行`);
+        scheduleExecutionCurrentStep(current);
+      }, EXECUTION_TRAY_WAIT_MS);
+      return;
+    }
+    scheduleExecutionAnim(() => {
+      const current = selectedTaskRef.current;
+      if (!current || current.state !== 'running') return;
+      scheduleExecutionCurrentStep(current);
+    }, 0);
   };
   const pauseExecutionV2 = () => {
-    // v3 软暂停：不打断当前工步——系统先把当前工步执行完（推进一道，状态显示完成），然后停住等待「执行」从下一工步继续。
-    // 暂停视为运行中：会话保留，初始化与其余执行按钮禁点。
-    if (!selectedTask || selectedTask.state !== 'running') return;
-    updateSelectedTask((task) => {
-      const finishedCurrent = advanceProductionTask(task, undefined, true);
-      if (finishedCurrent.state === 'done') return finishedCurrent;
-      return {
-        ...finishedCurrent,
+    // v3.1 软暂停（过程动画）：演示工位点击暂停后不立刻停住——按钮变为「等待完成」，
+    // 等当前工步执行完（3s 到）后再停住；会话保留，初始化与其余执行按钮禁点。
+    const task = selectedTaskRef.current;
+    if (!task || task.state !== 'running') return;
+    if (executionTrayWaitingRef.current) {
+      // 托盘等待阶段暂停：无工步在执行，直接停住；恢复时重新等待托盘就位。
+      clearExecutionAnimTimers();
+      executionTrayWaitingRef.current = false;
+      executionTrayInterruptedRef.current = true;
+      setExecutionTrayWaiting(false);
+      updateSelectedTask((current) => ({
+        ...current,
         state: 'paused',
-        currentProcess: `${finishedCurrent.currentProcess.replace(/ · 已暂停$/, '')} · 已暂停（当前工步已执行完）`,
-        workpieces: finishedCurrent.workpieces.map((item) => (item.state === 'running' ? { ...item, state: 'paused' as const, visionSummary: '任务暂停：当前工步已执行完，等待继续执行' } : item)),
-      };
-    });
-    addLog(`${selectedTask.drawingNo} 已暂停：当前工步已执行完，任务停住等待继续执行`, 'warning');
+        currentProcess: '等待托盘就位 · 已暂停',
+        workpieces: current.workpieces.map((item) => (item.state === 'running' ? { ...item, state: 'paused' as const, visionSummary: '托盘等待阶段暂停，等待继续执行' } : item)),
+      }));
+      addLog(`${task.drawingNo} 已暂停：等待托盘就位阶段暂停，恢复后继续`, 'warning');
+      return;
+    }
+    const areaId = getTaskActiveAreaId(task);
+    if (areaId && EXECUTION_ANIM_AREA_IDS.includes(areaId)) {
+      if (executionPausePendingRef.current) return;
+      executionPausePendingRef.current = true;
+      setExecutionPausePending(true);
+      addLog(`${task.drawingNo} 已接受暂停请求：等待当前工步执行完成后停住`, 'warning');
+      return;
+    }
+    pauseExecutionAfterCurrentStep(false);
   };
   const resumeExecutionV2 = () => {
-    if (!selectedTask || selectedTask.state !== 'paused') return;
-    updateSelectedTask((task) => ({
-      ...task,
+    const task = selectedTaskRef.current;
+    if (!task || task.state !== 'paused') return;
+    updateSelectedTask((current) => ({
+      ...current,
       state: 'running',
-      currentProcess: task.currentProcess.replace(/ · 已暂停（当前工步已执行完）$/, '').replace(/ · 已暂停$/, ''),
-      workpieces: task.workpieces.map((item) => (item.state === 'paused' ? { ...item, state: 'running' as const, visionSummary: '工位执行中' } : item)),
+      currentProcess: current.currentProcess
+        .replace(/ · 已暂停（当前工步已执行完）$/, '')
+        .replace(/ · 已暂停$/, '')
+        .replace('等待托盘就位 · 已暂停', '等待托盘就位（整线启动准备）'),
+      workpieces: current.workpieces.map((item) => (item.state === 'paused' ? { ...item, state: 'running' as const, visionSummary: '工位执行中' } : item)),
     }));
-    if (!executionSession) beginSession('line', 'auto', null);
-    addLog(`${selectedTask.drawingNo} 继续执行，从暂停处（下一工步）开始`);
+    if (!executionSessionRef.current) beginSession('line', 'auto', null);
+    executionPausePendingRef.current = false;
+    executionStopPendingRef.current = false;
+    setExecutionPausePending(false);
+    if (executionTrayInterruptedRef.current) {
+      // 托盘等待阶段被暂停过：恢复时重新等待托盘就位。
+      executionTrayInterruptedRef.current = false;
+      executionTrayWaitingRef.current = true;
+      setExecutionTrayWaiting(true);
+      addLog(`${task.drawingNo} 继续执行：重新等待托盘就位`);
+      scheduleExecutionAnim(() => {
+        executionTrayWaitingRef.current = false;
+        setExecutionTrayWaiting(false);
+        const current = selectedTaskRef.current;
+        if (!current || current.state !== 'running') return;
+        addLog(`${current.drawingNo} 所有托盘已就位，默认上料完成，开始按序执行`);
+        scheduleExecutionCurrentStep(current);
+      }, EXECUTION_TRAY_WAIT_MS);
+      return;
+    }
+    addLog(`${task.drawingNo} 继续执行，从暂停处（下一工步）开始`);
+    scheduleExecutionAnim(() => {
+      const current = selectedTaskRef.current;
+      if (!current || current.state !== 'running') return;
+      scheduleExecutionCurrentStep(current);
+    }, 0);
   };
   const handlePanelRunOrPauseV2 = (startStationId?: string, side: 'line' | 'station' = 'line', mode: 'auto' | 'single-step' = 'auto') => {
     if (!selectedTask) return;
@@ -5979,10 +6234,22 @@ export function ProductionExecutionPage({
   // 暂停态点击 → 直接跳出；运行态点击 → 先把当前工步执行完（推进一道），再跳出。
   // 跳出 = 会话释放、任务进入「已中断」态，执行进度保留，可直接再次执行续跑，无需初始化。
   const stopExecutionV3 = () => {
-    if (!selectedTask || (selectedTask.state !== 'running' && selectedTask.state !== 'paused')) return;
-    if (selectedTask.state === 'running') {
-      updateSelectedTask((task) => {
-        const finishedCurrent = advanceProductionTask(task, undefined, true);
+    const task = selectedTaskRef.current;
+    if (!task || (task.state !== 'running' && task.state !== 'paused')) return;
+    if (task.state === 'running') {
+      const areaId = getTaskActiveAreaId(task);
+      if (areaId && EXECUTION_ANIM_AREA_IDS.includes(areaId) && !executionPausePendingRef.current) {
+        // 演示工位运行态停止：等待当前工步（3s）执行完后跳出执行状态（按钮显示「等待完成」）。
+        executionStopPendingRef.current = true;
+        executionPausePendingRef.current = true;
+        setExecutionPausePending(true);
+        addLog(`${task.drawingNo} 已接受停止请求：当前工步执行完成后跳出执行状态`, 'warning');
+        return;
+      }
+      clearExecutionAnimTimers();
+      resetExecutionAnimFlags();
+      updateSelectedTask((current) => {
+        const finishedCurrent = advanceProductionTask(current, undefined, true);
         if (finishedCurrent.state === 'done') return finishedCurrent;
         return {
           ...finishedCurrent,
@@ -5991,21 +6258,26 @@ export function ProductionExecutionPage({
           workpieces: finishedCurrent.workpieces.map((item) => (item.state === 'running' ? { ...item, state: 'paused' as const, visionSummary: '任务已停止：当前工步已执行完，跳出执行状态' } : item)),
         };
       });
-      addLog(`${selectedTask.drawingNo} 已停止：当前工步已执行完，跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
+      addLog(`${task.drawingNo} 已停止：当前工步已执行完，跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
     } else {
-      updateSelectedTask((task) => ({
-        ...task,
+      clearExecutionAnimTimers();
+      resetExecutionAnimFlags();
+      updateSelectedTask((current) => ({
+        ...current,
         state: 'stopped',
-        currentProcess: `${task.currentProcess.replace(/ · 已暂停（当前工步已执行完）$/, '').replace(/ · 已暂停$/, '')} · 已停止`,
-        workpieces: task.workpieces.map((item) => (item.state === 'running' || item.state === 'paused' ? { ...item, state: 'paused' as const, visionSummary: '任务已停止，跳出执行状态' } : item)),
+        currentProcess: `${current.currentProcess.replace(/ · 已暂停（当前工步已执行完）$/, '').replace(/ · 已暂停$/, '')} · 已停止`,
+        workpieces: current.workpieces.map((item) => (item.state === 'running' || item.state === 'paused' ? { ...item, state: 'paused' as const, visionSummary: '任务已停止，跳出执行状态' } : item)),
       }));
-      addLog(`${selectedTask.drawingNo} 已停止：跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
+      addLog(`${task.drawingNo} 已停止：跳出执行状态；执行进度保留，可直接重新执行`, 'warning');
     }
     setExecutionSession(null);
   };
   const initializeExecutionV2 = () => {
     // v3 初始化 = 设备状态 + 软件流程全部初始化，所有工步状态清零；仅空闲 / 中断态可点，不是执行的前置。
     if (!selectedTask || !canInitialize) return;
+    clearExecutionAnimTimers();
+    resetExecutionAnimFlags();
+    executionErrorInjectedRef.current = false;
     setExecutionBreakpoint(null);
     setStepJumpWarning(null);
     setVisionAlertSide(null);
@@ -6062,6 +6334,7 @@ export function ProductionExecutionPage({
       canRun={canRun}
       canInitialize={canInitialize}
       locked={lineLocked}
+      runBusyLabel={executionPausePending ? '等待完成' : executionTrayWaiting ? '等待托盘' : null}
       onTabChange={setActiveTab}
       onOpenTrayManagement={() => setTrayManagementOpen(true)}
       onInitialize={initializeExecutionV2}
@@ -6237,6 +6510,7 @@ export function ProductionExecutionPage({
                 breakpointStationId={executionBreakpoint?.stationId ?? null}
                 breakpointErrorIndex={executionBreakpoint?.error ? executionBreakpoint.workstepIndex : null}
                 taskState={selectedTask?.state ?? null}
+                pausePending={executionPausePending}
                 canInitialize={canInitialize}
                 canStart={canRun}
                 startDisabledReason={stationStartUnavailable ? '当前工位没有可执行的工序' : undefined}
