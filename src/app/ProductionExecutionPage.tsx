@@ -107,7 +107,7 @@ import { WeldSegmentListPanel } from './components/production/WeldRobotTimelineP
 import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import type { WeldTimelineSegment } from './components/production/weld-robot-timeline';
 import { WeldSeamEcho, WeldFaceOnCameraController } from './components/production/WeldSeamEcho';
-import { createFixedPlanningProcesses, type PlanningProcessLocationId } from './process-planning-model';
+import { createFixedPlanningProcesses, getFixedPlanningTaskSlotLabels, type PlanningProcessLocationId } from './process-planning-model';
 
 type DeviceState = 'connected' | 'disconnected' | 'abnormal';
 type WorkspaceTab = 'execution' | 'model' | 'vision';
@@ -3925,9 +3925,26 @@ export function ProductionExecutionPage({
       stationMatches ? process : demoProcess,
       taskProcesses,
     );
-    const currentWorkstepIndex = workstepNames.length > 0
-      ? Math.min(Math.max(activeWorkpiece?.currentStepIndex ?? 0, 0), workstepNames.length - 1)
-      : 0;
+    // 推进按「工序自己的 taskSlots」计（currentStepIndex 为工序内索引）；面板高亮按工位聚合列表，需要换算为全局索引。
+    const scopedWorkstepNames = process ? getFixedPlanningTaskSlotLabels(process.id) : [];
+    const currentWorkstepIndex = (() => {
+      if (workstepNames.length === 0) return 0;
+      const localIndex = Math.max(activeWorkpiece?.currentStepIndex ?? 0, 0);
+      if (stationMatches && scopedWorkstepNames.length > 0 && placement?.areaId) {
+        let walked = 0;
+        for (const areaProcess of taskProcesses.filter(
+          (item) => productionWorkbenchProcessPlacements[item.id]?.areaId === placement.areaId,
+        )) {
+          const labels = getFixedPlanningTaskSlotLabels(areaProcess.id);
+          if (labels.length === 0) continue;
+          if (areaProcess.id === process?.id) {
+            return walked + Math.min(localIndex, labels.length - 1);
+          }
+          walked += labels.length;
+        }
+      }
+      return Math.min(localIndex, workstepNames.length - 1);
+    })();
 
     return {
       stationId: station.id,
@@ -4389,20 +4406,47 @@ export function ProductionExecutionPage({
     const activeSegmentIndex = compositeLocation
       ? compositeSegments.findIndex((segment) => segment.processId === compositeLocation.segmentProcessId)
       : -1;
-    const executionWorkstepNames = compositeLocation?.workstepNames ?? workstepNames;
+    // 整线自动推进按「当前工序自己的 taskSlots」推进：一道工序执行完自己的工步即切换到下一工序，
+    // 同一工位上的多道工序各执行一遍（展示口径：一个工位执行完 → 下一个工位），不会把工位聚合工步列表整段跑完。
+    // 单步跳选索引仍是工位聚合口径（stationWorkstepNames），进入分支前换算为「工序 + 段内索引」。
+    const stationWorkstepNames = workstepNames;
+    const processScopedWorkstepNames = getFixedPlanningTaskSlotLabels(currentProcessId);
+    const executionWorkstepNames = compositeLocation?.workstepNames
+      ?? (processScopedWorkstepNames.length > 0 ? processScopedWorkstepNames : stationWorkstepNames);
     const currentStepIndex = Math.min(
       Math.max(activeWorkpiece.currentStepIndex ?? compositeLocation?.aliasLocalWorkstepIndex ?? 0, 0),
       Math.max(0, executionWorkstepNames.length - 1),
     );
 
-    if (requestedWorkstepIndex !== undefined && workstepNames.length > 0) {
-      const selectedStepIndex = Math.min(Math.max(requestedWorkstepIndex, 0), workstepNames.length - 1);
-      if (selectedStepIndex !== currentStepIndex) {
+    if (requestedWorkstepIndex !== undefined && stationWorkstepNames.length > 0) {
+      // 工位聚合索引 → 所属工序 + 工序内索引（仅规划工序可换算；非规划工序维持原口径）。
+      let targetProcessId = currentProcessId;
+      let targetLocalIndex: number | null = null;
+      if (processScopedWorkstepNames.length > 0 && currentPlacement?.areaId) {
+        let walked = 0;
+        for (const areaProcess of taskProcesses.filter(
+          (item) => productionWorkbenchProcessPlacements[item.id]?.areaId === currentPlacement.areaId,
+        )) {
+          const labels = getFixedPlanningTaskSlotLabels(areaProcess.id);
+          if (labels.length === 0) continue;
+          if (requestedWorkstepIndex < walked + labels.length) {
+            targetProcessId = areaProcess.id;
+            targetLocalIndex = requestedWorkstepIndex - walked;
+            break;
+          }
+          walked += labels.length;
+        }
+      }
+      const selectedStepIndex = targetLocalIndex ?? Math.min(Math.max(requestedWorkstepIndex, 0), stationWorkstepNames.length - 1);
+      const selectedProcess = targetProcessId === currentProcessId
+        ? currentProcess
+        : getProcessFromOptions(targetProcessId, activeProcessOptions);
+      if (selectedStepIndex !== currentStepIndex || targetProcessId !== currentProcessId) {
         const runningWorkpieces = task.workpieces.map((item, index) => index === activeWorkpieceIndex ? {
           ...item,
           state: 'running' as const,
-          process: currentProcess?.name ?? item.process,
-          currentProcessId,
+          process: selectedProcess?.name ?? item.process,
+          currentProcessId: targetProcessId,
           currentStepIndex: selectedStepIndex,
           visionSummary: '工位执行中',
         } : item);
@@ -4410,8 +4454,8 @@ export function ProductionExecutionPage({
         return {
           ...task,
           state: 'running',
-          currentProcess: getTaskProcessLabel(selectedWorkpiece, currentProcess?.name ?? selectedWorkpiece.process),
-          currentProcessId,
+          currentProcess: getTaskProcessLabel(selectedWorkpiece, selectedProcess?.name ?? selectedWorkpiece.process),
+          currentProcessId: targetProcessId,
           progress: calculateOverallTaskProgress(runningWorkpieces),
           workpieces: runningWorkpieces,
         };
@@ -4797,8 +4841,13 @@ export function ProductionExecutionPage({
       .map((processIdValue) => getProcessFromOptions(processIdValue, activeProcessOptions))
       .filter((item): item is ProcessOption => Boolean(item));
     const location = composite ? findProductionCompositeWorkstepLocation(composite, taskProcesses, processId) : null;
-    const names = location?.workstepNames ?? getProductionStationWorkstepNames(getProcessFromOptions(processId, activeProcessOptions), taskProcesses);
-    const stepIndex = location?.aliasLocalWorkstepIndex ?? activeWorkpiece.currentStepIndex ?? 0;
+    const scopedNames = getFixedPlanningTaskSlotLabels(processId);
+    const names = location?.workstepNames
+      ?? (scopedNames.length > 0 ? scopedNames : getProductionStationWorkstepNames(getProcessFromOptions(processId, activeProcessOptions), taskProcesses));
+    const stepIndex = location?.aliasLocalWorkstepIndex
+      ?? (scopedNames.length > 0
+        ? Math.min(Math.max(activeWorkpiece.currentStepIndex ?? 0, 0), Math.max(0, scopedNames.length - 1))
+        : activeWorkpiece.currentStepIndex ?? 0);
     if (!isPositioningWorkstepName(names[stepIndex])) return;
     const resultStationId = composite?.id ?? placement?.areaId ?? '';
     const targetKey = `${selectedTask.id}:${activeWorkpiece.id}:${resultStationId}:${processId}:${stepIndex}`;
