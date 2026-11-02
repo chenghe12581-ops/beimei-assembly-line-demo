@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ASSET_BASE } from '../../../asset-base';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ArrowLeft, History, LayoutDashboard, MonitorUp, Plus } from 'lucide-react';
@@ -496,6 +496,8 @@ function TrayOverviewMap({
   onReleaseOccupiedTray,
   screenMode = false,
   mapOnly = false,
+  selectedTrayCode = null,
+  onSelectTray,
 }: {
   referenceItems: TrayReferenceItem[];
   showOccupancyStatusTag?: boolean;
@@ -503,6 +505,9 @@ function TrayOverviewMap({
   onReleaseOccupiedTray?: (trayCode: string) => void;
   screenMode?: boolean;
   mapOnly?: boolean;
+  /** 选中模式（理料区视图）：所有托盘位可点击选中，点击不再触发释放。 */
+  selectedTrayCode?: string | null;
+  onSelectTray?: (trayCode: string) => void;
 }) {
   const referenceItemByCode = new Map(referenceItems.map((item) => [item.code, item]));
 
@@ -539,7 +544,10 @@ function TrayOverviewMap({
           const full = isTrayMaterialsFull(item?.materials ?? []);
           const stateLabel = item?.state ? getTrayStateLabel(item.state) : '已占用';
           const materialName = item?.materials[0]?.partName;
-          const canReleaseOccupiedTray = Boolean(onReleaseOccupiedTray && materialName && item?.state !== 'reserved' && item?.state !== 'moving');
+          const selectable = Boolean(onSelectTray);
+          const selected = selectable && selectedTrayCode === zone.code;
+          const canReleaseOccupiedTray = !selectable && Boolean(onReleaseOccupiedTray && materialName && item?.state !== 'reserved' && item?.state !== 'moving');
+          const zoneClickable = selectable || canReleaseOccupiedTray;
           return (
             <div
               key={`${zone.code}-${item?.state ?? 'empty'}`}
@@ -547,17 +555,35 @@ function TrayOverviewMap({
                 occupied
                   ? trayOccupiedSurfaceToneClassNames[zone.tone]
                   : 'border-dashed border-zinc-300/80 bg-white/60'
-              } ${canReleaseOccupiedTray ? 'cursor-pointer transition-shadow hover:ring-2 hover:ring-emerald-300/75 focus:outline-none focus:ring-2 focus:ring-emerald-400' : ''}`}
+              } ${zoneClickable ? 'cursor-pointer transition-shadow hover:ring-2 focus:outline-none focus:ring-2' : ''} ${
+                selectable
+                  ? selected
+                    ? 'ring-2 ring-orange-400/90 hover:ring-orange-400 focus:ring-orange-400'
+                    : 'hover:ring-orange-200/80 focus:ring-orange-300'
+                  : canReleaseOccupiedTray
+                    ? 'hover:ring-emerald-300/75 focus:ring-emerald-400'
+                    : ''
+              }`}
               style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.w}%`, height: `${zone.h}%` }}
-              aria-label={`${zone.code} 号托盘${occupied ? `已占用${materialName ? `，${materialName}` : ''}${canReleaseOccupiedTray ? '，可点击转为空托' : ''}` : '空位'}`}
-              title={canReleaseOccupiedTray ? `${materialName}已占用，点击转为空托` : materialName}
-              role={canReleaseOccupiedTray ? 'button' : undefined}
-              tabIndex={canReleaseOccupiedTray ? 0 : undefined}
-              onClick={canReleaseOccupiedTray ? () => onReleaseOccupiedTray?.(zone.code) : undefined}
-              onKeyDown={canReleaseOccupiedTray ? (event) => {
+              aria-label={`${zone.code} 号托盘${occupied ? `已占用${materialName ? `，${materialName}` : ''}` : '空位'}${selectable ? `，点击选中查看零件明细${selected ? '（已选中）' : ''}` : canReleaseOccupiedTray ? '，可点击转为空托' : ''}`}
+              title={selectable ? `${zone.code} 号托盘，点击选中查看零件明细` : canReleaseOccupiedTray ? `${materialName}已占用，点击转为空托` : materialName}
+              role={zoneClickable ? 'button' : undefined}
+              tabIndex={zoneClickable ? 0 : undefined}
+              onClick={zoneClickable ? () => {
+                if (selectable) {
+                  onSelectTray?.(zone.code);
+                } else {
+                  onReleaseOccupiedTray?.(zone.code);
+                }
+              } : undefined}
+              onKeyDown={zoneClickable ? (event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  onReleaseOccupiedTray?.(zone.code);
+                  if (selectable) {
+                    onSelectTray?.(zone.code);
+                  } else {
+                    onReleaseOccupiedTray?.(zone.code);
+                  }
                 }
               } : undefined}
             >
@@ -579,6 +605,85 @@ function TrayOverviewMap({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+export type TraySelectionDetail = {
+  trayCode: string;
+  area: string;
+  trayType: TraySlot['trayType'];
+  state: TraySlot['state'];
+  stateLabel: string;
+  material: string | null;
+  quantity: number;
+  agvBusy: boolean;
+  canRelease: boolean;
+};
+
+/** 理料区视图：选中托盘位后展示在区位图下方的零件明细条（俯视图缩略图 + 数量 + 释放入口）。 */
+export function TraySelectionDetailBar({
+  detail,
+  onReleaseOccupiedTray,
+}: {
+  detail: TraySelectionDetail | null;
+  onReleaseOccupiedTray?: (trayCode: string) => void;
+}) {
+  if (!detail) {
+    return (
+      <div className="flex h-[92px] shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50/60 px-4 text-[11px] text-slate-400">
+        点击上方托盘位查看零件明细
+      </div>
+    );
+  }
+
+  const tone = getTrayToneByCode(detail.trayCode);
+
+  return (
+    <div className="flex h-[92px] shrink-0 items-center gap-4 rounded-lg border border-zinc-200 bg-white px-4 shadow-sm">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className={`min-w-8 shrink-0 rounded px-2 py-1 text-center text-[11px] font-semibold leading-none shadow-sm ${trayTagToneClassNames[tone]}`}>
+          {detail.trayCode}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-[12px] font-semibold leading-4 text-slate-700">
+            {detail.trayCode} 号托盘
+          </div>
+          <div className="truncate text-[10px] leading-4 text-slate-400">
+            {detail.area} · {detail.trayType} · {detail.stateLabel}{detail.agvBusy ? ' · AGV 执行中' : ''}
+          </div>
+        </div>
+      </div>
+      <div className="h-10 w-px shrink-0 bg-zinc-200" />
+      {detail.material ? (
+        <div className="flex min-w-0 items-center gap-3">
+          <TrayPartTopView
+            material={{ partName: detail.material, partNo: null, count: detail.quantity, detail: detail.material }}
+            disabled={false}
+            className="h-12 w-16 shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="truncate text-[12px] font-semibold leading-4 text-slate-700" title={detail.material}>
+              {detail.material}
+            </div>
+            <div className="text-[11px] leading-4 text-slate-500">
+              ×{detail.quantity} 件
+            </div>
+          </div>
+        </div>
+      ) : (
+        <span className="text-[11px] text-slate-400">空托盘位，暂无零件</span>
+      )}
+      <div className="ml-auto shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!detail.canRelease}
+          onClick={() => onReleaseOccupiedTray?.(detail.trayCode)}
+        >
+          转为空托
+        </Button>
       </div>
     </div>
   );
@@ -996,6 +1101,9 @@ export function TrayReferenceStrip({
   planTaskExecutionDisabled,
   onExecutePlanTray,
   onConfirmPlanTrayArrival,
+  selectedTrayCode = null,
+  onSelectTray,
+  selectionBar,
 }: {
   allocations: TrayAllocation[];
   showState?: boolean;
@@ -1013,6 +1121,11 @@ export function TrayReferenceStrip({
   planTaskExecutionDisabled?: Partial<Record<string, boolean>>;
   onExecutePlanTray?: (slot: TrayAllocation) => void;
   onConfirmPlanTrayArrival?: (slot: TrayAllocation) => void;
+  /** 选中模式（理料区视图）：传入后区位图所有托盘位可点击选中。 */
+  selectedTrayCode?: string | null;
+  onSelectTray?: (trayCode: string) => void;
+  /** 选中模式（理料区视图）：渲染在区位图下方、计划摆盘卡片上方的明细条。 */
+  selectionBar?: ReactNode;
 }) {
   const defaultReferenceItems = trayLegendZones.map((zone) => {
     const slot = allocations.find((item) => item.code === zone.code);
@@ -1052,7 +1165,10 @@ export function TrayReferenceStrip({
           onReleaseOccupiedTray={onReleaseOccupiedTray}
           screenMode={screenMode}
           mapOnly={!showPlanCards}
+          selectedTrayCode={selectedTrayCode}
+          onSelectTray={onSelectTray}
         />
+        {selectionBar}
         {showPlanCards && (
           <div className={`min-h-0 flex-1 pr-1 ${cardSectionLabel ? 'overflow-y-auto' : 'overflow-hidden'}`}>
             <div className={`flex min-h-0 flex-col ${cardSectionLabel ? `${screenMode ? 'min-h-[390px]' : 'min-h-[332px]'} rounded-md border border-zinc-200 bg-zinc-50/45 p-2.5` : 'h-full'}`}>
@@ -1669,6 +1785,47 @@ export function TrayManagementPage({
     return [slot.code, blockedByRunningTask];
   })) as Partial<Record<string, boolean>>;
 
+  const [selectedTrayCode, setSelectedTrayCode] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedTrayCode((current) => {
+      if (current && traySlots.some((slot) => slot.id.padStart(2, '0') === current)) return current;
+      return traySlots.find((slot) => slot.state !== 'empty')?.id.padStart(2, '0') ?? null;
+    });
+  }, [traySlots]);
+  const selectedTrayDetail = useMemo<TraySelectionDetail | null>(() => {
+    if (!selectedTrayCode) return null;
+    const slot = traySlots.find((item) => item.id.padStart(2, '0') === selectedTrayCode);
+    if (!slot) return null;
+    const runningTask = trayTasks.find((task) => (
+      task.state === 'running' && (task.pickup === selectedTrayCode || task.dropoff === selectedTrayCode)
+    ));
+    const material = slot.material === '空' && runningTask?.dropoff === selectedTrayCode
+      ? runningTask.material
+      : slot.material;
+    const quantity = slot.material === '空' && runningTask?.dropoff === selectedTrayCode
+      ? runningTask.quantity
+      : slot.quantity;
+    const state: TraySlot['state'] = runningTask?.type === '满托任务' && runningTask.pickup === selectedTrayCode
+      ? 'reserved'
+      : runningTask && slot.state === 'empty'
+        ? 'reserved'
+        : runningTask?.type === '空托任务' && runningTask.pickup === selectedTrayCode
+          ? 'moving'
+          : slot.state;
+    const stateLabel = getTrayStateLabel(state);
+    return {
+      trayCode: selectedTrayCode,
+      area: slot.area,
+      trayType: slot.trayType,
+      state,
+      stateLabel,
+      material: material && material !== '空' ? material : null,
+      quantity,
+      agvBusy: Boolean(runningTask),
+      canRelease: Boolean(material && material !== '空') && (slot.state === 'loaded' || slot.state === 'full'),
+    };
+  }, [selectedTrayCode, traySlots, trayTasks]);
+
   const updateTrayRoute = (view: 'management' | 'sorting-area') => {
     const nextPath = view === 'sorting-area' ? '/生产执行/理料区视图' : '/生产执行';
     if (decodeURI(window.location.pathname) !== nextPath) {
@@ -1720,9 +1877,16 @@ export function TrayManagementPage({
                 quantityReady={Boolean(planTask && planTask.quantity > 0)}
                 overviewReferenceItems={actualReferenceItems}
                 cardSectionLabel={planTask ? '计划上料摆盘' : undefined}
-                onReleaseOccupiedTray={onReleaseOccupiedTray}
                 screenMode
                 showPlanCards={Boolean(planTask)}
+                selectedTrayCode={selectedTrayCode}
+                onSelectTray={setSelectedTrayCode}
+                selectionBar={(
+                  <TraySelectionDetailBar
+                    detail={selectedTrayDetail}
+                    onReleaseOccupiedTray={onReleaseOccupiedTray}
+                  />
+                )}
                 planTaskStates={planTaskStates}
                 planTaskExecutionDisabled={planTaskExecutionDisabled}
                 onExecutePlanTray={(slot) => onRunPlanTrayTask(slot, planTask?.workOrderNo)}
