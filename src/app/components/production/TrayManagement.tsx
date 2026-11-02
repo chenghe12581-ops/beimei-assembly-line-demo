@@ -632,7 +632,7 @@ export function TraySelectionDetailBar({
 }) {
   if (!detail) {
     return (
-      <div className="flex h-[200px] shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50/60 px-4 text-[11px] text-slate-400">
+      <div className="flex min-h-[200px] flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50/60 px-4 text-[11px] text-slate-400">
         点击上方托盘位查看零件明细
       </div>
     );
@@ -641,34 +641,34 @@ export function TraySelectionDetailBar({
   const tone = getTrayToneByCode(detail.trayCode);
 
   return (
-    <div className="flex h-[200px] shrink-0 items-stretch gap-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-      <div className="flex w-[280px] shrink-0 flex-col rounded-md border border-zinc-200/70 bg-zinc-50/50 p-2">
+    <div className="flex min-h-[280px] flex-1 items-stretch gap-5 rounded-lg border border-zinc-200 bg-white px-5 py-4 shadow-sm">
+      <div className="flex w-[420px] shrink-0 flex-col rounded-md border border-zinc-200/70 bg-zinc-50/50 p-2.5">
         {detail.material ? (
           <>
-            <div className="flex min-h-0 flex-1 items-center justify-center rounded-sm bg-white/85 p-1.5 shadow-inner shadow-slate-900/5">
+            <div className="flex min-h-0 flex-1 items-center justify-center rounded-sm bg-white/85 p-2 shadow-inner shadow-slate-900/5">
               <TrayPartTopView
                 material={{ partName: detail.material, partNo: null, count: detail.quantity, detail: detail.material }}
                 disabled={false}
                 className="h-full w-full"
               />
             </div>
-            <div className="shrink-0 truncate pt-1.5 text-center text-[10px] font-semibold leading-4 text-slate-600" title={detail.material}>
+            <div className="shrink-0 truncate pt-2 text-center text-[11px] font-semibold leading-4 text-slate-600" title={detail.material}>
               {detail.material}
             </div>
           </>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-zinc-300/80 text-slate-300">
-            <Package className="size-7" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium">暂无零件</span>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-sm border border-dashed border-zinc-300/80 text-slate-300">
+            <Package className="size-10" strokeWidth={1.5} />
+            <span className="text-[11px] font-medium">暂无零件</span>
           </div>
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 py-1">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className={`min-w-8 shrink-0 rounded px-2 py-1 text-center text-[11px] font-semibold leading-none shadow-sm ${trayTagToneClassNames[tone]}`}>
             {detail.trayCode}
           </span>
-          <span className="truncate text-[13px] font-semibold leading-5 text-slate-700">
+          <span className="truncate text-[14px] font-semibold leading-5 text-slate-700">
             {detail.trayCode} 号托盘
           </span>
           <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-500">
@@ -683,9 +683,14 @@ export function TraySelectionDetailBar({
         <div className="text-[11px] leading-4 text-slate-400">
           {detail.area} · {detail.trayType}
         </div>
+        {detail.material && (
+          <div className="truncate text-[15px] font-semibold leading-6 text-slate-800" title={detail.material}>
+            {detail.material}
+          </div>
+        )}
         <div className="mt-1 flex items-baseline gap-1.5">
           <span className="text-[11px] font-medium text-slate-400">零件数量</span>
-          <span className="text-[26px] font-semibold leading-7 tracking-tight text-slate-800">
+          <span className="text-[32px] font-semibold leading-9 tracking-tight text-slate-800">
             ×{detail.quantity}
           </span>
           <span className="text-[11px] text-slate-400">件</span>
