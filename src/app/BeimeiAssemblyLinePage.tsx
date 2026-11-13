@@ -9614,7 +9614,7 @@ export function BeimeiAssemblyLinePage() {
         : false;
     const weldPathReady = isCombined ? weldResultsReady : step.type === 'weld' ? weldResultsReady : false;
     const stepDirty = processPointDirtyStepIds.has(getRootProcessStepId(step.id));
-    // 压紧配置结果点 = 工作台机构轴坐标值：下贴板装配（反面拼焊台）按反面装配平台 23 个值，其余按正面装配平台 10 个值
+    // 压紧配置结果点 = 工作台机构轴坐标值：下贴板装配（反面拼焊台）按反面装配平台 27 个值，其余按正面装配平台 10 个值
     const weldOwningProcess = step.processId
       ? fixedPlanningProcesses.find((process) => process.id === step.processId)
       : undefined;
