@@ -76,6 +76,7 @@ import { Badge } from './components/ui/badge';
 import { ProcessDetailTabBar } from './components/process/ProcessDetailTabBar';
 import { ProcessFieldGroup } from './components/process/ProcessFieldGroup';
 import { ProcessJointAngleRow } from './components/process/ProcessJointAngleRow';
+import { getWorkbenchAxisLabels } from './components/process/workbench-axis-labels';
 import { ProcessNumberField } from './components/process/ProcessNumberField';
 import { ProcessPathPointGroupHeader } from './components/process/ProcessPathPointGroupHeader';
 import { ProcessPathPointModeToolbar } from './components/process/ProcessPathPointModeToolbar';
@@ -446,7 +447,7 @@ type InspectProcessConfig = {
   maxDirectionDeviation: string;
 };
 
-// 支撑调整工步：工作台 + 支撑轴轴值；正面拼焊站 4 轴，反面拼焊站 18 轴，无编号 / 覆盖率
+// 支撑调整工步：工作台 + 机构轴坐标值（轴命名与个数按飞书文档《各工作台编号定义与工艺输出需求》），无编号 / 覆盖率
 type SupportAdjustProcessConfig = {
   workbenchType: WorkbenchType;
   joints: string[];
@@ -969,13 +970,9 @@ const createPathPointGroups = (groupCount: number, step?: ProcessStep) =>
   Array.from({ length: groupCount }, (_, segmentIndex) => (step ? createDefaultGeneratedPathPoints(step, segmentIndex) : createPickPathPointRows()));
 const createWeldPathPointGroups = (step?: ProcessStep) => createPathPointGroups(4, step);
 const createDemoJointRows = () => ['12.50', '-18.20', '36.80', '72.40', '-44.60', '28.30', '6.80', '91.20'];
-const SUPPORT_ADJUST_AXIS_COUNT: Partial<Record<WorkbenchType, number>> = {
-  主筋板打磨翻面平台: 7,
-  主筋板翻面平台: 7,
-  主筋板正面装配平台: 4,
-  主筋板背面装配平台: 18,
-};
-const getSupportAdjustAxisCount = (workbenchType: WorkbenchType) => SUPPORT_ADJUST_AXIS_COUNT[workbenchType] ?? 4;
+/** 支撑调整等工序所需显示的全部机构轴数（按飞书文档工艺输出值个数） */
+const getSupportAdjustAxisCount = (workbenchType: WorkbenchType) =>
+  getWorkbenchAxisLabels(workbenchType)?.length ?? 4;
 const getSupportAdjustWorkbenchType = (process: { station: string; locationId?: string; simulationSide?: string }): WorkbenchType => {
   if (process.simulationSide === 'back' || process.locationId === 'area-main-assembly-2' || process.station === '反装拼焊台') {
     return '主筋板背面装配平台';
@@ -7038,7 +7035,7 @@ export function BeimeiAssemblyLinePage() {
 
   const getClampPointSegments = (stepId: string, segmentCount: number, jointCount = 6) => {
     const segments = clampPointSegmentsByStepId[stepId] ?? createDefaultClampPointSegments(segmentCount, jointCount);
-    // 轴数不匹配时（如下贴板装配 18 轴）补齐到目标轴数，保留已有数值
+    // 轴数不匹配时（如压紧配置随正/背面装配平台变化）补齐到目标轴数，保留已有数值
     return segments.every((segment) => segment.joints.length === jointCount)
       ? segments
       : segments.map((segment) => ({
@@ -7885,7 +7882,7 @@ export function BeimeiAssemblyLinePage() {
         if (slot.type === 'weld-scan') {
           return { ...baseStep, weldConfig: createGeneratedWeldScanConfig(slot.featureIds, weldScanParams) };
         }
-        // 支撑调整：工艺参数为工作台 + 支撑轴轴值（正面拼焊站 4 轴 / 反面拼焊站 18 轴）
+        // 支撑调整：工艺参数为工作台 + 机构轴坐标值（轴命名与个数按工作台文档定义）
         if (slot.type === 'support-adjust') {
           return { ...baseStep, supportAdjustConfig: createGeneratedSupportAdjustConfig(getSupportAdjustWorkbenchType(process)) };
         }
@@ -9617,11 +9614,13 @@ export function BeimeiAssemblyLinePage() {
         : false;
     const weldPathReady = isCombined ? weldResultsReady : step.type === 'weld' ? weldResultsReady : false;
     const stepDirty = processPointDirtyStepIds.has(getRootProcessStepId(step.id));
-    // 下贴板装配（反面拼焊台）焊接的压紧配置使用 18 个轴，其余焊缝段为 6 个轴
+    // 压紧配置结果点 = 工作台机构轴坐标值：下贴板装配（反面拼焊台）按反面装配平台 23 个值，其余按正面装配平台 10 个值
     const weldOwningProcess = step.processId
       ? fixedPlanningProcesses.find((process) => process.id === step.processId)
       : undefined;
-    const clampJointCount = weldOwningProcess?.simulationSide === 'back' ? 18 : 6;
+    const clampWorkbenchType = weldOwningProcess?.simulationSide === 'back' ? '主筋板背面装配平台' : '主筋板正面装配平台';
+    const clampAxisLabels = getWorkbenchAxisLabels(clampWorkbenchType) ?? [];
+    const clampJointCount = clampAxisLabels.length || 6;
     const clampSegments = getClampPointSegments(step.id, segmentCount, clampJointCount);
     const allPathPointsCollapsed = compactPathPointCollapseSignal % 2 === 1;
 
@@ -9802,6 +9801,7 @@ export function BeimeiAssemblyLinePage() {
           {compactWeldSegmentView === 'clamp' ? (
             <ClampPointConfigPanel
               segment={clampSegments[activeSegmentIndex]}
+              axisLabels={clampAxisLabels}
               onToggleEnabled={(enabled) => toggleClampPointSegmentEnabled(step.id!, segmentCount, activeSegmentIndex, enabled)}
               onJointChange={(jointIndex, value) => updateClampPointJoint(step.id!, segmentCount, activeSegmentIndex, jointIndex, value)}
             />
@@ -9844,6 +9844,8 @@ export function BeimeiAssemblyLinePage() {
     if (step.type === 'place' && step.placeConfig) {
       const placeConfig = step.placeConfig;
       const placeHasResults = placeConfig.joints?.some((j) => j !== '') ?? false;
+      // 放置结果点 = 工作台机构轴坐标值；下料台等文档未定义的工作台回退 J1-J8 机器人命名
+      const placeAxisLabels = getWorkbenchAxisLabels(placeConfig.workbenchType);
 
       if (activeDetailTab === 'path-points') {
         if (!placeHasResults) {
@@ -9876,12 +9878,14 @@ export function BeimeiAssemblyLinePage() {
                 />
                 {pointIndex === 2 && (
                   <div className="rounded-lg bg-zinc-200/45 p-1 ring-1 ring-inset ring-zinc-200/80">
-                    <div className="text-[10px] font-medium text-slate-400 mb-1">结果点 J1-J8</div>
+                    <div className="text-[10px] font-medium text-slate-400 mb-1">{placeAxisLabels ? '结果点位（工作台机构轴）' : '结果点 J1-J8'}</div>
                     <div className="grid gap-1">
                       {(placeConfig.joints ?? []).map((jointValue, jointIndex) => (
                         <ProcessJointAngleRow
                           key={`compact-place-result-joint-${jointIndex}`}
                           index={jointIndex}
+                          label={placeAxisLabels?.[jointIndex]}
+                          unit={placeAxisLabels ? 'mm' : undefined}
                           value={jointValue}
                           selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
                           selectedVariant="subtle"
@@ -10054,6 +10058,7 @@ export function BeimeiAssemblyLinePage() {
         const turnoverIndex = Math.max(0, turnoverStepsInProcess.findIndex((item) => item.id === step.id));
         const flipAngle = turnoverIndex % 2 === 0 ? '180°' : '0°';
         const turnoverWorkbenchLabel = clampProcessId === 'proc-07-turnover' ? '主筋板翻面平台' : '主筋板打磨翻面平台';
+        const turnoverAxisLabels = getWorkbenchAxisLabels(turnoverWorkbenchLabel) ?? [];
         return (
           <div className="flex flex-col gap-ds-300">
             <div className="ds-parameter-group-stack ds-task-parameter-detail-top px-ds-150">
@@ -10079,10 +10084,12 @@ export function BeimeiAssemblyLinePage() {
               showUpdateButton={false}
             >
               <div className="grid gap-2">
-                {Array.from({ length: 7 }, (_, jointIndex) => clampConfig.joints?.[jointIndex] ?? '').map((jointValue, jointIndex) => (
+                {Array.from({ length: Math.max(7, turnoverAxisLabels.length) }, (_, jointIndex) => clampConfig.joints?.[jointIndex] ?? '').map((jointValue, jointIndex) => (
                   <ProcessJointAngleRow
                     key={`compact-clamp-joint-${jointIndex}`}
                     index={jointIndex}
+                    label={turnoverAxisLabels[jointIndex]}
+                    unit="mm"
                     value={jointValue}
                     selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
                     selectedVariant="subtle"
@@ -10108,6 +10115,7 @@ export function BeimeiAssemblyLinePage() {
         );
       }
 
+      const turnoverClampAxisLabels = getWorkbenchAxisLabels('主筋板翻面平台') ?? [];
       return (
         <div className="flex flex-col gap-ds-300">
           {renderClampParameterControls(step.id, clampConfig, true)}
@@ -10125,6 +10133,8 @@ export function BeimeiAssemblyLinePage() {
                 <ProcessJointAngleRow
                   key={`compact-clamp-joint-${jointIndex}`}
                   index={jointIndex}
+                  label={turnoverClampAxisLabels[jointIndex]}
+                  unit="mm"
                   value={jointValue}
                   selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
                   selectedVariant="subtle"
@@ -10911,7 +10921,7 @@ export function BeimeiAssemblyLinePage() {
       );
     }
 
-    // 支撑调整：工艺参数为工作台 + 支撑轴轴值（正面拼焊站 4 轴 / 反面拼焊站 18 轴），无路径点位
+    // 支撑调整：工艺参数为工作台 + 机构轴坐标值（轴命名与个数按工作台文档定义），无路径点位
     if (step.type === 'support-adjust') {
       const supportAdjustConfig = step.supportAdjustConfig ?? createEmptySupportAdjustConfig();
       const supportAdjustRootStepId = getRootProcessStepId(step.id) || step.id;
@@ -10957,6 +10967,8 @@ export function BeimeiAssemblyLinePage() {
                 <ProcessJointAngleRow
                   key={`compact-support-adjust-joint-${jointIndex}`}
                   index={jointIndex}
+                  label={getWorkbenchAxisLabels(supportAdjustWorkbenchType)?.[jointIndex]}
+                  unit="mm"
                   value={jointValue}
                   selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
                   selectedVariant="subtle"
@@ -17225,6 +17237,8 @@ export function BeimeiAssemblyLinePage() {
                                       <ProcessJointAngleRow
                                         key={`${stepKey}-place-joint-${jointIndex}`}
                                         index={jointIndex}
+                                        label={getWorkbenchAxisLabels(placeConfig.workbenchType)?.[jointIndex]}
+                                        unit={getWorkbenchAxisLabels(placeConfig.workbenchType) ? 'mm' : undefined}
                                         value={jointValue}
                                         selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
                                         onSelect={() => step.id && showResultPointPosePreview(step.id, jointIndex)}
@@ -17691,6 +17705,8 @@ export function BeimeiAssemblyLinePage() {
                                     <ProcessJointAngleRow
                                       key={`${stepKey}-clamp-joint-${jointIndex}`}
                                       index={jointIndex}
+                                      label={getWorkbenchAxisLabels('主筋板翻面平台')?.[jointIndex]}
+                                      unit="mm"
                                       value={jointValue}
                                       selected={selectedResultPointPreview?.stepId === step.id && selectedResultPointPreview.pointIndex === jointIndex}
                                       onSelect={() => step.id && showResultPointPosePreview(step.id, jointIndex)}

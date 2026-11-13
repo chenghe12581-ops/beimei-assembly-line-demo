@@ -66,9 +66,9 @@
 
 #### 压紧配置
 
-- **启用压紧**开关：控制当前段是否参与压紧，关闭后 J1-J6 行整行禁用，并提示「该焊缝段已关闭压紧，关节角不参与回显与加工」；
-- **J1-J6 关节结果点**：滑杆 + 步进输入，J1 单位为 mm（0~200），J2-J6 单位为 °（-180~180），可直接修改；
-- 默认值与翻面压紧任务「生成压紧位置」的 demo 结果同源（12.50 / -18.20 / 36.80 / 72.40 / -44.60 / 28.30）；
+- **启用压紧**开关：控制当前段是否参与压紧，关闭后结果点位行整行禁用，并提示「该焊缝段已关闭压紧，结果点位不参与回显与加工」；
+- **工作台机构轴结果点位**：滑杆 + 步进输入，按所属装配平台显示全部机构轴（上贴板装配 = 正面装配平台 10 个值 `1-X…4-Z`；下贴板装配 = 背面装配平台 23 个值，含 `3_1-Y` 等下划线命名），单位均为 `mm`，可直接修改；命名口径见 `docs/domain/process-parameters.md`「工作台机构轴命名」；
+- 默认值与翻面压紧任务「生成压紧位置」的 demo 结果同源（12.50 / -18.20 / 36.80 / 72.40 / -44.60 / 28.30，按目标轴数循环补齐）；
 - 只维护结果点位，**不显示**工作台、压紧编号、覆盖率等翻面压紧工艺参数字段。
 
 ### 3.4 展开 / 收起
@@ -77,7 +77,7 @@
 
 ### 3.5 脏状态、重置与保存
 
-- 编辑任一扫描点/焊接点/结果点字段、切换任一段的启用压紧、修改 J1-J6，该任务即进入**点位脏状态**：焊缝段标题旁出现橙色标记，任务条出现未保存状态（样式 C 规则）；
+- 编辑任一扫描点/焊接点/结果点字段、切换任一段的启用压紧、修改压紧配置结果点位，该任务即进入**点位脏状态**：焊缝段标题旁出现橙色标记，任务条出现未保存状态（样式 C 规则）；
 - 面板右上角「**重置**」：恢复该任务的全部路径点位与压紧配置为生成默认值，并进入脏状态；
 - 通过任务条尾部「**保存**」统一应用并清除脏状态（不再有独立的「确认」按钮）。
 
@@ -88,7 +88,7 @@
 | 扫描路径点位 | `step.weldScanConfig.pathPointGroups[段]`（合并焊接）/ `step.weldConfig.pathPointGroups[段]`（定位焊扫描） | 每段 6 点，XYZ（mm）+ RPY（°） |
 | 焊接路径点位 | `step.weldConfig.pathPointGroups[段]` | 同上；定位焊 4 段，合并焊接 6 段 |
 | 结果点位 | `*.points` + `*.posePoints`，按 `段×2` 取起点/终点 | 未生成时回退到预览 mock 值 |
-| 压紧配置 | 页面态 `clampPointSegmentsByStepId[stepId]` | 每段 `{ enabled, joints[6] }`，随任务重置恢复默认；当前为前端 demo 态，未持久化到项目数据 |
+| 压紧配置 | 页面态 `clampPointSegmentsByStepId[stepId]` | 每段 `{ enabled, joints[N] }`，N = 所属装配平台机构轴数（正面 10 / 背面 23），随任务重置恢复默认；当前为前端 demo 态，未持久化到项目数据 |
 | 坐标系 | 固定「世界」 | 显示与写回均不再做坐标偏移换算 |
 
 ## 5. 技术实现要点
@@ -98,14 +98,14 @@
 | 文件 | 改动 |
 | --- | --- |
 | `src/app/BeimeiAssemblyLinePage.tsx` | 新增 `renderCompactWeldSegmentPathPoints` 渲染焊缝段网格 + 段详情三视图；删除安全点/压紧点工具栏按钮、压紧点浮窗、旧分组渲染代码；面板「重置」联动恢复压紧配置 |
-| `src/app/components/process/ClampPointConfigPanel.tsx` | **新增**：内嵌压紧点配置面板（启用开关 + J1-J6），取代已删除的 `ClampPointConfigModal.tsx` |
+| `src/app/components/process/ClampPointConfigPanel.tsx` | **新增**：内嵌压紧点配置面板（启用开关 + 工作台机构轴结果点位，支持 `axisLabels` 传入文档命名），取代已删除的 `ClampPointConfigModal.tsx`；未传 `axisLabels` 时回退 J1-J6 兼容旧演示 |
 | `src/app/components/process/ProcessPathPointModeToolbar.tsx` | 新增 `showRadioGroup` 开关（坐标系 radio 隐藏用） |
 | `src/app/ComponentLabPage.tsx` | 工具栏演示同步；新增「压紧点配置面板」演示；旧压紧点浮窗演示替换 |
 
 ### 5.2 复用组件
 
 - 点位行：`ProcessPosePointInfoRow`（扫描点/焊接点/结果点通用）；
-- 关节角行：`ProcessJointAngleRow`（滑杆 + 步进输入，J1 mm / J2-J6 ° 规则内置）；
+- 关节角行：`ProcessJointAngleRow`（滑杆 + 步进输入，支持 `label/unit/min/max` props；工作台机构轴单位 mm、默认量程 0–1200，机器人关节回退 J1=mm / J2-Jn=° 规则内置）；
 - 开关：`ParameterSwitch`；按钮 / 页签分段：既有 `Button` 与设计 token 样式。
 
 ### 5.3 兼容性说明

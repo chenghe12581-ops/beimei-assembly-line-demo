@@ -28,7 +28,8 @@ export function ProcessJointAngleRow({
   selectedVariant?: 'emphasis' | 'subtle';
 }) {
   const unit = unitProp ?? (index === 0 ? 'mm' : '°');
-  const fallbackRange = index === 0 ? { min: 0, max: 200 } : { min: -180, max: 180 };
+  // 工作台机构线性轴坐标值（mm）量程远大于机器人关节角度
+  const fallbackRange = unit === 'mm' ? { min: 0, max: 1200 } : { min: -180, max: 180 };
   const range = {
     min: Number.isFinite(min) ? min! : fallbackRange.min,
     max: Number.isFinite(max) ? max! : fallbackRange.max,
@@ -41,7 +42,7 @@ export function ProcessJointAngleRow({
 
   return (
     <div
-      className={`grid min-w-0 grid-cols-[40px_minmax(0,7fr)_minmax(0,5fr)] items-center gap-ds-150 rounded-lg border px-2 py-1.5 transition-all ${
+      className={`grid min-w-0 grid-cols-[48px_minmax(0,7fr)_minmax(0,5fr)] items-center gap-ds-150 rounded-lg border px-2 py-1.5 transition-all ${
         selected
           ? selectedVariant === 'subtle'
             ? 'border-ds-border-default bg-white'

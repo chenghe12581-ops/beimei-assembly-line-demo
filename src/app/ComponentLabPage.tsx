@@ -12,6 +12,7 @@ import { ProcessFieldGroup } from './components/process/ProcessFieldGroup';
 import { ProcessJointAngleRow as JointAngleRowDemo } from './components/process/ProcessJointAngleRow';
 import { ProcessPathPointModeToolbar } from './components/process/ProcessPathPointModeToolbar';
 import { ClampPointConfigPanel, createDefaultClampPointSegments, type ClampPointSegmentConfig } from './components/process/ClampPointConfigPanel';
+import { WORKBENCH_AXIS_LABELS } from './components/process/workbench-axis-labels';
 import { WeldSegmentListPanel } from './components/production/WeldRobotTimelinePanels';
 import { createWeldRobotTimeline } from './components/production/weld-robot-timeline';
 import { ProcessPathPointMarkerModel } from './components/process/GrindToolHeadPoseModel';
@@ -138,10 +139,10 @@ const compactGrindParameterDemoItems = [
 ];
 const processPanelCoverageRows = [
   ['抓取', '工艺参数 + 路径点位', '结果点位 XYZ/RPY + 6 个安全点'],
-  ['放置', '工艺参数', '工作台、支撑编号、支撑覆盖率 + J1-J8'],
+  ['放置', '工艺参数', '工作台 + 机构轴结果点位（按工作台文档命名，如 1-X/1-Z）'],
   ['打磨', '工艺参数 + 路径点位', '结果点位 P1-6(n) + 单组 6 个安全点'],
   ['装配定位', '路径点位', '结果点位 P1-3/4(n) + 4 组安全点'],
-  ['翻面压紧', '工艺参数', '工作台、压紧编号、覆盖率 + J1-J8'],
+  ['翻面压紧', '工艺参数', '工作台 + 翻面平台 7 个机构轴值（1-X/1-Z…4-X）'],
   ['焊接', '工艺参数 + 路径点位', '扫描/焊接参数 + 两套 6 组结果点与安全点'],
 ];
 
@@ -6579,7 +6580,7 @@ const componentContracts: ComponentContract[] = [
   },
   {
     name: 'JointValueRow',
-    purpose: '放置/翻面压紧 J1-J8 单行 slider + stepper 输入，J1 为 mm，其余为 °。',
+    purpose: '放置/翻面压紧/支撑调整等机构轴结果点位单行 slider + stepper 输入；工作台机构轴按文档命名（如 1-X/1-Z）且单位 mm，机器人关节回退 J1-Jn 命名（J1 mm、其余 °）。',
     variants: ['distance', 'angle', 'sliderStepper'],
     sizes: ['md'],
     states: ['default', 'focus', 'disabled', 'invalid', 'dirty'],
@@ -7740,7 +7741,7 @@ export function ComponentLabPage() {
       invalidText: '所选工件不相接',
       pointMode: 'joint' as const,
       pointTitle: '结果点位',
-      pointSubtitle: 'J1-J8',
+      pointSubtitle: '工作台机构轴 · mm',
       showPathPointEntry: false,
       showPlaceSupportParameters: true,
       placeWorkbenchType,
@@ -7794,7 +7795,7 @@ export function ComponentLabPage() {
       invalidText: '所选工件不相接',
       pointMode: 'joint' as const,
       pointTitle: '结果点位',
-      pointSubtitle: 'J1-J8',
+      pointSubtitle: '翻面平台 7 机构轴 · mm',
       showPathPointEntry: false,
       showClampParameters: true,
       clampWorkbenchType: turnoverClampWorkbenchType,
@@ -7842,7 +7843,7 @@ export function ComponentLabPage() {
     'axis-row': { id: 'axis-row', title: '轴向单位输入行', description: 'YZ / XYZ / RXYZ 偏移类参数。' },
     'point-row': { id: 'point-row', title: '点位信息单行', description: '点位名称 + XYZ/RPY 回显与编辑。' },
     'pick-path-points': { id: 'pick-path-points', title: '工艺安全点浮窗', description: '打磨单组安全点、图例折叠、单点启用和 6 个 XYZ / RPY 点位。' },
-    'clamp-point-config': { id: 'clamp-point-config', title: '压紧点配置面板', description: '内嵌于焊缝段表格当前段，承载启用压紧开关与 J1-J6 关节角编辑。' },
+    'clamp-point-config': { id: 'clamp-point-config', title: '压紧点配置面板', description: '内嵌于焊缝段表格当前段，承载启用压紧开关与结果点位编辑；传入 axisLabels 时按工作台机构轴文档命名展示全部轴（单位 mm），否则回退 J1-J6。' },
     'weld-robot-timeline': { id: 'weld-robot-timeline', title: '焊缝列表面板', description: '生产执行模型视图焊接态：属性参数下方可缩回焊缝列表，焊缝按机器人分配着色并标轮次。' },
     'joint-row': { id: 'joint-row', title: '关节角组件', description: '外部轴与 URDF 姿态共用的 slider + stepper 行，支持标签、单位、范围和步长配置。' },
     'pick-parameters': { id: 'pick-parameters', title: '抓取参数校验区', description: '抓具切换、磁铁启用、左/右 Z 值、中磁铁 Z 只读、磁力档位与阈值回显。' },
@@ -8480,6 +8481,7 @@ export function ComponentLabPage() {
               </div>
               <ClampPointConfigPanel
                 segment={clampPointSegments[clampPointActiveSegmentIndex]}
+                axisLabels={WORKBENCH_AXIS_LABELS['主筋板正面装配平台']}
                 onToggleEnabled={(enabled) =>
                   setClampPointSegments((prev) =>
                     prev.map((segment, index) => (index === clampPointActiveSegmentIndex ? { ...segment, enabled } : segment))
@@ -8497,7 +8499,7 @@ export function ComponentLabPage() {
               />
             </div>
             <div className="mt-3 text-[11px] leading-5 text-slate-400">
-              样式 C 焊接任务路径点位改为焊缝段表格：段切换由外层段列表承担，本面板内嵌于选中段的「压紧配置」视图，只负责当前段的启用压紧开关与 J1-J6 关节角编辑（J1 为 mm、其余为 °）；关闭压紧后关节角行禁用。已取代原压紧点配置浮窗。
+              样式 C 焊接任务路径点位改为焊缝段表格：段切换由外层段列表承担，本面板内嵌于选中段的「压紧配置」视图，只负责当前段的启用压紧开关与结果点位编辑；传入 axisLabels（工作台机构轴文档命名）时按该工作台全部轴展示、单位 mm，本 demo 为正面装配平台 10 个机构轴（1-X…4-Z）；关闭压紧后结果点位行禁用。已取代原压紧点配置浮窗。
             </div>
           </DemoCard>
         );
